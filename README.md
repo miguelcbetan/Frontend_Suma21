@@ -30,6 +30,15 @@ La aplicación queda disponible en `http://localhost:5173`.
 | `npm run preview` | Sirve localmente el build de producción              |
 | `npm run lint`    | Analiza el código, incluidas las reglas de capas     |
 
+## Conexión con el backend
+
+La URL del backend se configura con `VITE_API_URL` (ver `.env.example`); por defecto apunta al despliegue en Render. Para usar un backend local: `VITE_API_URL=http://127.0.0.1:3000`.
+
+- **Cliente HTTP y servicios**: `src/core/api/`. `httpClient.js` adjunta el token `Bearer` y convierte los errores del backend (`{ error, detalles }`) en `ApiError`. `services/` tiene un servicio por grupo de endpoints: `/auth/*` (`authService`) y los de `API.md` (productos, clientes, métodos de pago, cuentas, inventario, ventas, donaciones y `/health`).
+- **Login y sesión**: `src/features/auth/`. Rutas `/login` (inicio de sesión y registro de donantes) y guard `RequireRole`. El portal solo admite los roles `ADMIN` y `DONANTE`; el token se guarda en `localStorage` y se valida con `GET /auth/perfil` al abrir la app.
+- **Panel de administración**: `src/features/admin/`, ruta `/admin` (solo `ADMIN`). Una pestaña por grupo de endpoints de `API.md`, generada desde `resources.js`.
+- **Donaciones**: el diálogo «Donar ahora» envía `POST /api/donations/monetary` cuando hay sesión de donante.
+
 ## Arquitectura
 
 El código se organiza por responsabilidades. Cada capa solo puede depender de las que tiene por debajo.
@@ -57,7 +66,7 @@ src/
 | `features/<módulo>`    | Componentes y lógica propios de un módulo funcional                  | `components`, `core`             |
 | `components/layout`    | Estructura de página, sin conocimiento del dominio                   | `components/ui`, `core`          |
 | `components/ui`        | Componentes visuales genéricos                                       | `core`                           |
-| `core`                 | Utilidades puras                                                     | nada                             |
+| `core`                 | Utilidades puras y cliente de API (`core/api`)                       | nada                             |
 
 Estas reglas se verifican automáticamente con ESLint (`import/no-restricted-paths` e `import/no-cycle`): un `core` que importe de `components`, un `components` que importe de `features` o una feature que importe de otra hacen fallar `npm run lint`.
 

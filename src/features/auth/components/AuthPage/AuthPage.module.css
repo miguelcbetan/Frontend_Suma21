@@ -1,0 +1,44 @@
+.page {
+  display: flex;
+  justify-content: center;
+  padding-block: var(--space-7);
+}
+
+.card {
+  width: 100%;
+  max-width: 28rem;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tab {
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.selected {
+  background: var(--color-bg);
+  border-color: var(--color-border);
+  color: var(--color-accent-text);
+  font-weight: var(--font-weight-bold);
+}
+
+.panel {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.title {
+  font-size: var(--font-size-xl);
+}

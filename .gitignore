@@ -32,3 +32,6 @@ Desktop.ini
 
 # Configuración local de Claude Code
 .claude/
+
+# Documentación de la API del backend (local)
+API.md

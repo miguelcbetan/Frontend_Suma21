@@ -15,9 +15,10 @@ import styles from "./SiteHeader.module.css";
  *   leading?: import("react").ReactNode,
  *   actions?: import("react").ReactNode,
  *   navLabel?: string,
+ *   linkAs?: import("react").ElementType,
  * }} props
  */
-export function SiteHeader({ brand, items, leading, actions, navLabel = "Principal" }) {
+export function SiteHeader({ brand, items, leading, actions, navLabel = "Principal", linkAs }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const toggleRef = useRef(null);
@@ -61,7 +62,7 @@ export function SiteHeader({ brand, items, leading, actions, navLabel = "Princip
         </button>
         <div id={panelId} className={cx(styles.panel, open && styles.open)}>
           <nav aria-label={navLabel}>
-            <NavList items={items} onNavigate={() => setOpen(false)} />
+            <NavList items={items} onNavigate={() => setOpen(false)} linkAs={linkAs} />
           </nav>
           {actions ? <div className={styles.actions}>{actions}</div> : null}
         </div>
