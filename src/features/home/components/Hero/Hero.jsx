@@ -1,8 +1,8 @@
+import muralSrc from "@/assets/images/mural.jpeg";
 import { Container } from "@/components/layout/Container";
 import { Grid } from "@/components/layout/Grid";
 import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/ButtonLink";
-import { MediaPlaceholder } from "@/components/ui/MediaPlaceholder";
 import { Stat } from "@/components/ui/Stat";
 
 import styles from "./Hero.module.css";
@@ -31,7 +31,13 @@ export function Hero() {
             ))}
           </Grid>
         </div>
-        <MediaPlaceholder ratio="standard" label="[Imagen principal]" />
+        <img
+          src={muralSrc}
+          alt="Mural ASISCO UP"
+          width={2383}
+          height={900}
+          className={styles.media}
+        />
       </Container>
     </section>
   );

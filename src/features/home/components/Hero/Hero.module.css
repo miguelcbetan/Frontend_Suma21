@@ -32,6 +32,12 @@
   gap: var(--space-3);
 }
 
+.media {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-lg);
+}
+
 .stats {
   width: 100%;
   padding-top: var(--space-4);

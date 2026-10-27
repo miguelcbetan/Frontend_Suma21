@@ -4,7 +4,6 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Section } from "@/components/layout/Section";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
-import { TopBar } from "@/components/layout/TopBar";
 import { buttonClassName } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
 import { TextSizeToggle } from "@/features/accessibility";
@@ -48,10 +47,6 @@ function Layout() {
 
   const header = (
     <>
-      <TopBar>
-        <span>Modo accesibilidad</span>
-        <span>Lectura fácil</span>
-      </TopBar>
       <SiteHeader
         brand={
           <RouterLink href="/" aria-label="SUMA21 by ASISCO, ir al inicio">
