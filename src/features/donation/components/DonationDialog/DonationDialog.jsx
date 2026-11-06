@@ -6,15 +6,20 @@ import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
-import { describeError, donationsService } from "@/core/api";
-import { todayISO } from "@/core/utils/date";
+import {
+  WOMPI_ACCOUNT_ID,
+  WOMPI_PAYMENT_METHOD_ID,
+  describeError,
+  paymentsService,
+  resolveCustomer,
+} from "@/core/api";
+import { savePaymentSession } from "@/core/utils/paymentSession";
 
 import { AmountSelector } from "../AmountSelector";
 import { FrequencyToggle } from "../FrequencyToggle";
 import { SecurityNotice } from "../SecurityNotice";
 
 import styles from "./DonationDialog.module.css";
-import { useDonationOptions } from "./useDonationOptions.js";
 
 const AMOUNTS = [
   { value: 50000, label: "$50.000" },
@@ -24,9 +29,12 @@ const AMOUNTS = [
 
 const DEFAULT_AMOUNT = 70000;
 
+const formatAmount = (value) => `$${value.toLocaleString("es-CO")}`;
+
 /**
- * Interfaz de donación. Con sesión de donante envía `POST /api/donations/monetary`;
- * sin sesión invita a iniciarla.
+ * Interfaz de donación. Crea un pago de Wompi Sandbox (`POST /api/payments/checkout`)
+ * y lleva al donante a completarlo. Si la sesión no trae el ID del donante, pide
+ * nombre y documento para localizarlo o registrarlo como cliente.
  * @param {{
  *   open: boolean,
  *   onClose: () => void,
@@ -40,50 +48,53 @@ export function DonationDialog({ open, onClose, session = { authenticated: false
   const [otherAmount, setOtherAmount] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
   const [isGift, setIsGift] = useState(false);
-  const [paymentMethodId, setPaymentMethodId] = useState("");
-  const [accountId, setAccountId] = useState("");
-  const [state, setState] = useState({ status: "idle", message: "" });
+  const [donor, setDonor] = useState({ name: "", document_number: "", email: "" });
+  const [state, setState] = useState({ status: "idle", message: "", fields: {} });
 
-  const options = useDonationOptions(open && session.authenticated);
-  const selectedPaymentMethod = paymentMethodId || String(options.paymentMethods[0]?.id ?? "");
-  const selectedAccount = accountId || String(options.accounts[0]?.id ?? "");
+  const needsDonorData = !session.donorId;
+  const value = otherAmount ? Number(customAmount) : amount;
+  const validAmount = Number.isFinite(value) && value > 0;
+
+  function setDonorField(name) {
+    return (event) => setDonor((current) => ({ ...current, [name]: event.target.value }));
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
-    const value = otherAmount ? Number(customAmount) : amount;
 
-    if (!Number.isFinite(value) || value <= 0) {
-      setState({ status: "error", message: "Escribe un monto mayor que cero." });
+    if (!validAmount) {
+      setState({ status: "error", message: "Escribe un monto mayor que cero.", fields: {} });
       return;
     }
-    if (!session.donorId) {
-      setState({
-        status: "error",
-        message: "Tu cuenta todavía no está vinculada a un donante. Contacta a ASISCO para completarla.",
-      });
-      return;
-    }
-    if (!selectedPaymentMethod || !selectedAccount) {
-      setState({ status: "error", message: "No hay métodos de pago o cuentas disponibles para registrar la donación." });
-      return;
+    if (needsDonorData) {
+      const fields = {};
+      if (!donor.name.trim()) fields.name = "Este campo es obligatorio.";
+      if (!donor.document_number.trim()) fields.document_number = "Este campo es obligatorio.";
+      if (Object.keys(fields).length > 0) {
+        setState({ status: "error", message: "Completa tus datos para registrar la donación.", fields });
+        return;
+      }
     }
 
-    setState({ status: "pending", message: "" });
+    setState({ status: "pending", message: "", fields: {} });
     try {
-      await donationsService.createMonetary({
-        donor_id: session.donorId,
-        payment_method_id: selectedPaymentMethod,
-        account_id: selectedAccount,
+      const donorId = needsDonorData ? String((await resolveCustomer(donor)).id) : session.donorId;
+      const checkout = await paymentsService.createCheckout({
+        kind: "donation",
+        donor_id: donorId,
+        payment_method_id: WOMPI_PAYMENT_METHOD_ID,
+        account_id: WOMPI_ACCOUNT_ID,
         amount: value,
-        txn_date: todayISO(),
-        certificate_issued: false,
         ...(frequency === "monthly" ? { frequency: 1 } : {}),
       });
-      setState({ status: "success", message: "¡Gracias! Tu donación quedó registrada." });
+      savePaymentSession({ reference: checkout.reference, kind: "donation", personId: donorId, frequency });
+      window.location.assign(checkout.checkout_url);
     } catch (error) {
-      setState({ status: "error", message: describeError(error).message });
+      setState({ status: "error", ...describeError(error) });
     }
   }
+
+  const pending = state.status === "pending";
 
   return (
     <Dialog
@@ -97,15 +108,16 @@ export function DonationDialog({ open, onClose, session = { authenticated: false
       <div className={styles.content}>
         <p className={styles.eyebrow}>Campaña oficial Semana del Síndrome de Down</p>
         <h2 id={titleId} className={styles.title}>
-          Cada aporte transforma vidas: construyamos inclusión hoy
+          Cada aporte transforma vidas:
+          <br />
+          construyamos inclusión hoy
         </h2>
         <p className={styles.lead}>
           Con tu donación te sumas a los programas de formación laboral, arte, barismo inclusivo y
-          autonomía integral de <strong>Asisco</strong> en Colombia. Tu generosidad garantiza que
-          más jóvenes con síndrome de Down conquisten sus sueños.
+          autonomía integral de <strong>Asisco</strong> en Colombia.
         </p>
 
-        <form className={styles.form} onSubmit={handleSubmit}>
+        <form className={styles.form} onSubmit={handleSubmit} noValidate>
           <FrequencyToggle value={frequency} onChange={setFrequency} />
           <AmountSelector amounts={AMOUNTS} value={amount} onChange={setAmount} />
           <div className={styles.options}>
@@ -134,7 +146,7 @@ export function DonationDialog({ open, onClose, session = { authenticated: false
             />
           </div>
 
-          {otherAmount || session.authenticated ? (
+          {otherAmount || needsDonorData ? (
             <div className={styles.extra}>
               {otherAmount ? (
                 <Field
@@ -146,62 +158,50 @@ export function DonationDialog({ open, onClose, session = { authenticated: false
                   onChange={(event) => setCustomAmount(event.target.value)}
                 />
               ) : null}
-              {session.authenticated && options.status === "ready" ? (
+              {needsDonorData ? (
                 <>
                   <Field
-                    as="select"
-                    label="Método de pago"
-                    value={selectedPaymentMethod}
-                    onChange={(event) => setPaymentMethodId(event.target.value)}
-                  >
-                    {options.paymentMethods.map((method) => (
-                      <option key={method.id} value={String(method.id)}>
-                        {method.name}
-                      </option>
-                    ))}
-                  </Field>
+                    label="Nombre completo"
+                    autoComplete="name"
+                    required
+                    value={donor.name}
+                    onChange={setDonorField("name")}
+                    error={state.fields.name}
+                  />
                   <Field
-                    as="select"
-                    label="Cuenta destino"
-                    value={selectedAccount}
-                    onChange={(event) => setAccountId(event.target.value)}
-                  >
-                    {options.accounts.map((account) => (
-                      <option key={account.id} value={String(account.id)}>
-                        {account.name}
-                      </option>
-                    ))}
-                  </Field>
+                    label="Número de documento"
+                    inputMode="numeric"
+                    required
+                    value={donor.document_number}
+                    onChange={setDonorField("document_number")}
+                    error={state.fields.document_number}
+                  />
+                  <Field
+                    label="Correo electrónico"
+                    type="email"
+                    autoComplete="email"
+                    value={donor.email}
+                    onChange={setDonorField("email")}
+                    error={state.fields.email}
+                  />
                 </>
-              ) : null}
-              {session.authenticated && options.status === "loading" ? (
-                <p role="status">Cargando métodos de pago…</p>
-              ) : null}
-              {session.authenticated && options.status === "error" ? (
-                <Alert tone="error">No se pudieron cargar los métodos de pago. Inténtalo más tarde.</Alert>
               ) : null}
             </div>
           ) : null}
 
           {!session.authenticated ? (
             <Alert tone="info" className={styles.alert}>
-              Para registrar tu donación{" "}
+              ¿Ya tienes cuenta?{" "}
               <Link to="/login" onClick={onClose} className={styles.link}>
-                inicia sesión o crea tu cuenta de donante
-              </Link>
-              .
+                Inicia sesión
+              </Link>{" "}
+              o dona con los datos de arriba.
             </Alert>
           ) : null}
           {state.status === "error" ? <Alert tone="error" className={styles.alert}>{state.message}</Alert> : null}
-          {state.status === "success" ? <Alert tone="success" className={styles.alert}>{state.message}</Alert> : null}
 
-          <Button
-            type="submit"
-            size="lg"
-            className={styles.submit}
-            disabled={!session.authenticated || state.status === "pending"}
-          >
-            {state.status === "pending" ? "Procesando…" : "Donar ahora"}
+          <Button type="submit" size="lg" className={styles.submit} disabled={pending}>
+            {pending ? "Preparando el pago…" : `Donar ${validAmount ? formatAmount(value) : ""} ahora`}
             <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
               <path
                 d="M5 12h14M13 6l6 6-6 6"

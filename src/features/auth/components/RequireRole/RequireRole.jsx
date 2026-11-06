@@ -9,8 +9,8 @@ import { hasRole } from "../../session.js";
 import styles from "./RequireRole.module.css";
 
 /**
- * Protege una ruta: exige sesión y el rol indicado.
- * @param {{ requiredRole: string, children: import("react").ReactNode }} props
+ * Protege una ruta: exige sesión y, si se indica, el rol requerido.
+ * @param {{ requiredRole?: string, children: import("react").ReactNode }} props
  */
 export function RequireRole({ requiredRole, children }) {
   const { status, user } = useAuth();
@@ -28,7 +28,7 @@ export function RequireRole({ requiredRole, children }) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  if (!hasRole(user, requiredRole)) {
+  if (requiredRole && !hasRole(user, requiredRole)) {
     return (
       <Container className={styles.container}>
         <Alert tone="error">No tienes permisos para ver esta sección.</Alert>

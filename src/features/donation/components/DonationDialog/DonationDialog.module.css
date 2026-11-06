@@ -1,5 +1,7 @@
 .dialog {
-  background: linear-gradient(165deg, var(--color-brown-700), var(--color-brown-900) 85%);
+  background:
+    linear-gradient(rgb(0 0 0 / 0.75), rgb(0 0 0 / 0.85)),
+    url("../../../../assets/images/mural.jpeg") left center / cover no-repeat;
   color: var(--color-on-dark);
 }
 

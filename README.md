@@ -32,12 +32,13 @@ La aplicación queda disponible en `http://localhost:5173`.
 
 ## Conexión con el backend
 
-La URL del backend se configura con `VITE_API_URL` (ver `.env.example`); por defecto apunta al despliegue en Render. Para usar un backend local: `VITE_API_URL=http://127.0.0.1:3000`.
+Hay dos servicios, ambos desplegados en Render y configurables en `.env.example`: el backend de datos (`VITE_API_URL`, rutas `/api/*` y `/health`) y el servicio de autenticación (`VITE_AUTH_URL`, rutas `/auth/*`). Para usar un backend de datos local: `VITE_API_URL=http://127.0.0.1:3000`. `VITE_WOMPI_PAYMENT_METHOD_ID` y `VITE_WOMPI_ACCOUNT_ID` indican el método de pago y la cuenta (existentes en el backend de datos) con los que se registran los pagos de Wompi.
 
-- **Cliente HTTP y servicios**: `src/core/api/`. `httpClient.js` adjunta el token `Bearer` y convierte los errores del backend (`{ error, detalles }`) en `ApiError`. `services/` tiene un servicio por grupo de endpoints: `/auth/*` (`authService`) y los de `API.md` (productos, clientes, métodos de pago, cuentas, inventario, ventas, donaciones y `/health`).
+- **Cliente HTTP y servicios**: `src/core/api/`. `httpClient.js` elige el servicio con la opción `base` (`api` o `auth`), adjunta el token `Bearer` solo al de autenticación y convierte los errores del backend (`{ error, detalles }`) en `ApiError`. `services/` tiene un servicio por grupo de endpoints: `/auth/*` (`authService`) y los de `API.md` (productos, clientes, métodos de pago, cuentas, inventario, ventas, donaciones, pagos con Wompi y `/health`). El backend responde con la clave primaria como `<recurso>_id` (`product_id`, `customer_id`…); los servicios añaden `id` a cada registro para que el resto de la app use un único nombre.
 - **Login y sesión**: `src/features/auth/`. Rutas `/login` (inicio de sesión y registro de donantes) y guard `RequireRole`. El portal solo admite los roles `ADMIN` y `DONANTE`; el token se guarda en `localStorage` y se valida con `GET /auth/perfil` al abrir la app.
 - **Panel de administración**: `src/features/admin/`, ruta `/admin` (solo `ADMIN`). Una pestaña por grupo de endpoints de `API.md`, generada desde `resources.js`.
-- **Donaciones**: el diálogo «Donar ahora» envía `POST /api/donations/monetary` cuando hay sesión de donante.
+- **Tienda y donaciones**: la tienda lista `GET /api/products`; el diálogo «Donar ahora» y «Finalizar compra» localizan o crean al cliente (`resolveCustomer`), crean el pago con `POST /api/payments/checkout` y envían al usuario a Wompi Sandbox.
+- **Resultado del pago**: `src/features/payment/`, ruta `/payment-result`. Consulta `GET /api/payments/:reference`, muestra el recibo y el certificado de donación. La referencia, el donante y la frecuencia se guardan en `localStorage` al crear el pago, porque el backend no los devuelve.
 
 ## Arquitectura
 

@@ -14,11 +14,14 @@ import {
  * salen las opciones y cómo se muestra cada una.
  */
 export const REF_SOURCES = {
-  customers: { service: customersService, label: (record) => record.name },
-  products: { service: productsService, label: (record) => record.name },
+  customers: { service: customersService, label: (record) => `${record.name} · ${record.document_number}` },
+  products: {
+    service: productsService,
+    label: (record) => `${record.name} · $${record.unit_price} · stock ${record.stock_qty}`,
+  },
   paymentMethods: { service: paymentMethodsService, label: (record) => record.name },
   accounts: { service: accountsService, label: (record) => record.name },
-  inventory: { service: inventoryService, label: (record) => record.name },
+  inventory: { service: inventoryService, label: (record) => `${record.name} · stock ${record.stock}` },
 };
 
 const ROLE_OPTIONS = ["ADMIN", "DONANTE", "ESTUDIANTE", "ACUDIENTE", "TALLERISTA"];
@@ -29,7 +32,8 @@ const ROLE_OPTIONS = ["ADMIN", "DONANTE", "ESTUDIANTE", "ACUDIENTE", "TALLERISTA
  * Campo: `{ name, label, type, required?, hint?, min?, step?, source?, options?,
  * defaultValue?, serialize?, itemFields? }`. Tipos: text, email, password,
  * textarea, number, integer, date, checkbox, select, ref, items.
- * Sección: con `list` muestra una tabla; `update`/`remove` activan editar y borrar.
+ * Sección: con `list` muestra una tabla; `update`/`remove` activan editar y borrar;
+ * `describeResult` redacta el aviso con la respuesta del alta.
  */
 export const SECTIONS = [
   {
@@ -51,7 +55,13 @@ export const SECTIONS = [
       { name: "name", label: "Nombre", type: "text", required: true },
       { name: "description", label: "Descripción", type: "textarea" },
       { name: "unit_price", label: "Precio unitario", type: "number", required: true, min: 0, step: "any" },
-      { name: "stock_qty", label: "Cantidad en stock", type: "integer", min: 0 },
+      {
+        name: "stock_qty",
+        label: "Cantidad en stock",
+        type: "integer",
+        min: 0,
+        hint: "El servidor solo acepta enteros positivos al escribir una cantidad. Si lo dejas vacío empieza en 0.",
+      },
     ],
   },
   {
@@ -107,7 +117,7 @@ export const SECTIONS = [
     ],
     fields: [
       { name: "name", label: "Nombre", type: "text", required: true },
-      { name: "opening_balance", label: "Saldo inicial", type: "number", required: true, step: "any" },
+      { name: "opening_balance", label: "Saldo inicial", type: "number", required: true, min: 0, step: "any" },
     ],
   },
   {
@@ -125,7 +135,7 @@ export const SECTIONS = [
     fields: [
       { name: "name", label: "Nombre", type: "text", required: true },
       { name: "description", label: "Descripción", type: "textarea" },
-      { name: "stock", label: "Stock", type: "integer", required: true, min: 0 },
+      { name: "stock", label: "Stock inicial", type: "integer", min: 1, hint: "Entero positivo. Si lo dejas vacío empieza en 0." },
     ],
   },
   {
@@ -133,6 +143,7 @@ export const SECTIONS = [
     label: "Ventas",
     singular: "venta",
     create: salesService.create,
+    describeResult: ({ saleId, total }) => `Se registró la venta #${saleId} por un total de $${total}.`,
     fields: [
       { name: "customer_id", label: "Cliente", type: "ref", source: "customers", required: true },
       { name: "payment_method_id", label: "Método de pago", type: "ref", source: "paymentMethods", required: true },
@@ -157,11 +168,12 @@ export const SECTIONS = [
     label: "Donación monetaria",
     singular: "donación monetaria",
     create: donationsService.createMonetary,
+    describeResult: ({ donationId, amount }) => `Se registró la donación #${donationId} por $${amount}.`,
     fields: [
       { name: "donor_id", label: "Donante", type: "ref", source: "customers", required: true },
       { name: "payment_method_id", label: "Método de pago", type: "ref", source: "paymentMethods", required: true },
       { name: "account_id", label: "Cuenta", type: "ref", source: "accounts", required: true },
-      { name: "amount", label: "Monto", type: "number", required: true, min: 0, step: "any" },
+      { name: "amount", label: "Monto", type: "number", required: true, min: 0.01, step: "any" },
       { name: "txn_date", label: "Fecha", type: "date", required: true },
       { name: "certificate_issued", label: "Certificado emitido", type: "checkbox" },
       { name: "certificate_number", label: "Número de certificado", type: "text" },
@@ -175,6 +187,7 @@ export const SECTIONS = [
     label: "Donación en especie",
     singular: "donación en especie",
     create: donationsService.createInKind,
+    describeResult: ({ donationId }) => `Se registró la donación en especie #${donationId} y se actualizó el inventario.`,
     fields: [
       { name: "donor_id", label: "Donante", type: "ref", source: "customers", required: true },
       { name: "donation_date", label: "Fecha", type: "date", required: true },
@@ -187,7 +200,7 @@ export const SECTIONS = [
         itemLabel: "artículo",
         itemFields: [
           { name: "inventory_item_id", label: "Artículo", type: "ref", source: "inventory", required: true },
-          { name: "quantity", label: "Cantidad", type: "number", required: true, min: 0, step: "any", defaultValue: "1" },
+          { name: "quantity", label: "Cantidad", type: "number", required: true, min: 0.01, step: "any", defaultValue: "1" },
           { name: "estimated_unit_value", label: "Valor unitario estimado", type: "number", min: 0, step: "any" },
         ],
       },

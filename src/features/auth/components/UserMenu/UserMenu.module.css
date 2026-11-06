@@ -8,3 +8,8 @@
 .name {
   overflow-wrap: anywhere;
 }
+
+.profile {
+  color: var(--color-link);
+  font-weight: var(--font-weight-bold);
+}

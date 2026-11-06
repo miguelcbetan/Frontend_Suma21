@@ -2,55 +2,25 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
 .option {
   position: relative;
-  color: var(--color-on-dark-muted);
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-medium);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 3px solid transparent;
+  color: var(--color-on-dark);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
   cursor: pointer;
 }
 
 .selected {
-  color: var(--color-on-dark);
-  font-weight: var(--font-weight-bold);
-  text-decoration: underline;
-  text-decoration-color: var(--color-primary);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.35em;
+  border-bottom-color: var(--color-primary);
 }
 
 .option:has(:focus-visible) {
   outline: 2px solid var(--color-primary);
   outline-offset: 4px;
   border-radius: var(--radius-sm);
-}
-
-.track {
-  display: inline-flex;
-  align-items: center;
-  width: 3.25rem;
-  height: 2rem;
-  padding: 0.25rem;
-  background: var(--color-primary);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-}
-
-.knob {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  background: var(--color-on-dark);
-  border-radius: 50%;
-  color: var(--color-primary);
-  transition: transform 0.15s ease;
-}
-
-.trackOnce .knob {
-  transform: translateX(1.25rem);
 }

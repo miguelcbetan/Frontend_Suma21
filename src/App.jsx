@@ -8,9 +8,11 @@ import { buttonClassName } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
 import { TextSizeToggle } from "@/features/accessibility";
 import { AdminPage } from "@/features/admin";
-import { AuthPage, AuthProvider, RequireRole, UserMenu, useAuth } from "@/features/auth";
+import { AuthPage, AuthProvider, ProfilePage, RequireRole, UserMenu, useAuth } from "@/features/auth";
 import { DonationLauncher } from "@/features/donation";
 import { HomePage } from "@/features/home";
+import { PaymentResultPage } from "@/features/payment";
+import { StorePage } from "@/features/store";
 
 const NAV_ITEMS = [
   { label: "Inicio", href: "/" },
@@ -98,12 +100,22 @@ function Layout() {
     <AppShell header={header} footer={footer}>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/apoyanos-tienda" element={<StorePage />} />
+        <Route path="/payment-result" element={<PaymentResultPage />} />
         <Route path="/login" element={<AuthPage />} />
         <Route
           path="/admin"
           element={
             <RequireRole requiredRole="ADMIN">
               <AdminPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/perfil"
+          element={
+            <RequireRole>
+              <ProfilePage />
             </RequireRole>
           }
         />

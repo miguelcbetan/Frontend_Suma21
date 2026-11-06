@@ -1,0 +1,343 @@
+/*
+ * Pantalla de resultado de pago y recibo. Reproduce el mockup entregado por el
+ * equipo de diseño: sus colores propios se declaran como variables locales para
+ * conservar el aspecto exacto sin tocar los tokens globales.
+ */
+.page {
+  --brand: #1e938a;
+  --brand-dark: #006a64;
+  --orange: #f19727;
+  --orange-dark: #875200;
+  --orange-soft: #fdefd9;
+  --canvas: #faf8ff;
+  --lavender: #f2f3ff;
+  --muted: #4f5f5d;
+  --aqua: #94f3e9;
+
+  background: var(--canvas);
+}
+
+.main {
+  max-width: 1280px;
+  margin: auto;
+}
+
+/* Gracias */
+.thanks {
+  padding: 50px 20px 32px;
+  background:
+    radial-gradient(circle at 95%, rgb(148 243 233 / 0.31), transparent 30%),
+    radial-gradient(circle at 5%, rgb(241 151 39 / 0.19), transparent 25%),
+    linear-gradient(#f2f3ff, #faf8ff);
+  text-align: center;
+}
+
+.heart {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 74px;
+  height: 74px;
+  margin: auto;
+  background: var(--orange);
+  border: 9px solid #ffd184;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 30px;
+}
+
+.heart i {
+  position: absolute;
+  right: -5px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  background: var(--brand);
+  border-radius: 50%;
+  font-size: 14px;
+  font-style: normal;
+}
+
+.badge {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 6px 14px;
+  background: var(--aqua);
+  border-radius: 99px;
+  color: var(--brand-dark);
+  font-size: 11px;
+}
+
+.thanks h1 {
+  margin: 8px;
+  font-size: 42px;
+  line-height: 1.05;
+}
+
+.thanksText {
+  max-width: 660px;
+  margin: 15px auto;
+  color: var(--muted);
+}
+
+/* Recibo e impacto */
+.receiptLayout {
+  display: grid;
+  grid-template-columns: 1.35fr 0.8fr;
+  gap: 28px;
+  padding: 0 20px 44px;
+}
+
+.receiptLayoutSingle {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 760px;
+  margin-inline: auto;
+}
+
+.receiptCard,
+.impactCard {
+  padding: 28px;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgb(25 43 52 / 0.06);
+}
+
+.receiptCard {
+  border-top: 5px solid var(--orange);
+}
+
+.receiptTitle {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+}
+
+.receiptTitle small {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.receiptTitle h2 {
+  margin: 5px 0;
+}
+
+.receiptTitle > span {
+  padding: 5px 9px;
+  background: var(--aqua);
+  border-radius: 99px;
+  color: var(--brand-dark);
+  font-size: 10px;
+}
+
+.receiptCard dl {
+  padding: 18px;
+  background: var(--canvas);
+  border-radius: 12px;
+}
+
+.receiptCard dl div {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+
+.receiptCard dt {
+  color: var(--muted);
+}
+
+.receiptCard dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+}
+
+.receiptCard dd.amount {
+  color: var(--orange-dark);
+  font-size: 20px;
+}
+
+.receiptActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.actionPrimary,
+.actionGhost {
+  padding: 11px 18px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.actionPrimary {
+  background: var(--orange);
+  color: #352000;
+}
+
+.actionGhost {
+  background: var(--lavender);
+  color: #1c2b2a;
+}
+
+.actionPrimary:disabled,
+.actionGhost:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.hint {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.impactCard h2 {
+  margin: 5px 0;
+}
+
+.impactCard > p {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.eyebrow {
+  margin: 0 0 5px;
+  color: var(--brand-dark);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.impactItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 14px;
+  background: var(--lavender);
+  border-radius: 12px;
+}
+
+.impactItem b {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  background: var(--orange-soft);
+  border-radius: 50%;
+  color: var(--orange-dark);
+}
+
+/* Testimonio */
+.quote {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  max-width: 900px;
+  margin: 10px auto 70px;
+  padding: 22px;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 8px 25px rgb(0 0 0 / 0.05);
+  font-style: italic;
+}
+
+.quoteImage {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 110px;
+  height: 100px;
+  background: var(--lavender);
+  border-radius: 14px;
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  text-align: center;
+}
+
+.quote cite {
+  display: block;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+}
+
+/* Estados sin recibo */
+.status {
+  display: grid;
+  gap: 16px;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 64px 20px;
+}
+
+.statusActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.reference {
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .thanks h1 {
+    font-size: 30px;
+  }
+
+  .receiptLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .receiptCard,
+  .impactCard {
+    padding: 18px;
+  }
+
+  .receiptCard dl div {
+    display: block;
+  }
+
+  .receiptCard dd {
+    margin-top: 4px;
+    text-align: left;
+  }
+
+  .receiptActions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .receiptTitle {
+    display: block;
+  }
+
+  .receiptTitle > span {
+    display: inline-block;
+  }
+
+  .quote {
+    align-items: flex-start;
+    margin: 10px 16px 50px;
+  }
+
+  .quoteImage {
+    width: 74px;
+    height: 74px;
+  }
+}

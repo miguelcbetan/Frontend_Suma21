@@ -1,6 +1,9 @@
 import { ApiError } from "./ApiError.js";
-import { API_URL } from "./config.js";
+import { API_URL, AUTH_URL } from "./config.js";
 import { getToken } from "./tokenStorage.js";
+
+/** Servicios del backend: datos (`api`) y autenticación (`auth`). */
+const BASES = { api: API_URL, auth: AUTH_URL };
 
 const STATUS_MESSAGES = {
   401: "Tu sesión no es válida o expiró. Inicia sesión de nuevo.",
@@ -31,21 +34,25 @@ async function readBody(response) {
 }
 
 /**
- * Llamada JSON al backend. Adjunta el token como `Bearer` salvo `auth: false`
- * y lanza `ApiError` ante cualquier respuesta no exitosa.
+ * Llamada JSON al backend. `base` elige el servicio: `api` (datos, por defecto)
+ * o `auth` (autenticación). Solo `auth` recibe el token como `Bearer` (salvo
+ * `auth: false`); la API de datos no lo usa. Lanza `ApiError` ante cualquier
+ * respuesta no exitosa.
  * @param {string} path Ruta con barra inicial, p. ej. `/api/products`.
- * @param {{ method?: string, body?: unknown, auth?: boolean, signal?: AbortSignal }} [options]
+ * @param {{
+ *   method?: string, body?: unknown, auth?: boolean, base?: "api" | "auth", signal?: AbortSignal,
+ * }} [options]
  * @returns {Promise<any>}
  */
-export async function request(path, { method = "GET", body, auth = true, signal } = {}) {
+export async function request(path, { method = "GET", body, auth = true, base = "api", signal } = {}) {
   const headers = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
-  const token = auth ? getToken() : null;
+  const token = auth && base === "auth" ? getToken() : null;
   if (token) headers.Authorization = `Bearer ${token}`;
 
   let response;
   try {
-    response = await fetch(`${API_URL}${path}`, {
+    response = await fetch(`${BASES[base]}${path}`, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),

@@ -22,15 +22,22 @@ export function AuthProvider({ children }) {
     user: null,
   }));
 
-  const logout = useCallback(() => {
+  /** Descarta la sesión solo en este navegador. */
+  const clearSession = useCallback(() => {
     clearToken();
     setState({ status: "anonymous", user: null });
   }, []);
 
+  /** Invalida el token en el servidor (sin esperar la respuesta) y descarta la sesión local. */
+  const logout = useCallback(() => {
+    if (getToken()) authService.logout().catch(() => {});
+    clearSession();
+  }, [clearSession]);
+
   useEffect(() => {
-    setUnauthorizedHandler(logout);
+    setUnauthorizedHandler(clearSession);
     return () => setUnauthorizedHandler(null);
-  }, [logout]);
+  }, [clearSession]);
 
   useEffect(() => {
     if (!getToken()) return undefined;
@@ -44,7 +51,7 @@ export function AuthProvider({ children }) {
         if (hasAllowedRole(user)) {
           setState({ status: "authenticated", user });
         } else {
-          logout();
+          clearSession();
         }
       })
       .catch((error) => {
@@ -53,14 +60,14 @@ export function AuthProvider({ children }) {
         if (error instanceof ApiError && error.status === 0) {
           setState({ status: "anonymous", user: null });
         } else {
-          logout();
+          clearSession();
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [logout]);
+  }, [clearSession]);
 
   const login = useCallback(
     async ({ email, clave }) => {

@@ -1,0 +1,223 @@
+/*
+ * Certificado de donación. Reproduce el mockup entregado por el equipo de
+ * diseño; sus colores propios son variables locales a este módulo.
+ */
+.overlay {
+  --brand-dark: #006a64;
+  --brand-soft: #e1f0ee;
+  --orange: #f19727;
+
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  padding: 24px;
+  overflow: auto;
+  background: rgb(19 33 31 / 0.93);
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  max-width: 850px;
+  margin: 0 auto 14px;
+}
+
+.primary,
+.ghost {
+  padding: 11px 18px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.primary {
+  background: var(--orange);
+  color: #352000;
+}
+
+.ghost {
+  background: #f2f3ff;
+  color: #1c2b2a;
+}
+
+.paper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(850px, 100%);
+  min-height: 1100px;
+  margin: auto;
+  padding: 58px 70px 0;
+  background: #fff;
+  box-shadow: 0 18px 60px rgb(0 0 0 / 0.53);
+  color: #202925;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.letterhead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 30px;
+  padding-bottom: 18px;
+  border-bottom: 3px solid var(--orange);
+}
+
+.letterhead > div {
+  display: grid;
+  grid-template-columns: auto;
+  align-items: end;
+  row-gap: 4px;
+}
+
+.letterhead img {
+  width: 150px;
+  height: auto;
+}
+
+.letterhead small {
+  color: var(--brand-dark);
+  font-style: italic;
+}
+
+.letterhead time {
+  font-size: 12px;
+}
+
+.paper > p {
+  margin: 9px 0;
+  font-size: 14px;
+  line-height: 1.55;
+  text-align: justify;
+}
+
+.paper > h1 {
+  margin: 18px;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.signatures {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 70px;
+  margin-top: auto;
+  padding: 70px 15px 45px;
+}
+
+.signatures > div {
+  display: flex;
+  flex-direction: column;
+  padding-top: 8px;
+  border-top: 1px solid #26312e;
+}
+
+.signatures b {
+  font-size: 12px;
+}
+
+.signatures small {
+  font-size: 11px;
+}
+
+.signature {
+  margin-top: -38px;
+  margin-bottom: 13px;
+  font-family: cursive;
+  font-size: 24px;
+  line-height: 1;
+  transform: rotate(-4deg);
+}
+
+.footer {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  margin: 0 -70px;
+  padding: 18px 70px;
+  background: var(--brand-soft);
+  border-bottom: 12px solid var(--orange);
+  color: var(--brand-dark);
+  font: 11px "Nunito Variable", system-ui, sans-serif;
+}
+
+@media (max-width: 900px) {
+  .paper {
+    min-height: 1000px;
+    padding: 38px 35px 0;
+  }
+
+  .footer {
+    margin: 0 -35px;
+    padding: 15px 35px;
+  }
+}
+
+@media (max-width: 560px) {
+  .overlay {
+    padding: 10px;
+  }
+
+  .toolbar {
+    gap: 8px;
+  }
+
+  .paper {
+    padding: 28px 22px 0;
+  }
+
+  .paper > p {
+    font-size: 12px;
+  }
+
+  .signatures {
+    gap: 25px;
+    padding: 55px 0 35px;
+  }
+
+  .footer {
+    flex-direction: column;
+    margin: 0 -22px;
+    padding: 13px 22px;
+  }
+}
+
+@media print {
+  body > * {
+    visibility: hidden;
+  }
+
+  .overlay,
+  .overlay * {
+    visibility: visible;
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+    overflow: visible;
+    background: #fff;
+  }
+
+  .toolbar {
+    display: none;
+  }
+
+  .paper {
+    width: 100%;
+    min-height: 100vh;
+    margin: 0;
+    padding: 35px 55px 0;
+    box-shadow: none;
+  }
+
+  .footer {
+    margin: 0 -55px;
+    padding: 15px 55px;
+  }
+}

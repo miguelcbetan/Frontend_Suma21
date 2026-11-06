@@ -21,7 +21,7 @@ function formatCell(value) {
  * @param {{ section: (typeof import("../../resources.js").SECTIONS)[number] }} props
  */
 export function ResourcePanel({ section }) {
-  const { list, create, update, remove, columns, fields, singular, label } = section;
+  const { list, create, update, remove, columns, fields, singular, label, describeResult } = section;
   const [state, setState] = useState({ status: list ? "loading" : "idle", records: [], error: "" });
   const [editing, setEditing] = useState(null);
   const [notice, setNotice] = useState("");
@@ -43,8 +43,8 @@ export function ResourcePanel({ section }) {
   }, [list, load]);
 
   async function handleCreate(body) {
-    await create(body);
-    setNotice(`Se registró ${singular} correctamente.`);
+    const result = await create(body);
+    setNotice(describeResult?.(result) ?? `Se registró ${singular} correctamente.`);
     setActionError("");
     setFormKey((key) => key + 1);
     if (list) await load();

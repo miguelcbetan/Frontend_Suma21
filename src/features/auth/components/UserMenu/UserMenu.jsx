@@ -14,7 +14,7 @@ export function UserMenu() {
     return (
       <div className={styles.menu}>
         <span className={styles.name}>
-          Hola, <strong>{user.username}</strong>
+          Hola, <Link to="/perfil" className={styles.profile}>{user.username}</Link>
         </span>
         <Button variant="ghost" size="sm" onClick={logout}>
           Cerrar sesión
