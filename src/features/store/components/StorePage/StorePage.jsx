@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { Grid } from "@/components/layout/Grid";
 import { Section } from "@/components/layout/Section";
@@ -10,12 +11,10 @@ import {
   describeError,
   paymentsService,
   productsService,
-  resolveCustomer,
   toList,
 } from "@/core/api";
 import { savePaymentSession } from "@/core/utils/paymentSession";
 
-import { BuyerForm } from "../BuyerForm";
 import { CartSummary } from "../CartSummary";
 import { ProductCard } from "../ProductCard";
 
@@ -31,14 +30,21 @@ function toStoreProduct(record) {
     description: record.description ?? "",
     price: Number(record.unit_price),
     stock: Number(record.stock_qty ?? 0),
+    imageUrl: record.image_url ?? null,
   };
 }
 
-/** Pantalla de la tienda: catálogo de `GET /api/products` y pago con Wompi Sandbox. */
-export function StorePage() {
+/**
+ * Pantalla de la tienda: catálogo de `GET /api/products` y pago con Wompi Sandbox.
+ * `session.donorId` es el ID del usuario con sesión iniciada, que el backend
+ * registra como `customer_id` de la venta.
+ * @param {{ session?: { authenticated: boolean, donorId: string | null } }} props
+ */
+export function StorePage({ session = { authenticated: false, donorId: null } }) {
   const [catalog, setCatalog] = useState({ status: "loading", products: [], error: "" });
   const [cart, setCart] = useState({});
-  const [buying, setBuying] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -58,6 +64,7 @@ export function StorePage() {
   const { products } = catalog;
   const lines = products.filter(({ id }) => cart[id]).map((product) => ({ product, quantity: cart[product.id] }));
   const total = lines.reduce((sum, { product, quantity }) => sum + product.price * quantity, 0);
+  const canPay = session.authenticated && Boolean(session.donorId);
 
   function add(id) {
     setCart((current) => ({ ...current, [id]: (current[id] ?? 0) + 1 }));
@@ -70,18 +77,24 @@ export function StorePage() {
     });
   }
 
-  /** Crea el cliente (si hace falta) y el enlace de pago, y envía al comprador a Wompi. */
-  async function pay(buyer) {
-    const customer = await resolveCustomer(buyer);
-    const checkout = await paymentsService.createCheckout({
-      kind: "sale",
-      customer_id: String(customer.id),
-      payment_method_id: WOMPI_PAYMENT_METHOD_ID,
-      account_id: WOMPI_ACCOUNT_ID,
-      items: lines.map(({ product, quantity }) => ({ product_id: product.id, quantity })),
-    });
-    savePaymentSession({ reference: checkout.reference, kind: "sale", personId: String(customer.id) });
-    window.location.assign(checkout.checkout_url);
+  /** Crea la venta pendiente y el enlace de pago, y envía al comprador a Wompi. */
+  async function pay() {
+    setPaying(true);
+    setCheckoutError("");
+    try {
+      const checkout = await paymentsService.createCheckout({
+        kind: "sale",
+        customer_id: session.donorId,
+        payment_method_id: WOMPI_PAYMENT_METHOD_ID,
+        account_id: WOMPI_ACCOUNT_ID,
+        items: lines.map(({ product, quantity }) => ({ product_id: product.id, quantity })),
+      });
+      savePaymentSession({ reference: checkout.reference, kind: "sale", personId: session.donorId });
+      window.location.assign(checkout.checkout_url);
+    } catch (error) {
+      setCheckoutError(describeError(error).message);
+      setPaying(false);
+    }
   }
 
   return (
@@ -108,17 +121,27 @@ export function StorePage() {
           </div>
 
           <aside className={styles.aside} aria-label="Resumen del pedido">
+            {!session.authenticated ? (
+              <Alert tone="info">
+                Para pagar tu pedido <Link to="/login">inicia sesión o crea tu cuenta</Link>.
+              </Alert>
+            ) : null}
+            {session.authenticated && !session.donorId ? (
+              <Alert tone="error">
+                Tu cuenta no tiene un identificador de usuario disponible para registrar la compra. Contacta a
+                ASISCO.
+              </Alert>
+            ) : null}
+            {checkoutError ? <Alert tone="error">{checkoutError}</Alert> : null}
             <CartSummary
               lines={lines}
               total={total}
               onAdd={add}
               onRemove={remove}
-              onCheckout={() => setBuying(true)}
-              checkoutDisabled={buying}
+              onCheckout={pay}
+              checkoutDisabled={!canPay || paying}
+              checkoutLabel={paying ? "Preparando el pago…" : undefined}
             />
-            {buying && lines.length > 0 ? (
-              <BuyerForm onSubmit={pay} onCancel={() => setBuying(false)} />
-            ) : null}
           </aside>
         </div>
       </Section>

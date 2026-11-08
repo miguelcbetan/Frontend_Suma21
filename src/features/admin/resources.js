@@ -1,7 +1,6 @@
 import {
   accountsService,
   authService,
-  customersService,
   donationsService,
   inventoryService,
   paymentMethodsService,
@@ -14,7 +13,6 @@ import {
  * salen las opciones y cómo se muestra cada una.
  */
 export const REF_SOURCES = {
-  customers: { service: customersService, label: (record) => `${record.name} · ${record.document_number}` },
   products: {
     service: productsService,
     label: (record) => `${record.name} · $${record.unit_price} · stock ${record.stock_qty}`,
@@ -26,14 +24,18 @@ export const REF_SOURCES = {
 
 const ROLE_OPTIONS = ["ADMIN", "DONANTE", "ESTUDIANTE", "ACUDIENTE", "TALLERISTA"];
 
+/** `customer_id` y `donor_id` son el ID del usuario del servicio de seguridad (el backend ya no tiene clientes). */
+const USER_ID_HINT = "ID del usuario en el servicio de seguridad.";
+
 /**
- * Secciones del panel, una por grupo de endpoints de API.md.
+ * Secciones del panel, una por grupo de endpoints del backend de datos.
  *
  * Campo: `{ name, label, type, required?, hint?, min?, step?, source?, options?,
  * defaultValue?, serialize?, itemFields? }`. Tipos: text, email, password,
- * textarea, number, integer, date, checkbox, select, ref, items.
+ * textarea, number, integer, date, checkbox, select, ref, items, file.
  * Sección: con `list` muestra una tabla; `update`/`remove` activan editar y borrar;
- * `describeResult` redacta el aviso con la respuesta del alta.
+ * `describeResult` redacta el aviso con la respuesta del alta. Una columna puede
+ * traer `format(record)` para mostrar algo distinto de su valor.
  */
 export const SECTIONS = [
   {
@@ -50,6 +52,7 @@ export const SECTIONS = [
       { key: "description", label: "Descripción" },
       { key: "unit_price", label: "Precio" },
       { key: "stock_qty", label: "Stock" },
+      { key: "image_url", label: "Imagen", format: (record) => (record.image_url ? "Sí" : "—") },
     ],
     fields: [
       { name: "name", label: "Nombre", type: "text", required: true },
@@ -62,30 +65,12 @@ export const SECTIONS = [
         min: 0,
         hint: "El servidor solo acepta enteros positivos al escribir una cantidad. Si lo dejas vacío empieza en 0.",
       },
-    ],
-  },
-  {
-    id: "customers",
-    label: "Clientes",
-    singular: "cliente",
-    list: customersService.list,
-    create: customersService.create,
-    update: customersService.update,
-    remove: customersService.remove,
-    columns: [
-      { key: "id", label: "ID" },
-      { key: "name", label: "Nombre" },
-      { key: "document_number", label: "Documento" },
-      { key: "email", label: "Correo" },
-      { key: "phone", label: "Teléfono" },
-      { key: "address", label: "Dirección" },
-    ],
-    fields: [
-      { name: "name", label: "Nombre", type: "text", required: true },
-      { name: "document_number", label: "Número de documento", type: "text", required: true },
-      { name: "email", label: "Correo electrónico", type: "email" },
-      { name: "phone", label: "Teléfono", type: "text" },
-      { name: "address", label: "Dirección", type: "text" },
+      {
+        name: "image",
+        label: "Imagen del producto",
+        type: "file",
+        hint: "JPG, PNG, WEBP, GIF o AVIF de hasta 5 MB. Al editar, déjala vacía para conservar la actual.",
+      },
     ],
   },
   {
@@ -145,7 +130,7 @@ export const SECTIONS = [
     create: salesService.create,
     describeResult: ({ saleId, total }) => `Se registró la venta #${saleId} por un total de $${total}.`,
     fields: [
-      { name: "customer_id", label: "Cliente", type: "ref", source: "customers", required: true },
+      { name: "customer_id", label: "Comprador (ID de usuario)", type: "text", required: true, hint: USER_ID_HINT },
       { name: "payment_method_id", label: "Método de pago", type: "ref", source: "paymentMethods", required: true },
       { name: "account_id", label: "Cuenta", type: "ref", source: "accounts", required: true },
       { name: "sale_date", label: "Fecha de la venta", type: "date", required: true },
@@ -170,7 +155,7 @@ export const SECTIONS = [
     create: donationsService.createMonetary,
     describeResult: ({ donationId, amount }) => `Se registró la donación #${donationId} por $${amount}.`,
     fields: [
-      { name: "donor_id", label: "Donante", type: "ref", source: "customers", required: true },
+      { name: "donor_id", label: "Donante (ID de usuario)", type: "text", required: true, hint: USER_ID_HINT },
       { name: "payment_method_id", label: "Método de pago", type: "ref", source: "paymentMethods", required: true },
       { name: "account_id", label: "Cuenta", type: "ref", source: "accounts", required: true },
       { name: "amount", label: "Monto", type: "number", required: true, min: 0.01, step: "any" },
@@ -189,7 +174,7 @@ export const SECTIONS = [
     create: donationsService.createInKind,
     describeResult: ({ donationId }) => `Se registró la donación en especie #${donationId} y se actualizó el inventario.`,
     fields: [
-      { name: "donor_id", label: "Donante", type: "ref", source: "customers", required: true },
+      { name: "donor_id", label: "Donante (ID de usuario)", type: "text", required: true, hint: USER_ID_HINT },
       { name: "donation_date", label: "Fecha", type: "date", required: true },
       { name: "notes", label: "Notas", type: "textarea" },
       {

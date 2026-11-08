@@ -2,14 +2,17 @@ const PREFIX = "suma21.payment.";
 const LAST_KEY = `${PREFIX}last`;
 
 /**
- * Lo que el backend no devuelve al consultar un pago (quién donó, si era
- * mensual). Se guarda en este navegador al crear el checkout, antes de salir
- * hacia Wompi, para reconstruir el recibo al volver.
+ * Lo que el backend no devuelve al consultar un pago (si la donación era
+ * mensual y los datos del donante para el certificado). Se guarda en este
+ * navegador al crear el checkout, antes de salir hacia Wompi, para reconstruir
+ * el recibo al volver.
  * @typedef {{
  *   reference: string,
  *   kind: "donation" | "sale",
  *   personId: string,
  *   frequency?: "monthly" | "once",
+ *   donorName?: string,
+ *   donorDocument?: string,
  *   createdAt: string,
  * }} PaymentSession
  */

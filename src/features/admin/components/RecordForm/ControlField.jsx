@@ -74,6 +74,18 @@ export function ControlField({ field, value, error, onChange }) {
           ))}
         </Field>
       );
+    case "file":
+      // Un input de archivo no es controlado: se informa el `File` elegido (o `null`).
+      return (
+        <Field
+          label={field.label}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+          hint={field.hint}
+          error={error}
+          onChange={(event) => onChange(event.target.files?.[0] ?? null)}
+        />
+      );
     case "textarea":
       return (
         <Field

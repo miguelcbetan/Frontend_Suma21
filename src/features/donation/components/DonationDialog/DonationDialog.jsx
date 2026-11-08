@@ -6,13 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
-import {
-  WOMPI_ACCOUNT_ID,
-  WOMPI_PAYMENT_METHOD_ID,
-  describeError,
-  paymentsService,
-  resolveCustomer,
-} from "@/core/api";
+import { WOMPI_ACCOUNT_ID, WOMPI_PAYMENT_METHOD_ID, describeError, paymentsService } from "@/core/api";
 import { savePaymentSession } from "@/core/utils/paymentSession";
 
 import { AmountSelector } from "../AmountSelector";
@@ -32,13 +26,15 @@ const DEFAULT_AMOUNT = 70000;
 const formatAmount = (value) => `$${value.toLocaleString("es-CO")}`;
 
 /**
- * Interfaz de donación. Crea un pago de Wompi Sandbox (`POST /api/payments/checkout`)
- * y lleva al donante a completarlo. Si la sesión no trae el ID del donante, pide
- * nombre y documento para localizarlo o registrarlo como cliente.
+ * Interfaz de donación. Con sesión iniciada crea la donación pendiente y su pago
+ * de Wompi Sandbox (`POST /api/payments/checkout`) y lleva al donante a pagar.
+ * `session.donorId` es el ID del usuario, que el backend registra como `donor_id`.
+ * El nombre y el documento que se piden solo sirven para el certificado de este
+ * navegador: no se envían al backend.
  * @param {{
  *   open: boolean,
  *   onClose: () => void,
- *   session?: { authenticated: boolean, donorId: string | null },
+ *   session?: { authenticated: boolean, donorId: string | null, name?: string },
  * }} props
  */
 export function DonationDialog({ open, onClose, session = { authenticated: false, donorId: null } }) {
@@ -48,16 +44,15 @@ export function DonationDialog({ open, onClose, session = { authenticated: false
   const [otherAmount, setOtherAmount] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
   const [isGift, setIsGift] = useState(false);
-  const [donor, setDonor] = useState({ name: "", document_number: "", email: "" });
+  const [typedName, setTypedName] = useState(null);
+  const [documentNumber, setDocumentNumber] = useState("");
   const [state, setState] = useState({ status: "idle", message: "", fields: {} });
 
-  const needsDonorData = !session.donorId;
+  const canDonate = session.authenticated && Boolean(session.donorId);
+  const donorName = typedName ?? session.name ?? "";
   const value = otherAmount ? Number(customAmount) : amount;
   const validAmount = Number.isFinite(value) && value > 0;
-
-  function setDonorField(name) {
-    return (event) => setDonor((current) => ({ ...current, [name]: event.target.value }));
-  }
+  const pending = state.status === "pending";
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -66,35 +61,37 @@ export function DonationDialog({ open, onClose, session = { authenticated: false
       setState({ status: "error", message: "Escribe un monto mayor que cero.", fields: {} });
       return;
     }
-    if (needsDonorData) {
-      const fields = {};
-      if (!donor.name.trim()) fields.name = "Este campo es obligatorio.";
-      if (!donor.document_number.trim()) fields.document_number = "Este campo es obligatorio.";
-      if (Object.keys(fields).length > 0) {
-        setState({ status: "error", message: "Completa tus datos para registrar la donación.", fields });
-        return;
-      }
+    const fields = {};
+    if (!donorName.trim()) fields.name = "Este campo es obligatorio.";
+    if (!documentNumber.trim()) fields.document = "Este campo es obligatorio.";
+    if (Object.keys(fields).length > 0) {
+      setState({ status: "error", message: "Completa los datos de tu certificado.", fields });
+      return;
     }
 
     setState({ status: "pending", message: "", fields: {} });
     try {
-      const donorId = needsDonorData ? String((await resolveCustomer(donor)).id) : session.donorId;
       const checkout = await paymentsService.createCheckout({
         kind: "donation",
-        donor_id: donorId,
+        donor_id: session.donorId,
         payment_method_id: WOMPI_PAYMENT_METHOD_ID,
         account_id: WOMPI_ACCOUNT_ID,
         amount: value,
         ...(frequency === "monthly" ? { frequency: 1 } : {}),
       });
-      savePaymentSession({ reference: checkout.reference, kind: "donation", personId: donorId, frequency });
+      savePaymentSession({
+        reference: checkout.reference,
+        kind: "donation",
+        personId: session.donorId,
+        frequency,
+        donorName: donorName.trim(),
+        donorDocument: documentNumber.trim(),
+      });
       window.location.assign(checkout.checkout_url);
     } catch (error) {
       setState({ status: "error", ...describeError(error) });
     }
   }
-
-  const pending = state.status === "pending";
 
   return (
     <Dialog
@@ -146,7 +143,7 @@ export function DonationDialog({ open, onClose, session = { authenticated: false
             />
           </div>
 
-          {otherAmount || needsDonorData ? (
+          {otherAmount || canDonate ? (
             <div className={styles.extra}>
               {otherAmount ? (
                 <Field
@@ -158,31 +155,25 @@ export function DonationDialog({ open, onClose, session = { authenticated: false
                   onChange={(event) => setCustomAmount(event.target.value)}
                 />
               ) : null}
-              {needsDonorData ? (
+              {canDonate ? (
                 <>
                   <Field
                     label="Nombre completo"
                     autoComplete="name"
                     required
-                    value={donor.name}
-                    onChange={setDonorField("name")}
+                    value={donorName}
+                    onChange={(event) => setTypedName(event.target.value)}
+                    hint="Aparecerá en tu certificado de donación."
                     error={state.fields.name}
                   />
                   <Field
                     label="Número de documento"
                     inputMode="numeric"
                     required
-                    value={donor.document_number}
-                    onChange={setDonorField("document_number")}
-                    error={state.fields.document_number}
-                  />
-                  <Field
-                    label="Correo electrónico"
-                    type="email"
-                    autoComplete="email"
-                    value={donor.email}
-                    onChange={setDonorField("email")}
-                    error={state.fields.email}
+                    value={documentNumber}
+                    onChange={(event) => setDocumentNumber(event.target.value)}
+                    hint="Solo se usa para generar tu certificado en este navegador."
+                    error={state.fields.document}
                   />
                 </>
               ) : null}
@@ -191,16 +182,22 @@ export function DonationDialog({ open, onClose, session = { authenticated: false
 
           {!session.authenticated ? (
             <Alert tone="info" className={styles.alert}>
-              ¿Ya tienes cuenta?{" "}
+              Para registrar tu donación{" "}
               <Link to="/login" onClick={onClose} className={styles.link}>
-                Inicia sesión
-              </Link>{" "}
-              o dona con los datos de arriba.
+                inicia sesión o crea tu cuenta de donante
+              </Link>
+              .
+            </Alert>
+          ) : null}
+          {session.authenticated && !session.donorId ? (
+            <Alert tone="error" className={styles.alert}>
+              Tu cuenta no tiene un identificador de usuario disponible para registrar la donación. Contacta a
+              ASISCO.
             </Alert>
           ) : null}
           {state.status === "error" ? <Alert tone="error" className={styles.alert}>{state.message}</Alert> : null}
 
-          <Button type="submit" size="lg" className={styles.submit} disabled={pending}>
+          <Button type="submit" size="lg" className={styles.submit} disabled={!canDonate || pending}>
             {pending ? "Preparando el pago…" : `Donar ${validAmount ? formatAmount(value) : ""} ahora`}
             <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
               <path

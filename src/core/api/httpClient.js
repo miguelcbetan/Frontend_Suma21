@@ -46,7 +46,9 @@ async function readBody(response) {
  */
 export async function request(path, { method = "GET", body, auth = true, base = "api", signal } = {}) {
   const headers = { Accept: "application/json" };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  // `FormData` (subida de archivos) lleva su propio Content-Type con el boundary.
+  const isForm = typeof FormData !== "undefined" && body instanceof FormData;
+  if (body !== undefined && !isForm) headers["Content-Type"] = "application/json";
   const token = auth && base === "auth" ? getToken() : null;
   if (token) headers.Authorization = `Bearer ${token}`;
 
@@ -55,7 +57,7 @@ export async function request(path, { method = "GET", body, auth = true, base = 
     response = await fetch(`${BASES[base]}${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined || isForm ? body : JSON.stringify(body),
       signal,
     });
   } catch (error) {

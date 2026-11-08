@@ -9,19 +9,26 @@ import styles from "./ProductCard.module.css";
 /**
  * Tarjeta de un producto de la tienda.
  * @param {{
- *   product: { id: string, name: string, description: string, price: number, stock: number },
+ *   product: {
+ *     id: string, name: string, description: string, price: number, stock: number,
+ *     imageUrl: string | null,
+ *   },
  *   quantity: number,
  *   onAdd: (id: string) => void,
  * }} props
  */
 export function ProductCard({ product, quantity, onAdd }) {
-  const { id, name, description, price, stock } = product;
+  const { id, name, description, price, stock, imageUrl } = product;
   const soldOut = stock <= 0;
   const limitReached = quantity >= stock;
 
   return (
     <Card className={styles.card}>
-      <MediaPlaceholder ratio="standard" label="[Imagen del producto]" />
+      {imageUrl ? (
+        <img src={imageUrl} alt={name} loading="lazy" className={styles.image} />
+      ) : (
+        <MediaPlaceholder ratio="standard" label="[Imagen del producto]" />
+      )}
       <CardBody className={styles.body}>
         {soldOut ? <Badge tone="neutral">Agotado</Badge> : null}
         <h3 className={styles.title}>{name}</h3>

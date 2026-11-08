@@ -39,11 +39,32 @@ function fullCrud(basePath, idKey) {
   };
 }
 
-/** `name`, `description?`, `unit_price`, `stock_qty?` */
-export const productsService = fullCrud("/api/products", "product_id");
+const isFile = (value) => typeof File !== "undefined" && value instanceof File;
 
-/** `name`, `document_number`, `email?`, `phone?`, `address?` */
-export const customersService = fullCrud("/api/customers", "customer_id");
+/**
+ * Los productos aceptan JSON, o `multipart/form-data` cuando se envía la
+ * imagen en el campo `image` (JPG, PNG, WEBP, GIF o AVIF, máx. 5 MB).
+ */
+function productBody(data) {
+  if (!Object.values(data).some(isFile)) return data;
+  const form = new FormData();
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined && value !== null) form.append(key, isFile(value) ? value : String(value));
+  }
+  return form;
+}
+
+const products = fullCrud("/api/products", "product_id");
+const normalizeProduct = withId("product_id");
+
+/** `name`, `description?`, `unit_price`, `stock_qty?`, `image?` (archivo); responde con `image_url`. */
+export const productsService = {
+  ...products,
+  create: (data) =>
+    request("/api/products", { method: "POST", body: productBody(data) }).then(normalizeProduct),
+  update: (id, data) =>
+    request(`/api/products/${segment(id)}`, { method: "PATCH", body: productBody(data) }).then(normalizeProduct),
+};
 
 /** `name`, `description?` */
 export const paymentMethodsService = listAndCreate("/api/payment-methods", "payment_method_id");
@@ -90,18 +111,26 @@ export const donationsService = {
 
 export const paymentsService = {
   /**
-   * Crea un enlace de pago de Wompi Sandbox. El backend calcula el total de una
-   * venta con los precios vigentes; la operación solo se registra cuando Wompi
-   * confirma el pago.
+   * Crea la venta o donación pendiente y su enlace de pago de Wompi Sandbox. El
+   * backend calcula el total de una venta con los precios vigentes; el efecto
+   * financiero y el descuento de inventario solo ocurren cuando Wompi aprueba.
+   * `customer_id` y `donor_id` son el ID del usuario del servicio de seguridad.
+   * Para reintentar un pago fallido se envía `sale_id` o `donation_id` (y, en
+   * donaciones, el mismo `amount`) sin repetir los datos del comprador o donante.
    * @param {{
    *   kind: "donation", donor_id: string, payment_method_id: string, account_id: string,
    *   amount: number, certificate_issued?: boolean, certificate_number?: string,
    *   frequency?: number, end_date?: string,
    * } | {
+   *   kind: "donation", donation_id: string, payment_method_id: string, account_id: string,
+   *   amount: number,
+   * } | {
    *   kind: "sale", customer_id: string, payment_method_id: string, account_id: string,
    *   items: { product_id: string, quantity: number }[],
+   * } | {
+   *   kind: "sale", sale_id: string, payment_method_id: string, account_id: string,
    * }} checkout
-   * @returns {Promise<{ reference: string, status: string, currency: string, amount_in_cents: number, checkout_url: string }>}
+   * @returns {Promise<{ reference: string, status: string, currency: string, amount_in_cents: number, checkout_url: string, sale_id?: string, donation_id?: string }>}
    */
   createCheckout: (checkout) => request("/api/payments/checkout", { method: "POST", body: checkout }),
 
@@ -112,8 +141,9 @@ export const paymentsService = {
    * @returns {Promise<{
    *   reference: string, kind: "donation" | "sale", status: string, amount_in_cents: number,
    *   currency: string, checkout_url: string | null, wompi_status: string | null,
-   *   payment_method_type: string | null, processing_error: string | null,
+   *   payment_method: string, processing_error: string | null,
    *   created_at: string, completed_at: string | null,
+   *   sale_id?: string, donation_id?: string,
    * }>}
    */
   getStatus: (reference, { signal } = {}) => request(`/api/payments/${segment(reference)}`, { signal }),

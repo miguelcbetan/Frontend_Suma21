@@ -13,9 +13,18 @@ import styles from "./CartSummary.module.css";
  *   onRemove: (id: string) => void,
  *   onCheckout: () => void,
  *   checkoutDisabled?: boolean,
+ *   checkoutLabel?: string,
  * }} props
  */
-export function CartSummary({ lines, total, onAdd, onRemove, onCheckout, checkoutDisabled = false }) {
+export function CartSummary({
+  lines,
+  total,
+  onAdd,
+  onRemove,
+  onCheckout,
+  checkoutDisabled = false,
+  checkoutLabel = "Finalizar compra",
+}) {
   return (
     <Card>
       <CardHeader>
@@ -67,7 +76,7 @@ export function CartSummary({ lines, total, onAdd, onRemove, onCheckout, checkou
           disabled={lines.length === 0 || checkoutDisabled}
           onClick={onCheckout}
         >
-          Finalizar compra
+          {checkoutLabel}
         </Button>
       </CardBody>
     </Card>

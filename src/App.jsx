@@ -45,7 +45,12 @@ function Layout() {
   const { status, user } = useAuth();
 
   const items = NAV_ITEMS.map((item) => ({ ...item, current: item.href === pathname }));
-  const donationSession = { authenticated: status === "authenticated", donorId: user?.donorId ?? null };
+  // En el backend de datos, `customer_id` y `donor_id` son el ID del usuario del servicio de seguridad.
+  const donationSession = {
+    authenticated: status === "authenticated",
+    donorId: user?.donorId ?? user?.id ?? null,
+    name: user?.username ?? "",
+  };
 
   const header = (
     <>
@@ -100,7 +105,7 @@ function Layout() {
     <AppShell header={header} footer={footer}>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/apoyanos-tienda" element={<StorePage />} />
+        <Route path="/apoyanos-tienda" element={<StorePage session={donationSession} />} />
         <Route path="/payment-result" element={<PaymentResultPage />} />
         <Route path="/login" element={<AuthPage />} />
         <Route

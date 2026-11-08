@@ -1,19 +1,10 @@
-const WOMPI_METHOD_LABELS = {
-  CARD: "Tarjeta Débito/Crédito",
-  NEQUI: "Nequi",
-  PSE: "PSE",
-  BANCOLOMBIA_TRANSFER: "Transferencia Bancolombia",
-  BANCOLOMBIA_COLLECT: "Bancolombia",
-  DAVIPLATA: "Daviplata",
-};
-
 /** Estados de Wompi con los que un pago `PENDING` en realidad ya fue rechazado. */
 const REJECTED_WOMPI_STATUSES = ["DECLINED", "ERROR", "VOIDED"];
 
 /**
  * Resultado de un pago a partir de lo que devuelve `GET /api/payments/:reference`.
- * El backend deja `status` en `PENDING` cuando Wompi rechaza la transacción y
- * guarda el motivo en `wompi_status`.
+ * `FAILED` es el estado final de un pago que Wompi rechazó; `wompi_status` guarda
+ * el motivo y también sirve para detectar un rechazo que aún figure `PENDING`.
  * @param {{ status: string, wompi_status: string | null }} payment
  * @returns {"approved" | "review" | "failed" | "rejected" | "pending"}
  */
@@ -51,10 +42,4 @@ export function formatNumericDate(isoDate) {
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
   return `${day}-${month}-${date.getFullYear()}`;
-}
-
-/** Etiqueta legible del método con el que pagó el donante (`payment_method_type` de Wompi). */
-export function paymentMethodLabel(type) {
-  if (!type) return "—";
-  return WOMPI_METHOD_LABELS[type] ?? type;
 }

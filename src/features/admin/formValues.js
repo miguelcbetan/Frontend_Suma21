@@ -3,6 +3,7 @@ import { todayISO } from "@/core/utils/date";
 const NUMERIC = new Set(["number", "integer"]);
 
 function initialValue(field) {
+  if (field.type === "file") return null;
   if (field.defaultValue !== undefined) return field.defaultValue;
   if (field.type === "date") return todayISO();
   if (field.type === "checkbox") return false;
@@ -35,6 +36,7 @@ export function valuesFromRecord(fields, record) {
 
 function parseScalar(field, raw) {
   if (field.type === "checkbox") return { value: Boolean(raw) };
+  if (field.type === "file") return raw ? { value: raw } : { skip: true };
 
   const text = typeof raw === "string" ? raw.trim() : raw;
   if (text === "" || text == null) {

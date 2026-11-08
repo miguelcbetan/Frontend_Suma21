@@ -1,46 +1,28 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { Alert } from "@/components/ui/Alert";
 import { buttonClassName } from "@/components/ui/Button";
-import { customersService } from "@/core/api";
-import { lastPaymentReference, loadPaymentSession } from "@/core/utils/paymentSession";
+import { WOMPI_ACCOUNT_ID, WOMPI_PAYMENT_METHOD_ID, describeError, paymentsService } from "@/core/api";
+import { lastPaymentReference, loadPaymentSession, savePaymentSession } from "@/core/utils/paymentSession";
 
 import { CertificateDocument } from "../CertificateDocument";
 
-import { formatCop, formatDateTime, outcomeOf, paymentMethodLabel } from "./format.js";
+import { formatCop, formatDateTime, outcomeOf } from "./format.js";
 import styles from "./PaymentResultPage.module.css";
 import { usePaymentStatus } from "./usePaymentStatus.js";
 
 const IMPACT_ITEMS = ["3 Semanas de Formación Barista", "Materiales Adaptados de Pintura", "Acompañamiento Psicosocial"];
 
-/** Datos del donante para el certificado; solo se piden con un pago de donación aprobado. */
-function useDonor(personId, enabled) {
-  const [donor, setDonor] = useState(null);
-
-  useEffect(() => {
-    if (!enabled || !personId) return undefined;
-    let cancelled = false;
-    customersService
-      .get(personId)
-      .then((record) => !cancelled && setDonor(record))
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled, personId]);
-
-  return donor;
-}
-
 /** Mensaje para los pagos que todavía no tienen recibo. */
-function PaymentStatusMessage({ tone, title, children, reference, retryTo, onRefresh }) {
+function PaymentStatusMessage({ tone, title, children, reference, onRetry, retryState, onRefresh }) {
   return (
     <div className={styles.status}>
       <Alert tone={tone}>
         <strong>{title}</strong>
         {children ? <p>{children}</p> : null}
       </Alert>
+      {retryState?.error ? <Alert tone="error">{retryState.error}</Alert> : null}
       {reference ? <p className={styles.reference}>Referencia del pago: {reference}</p> : null}
       <div className={styles.statusActions}>
         {onRefresh ? (
@@ -48,10 +30,15 @@ function PaymentStatusMessage({ tone, title, children, reference, retryTo, onRef
             Actualizar estado
           </button>
         ) : null}
-        {retryTo ? (
-          <Link to={retryTo} className={buttonClassName({ variant: "secondary" })}>
-            Volver a intentarlo
-          </Link>
+        {onRetry ? (
+          <button
+            type="button"
+            className={buttonClassName({ variant: "secondary" })}
+            onClick={onRetry}
+            disabled={retryState?.pending}
+          >
+            {retryState?.pending ? "Preparando el pago…" : "Reintentar el pago"}
+          </button>
         ) : null}
         <Link to="/" className={buttonClassName({ variant: "ghost" })}>
           Ir al inicio
@@ -64,7 +51,11 @@ function PaymentStatusMessage({ tone, title, children, reference, retryTo, onRef
 function ApprovedReceipt({ payment, session }) {
   const [showCertificate, setShowCertificate] = useState(false);
   const isDonation = payment.kind === "donation";
-  const donor = useDonor(session?.personId, isDonation);
+  // El backend no guarda el documento del donante: viene de lo que escribió al donar en este navegador.
+  const donor =
+    isDonation && session?.donorName && session?.donorDocument
+      ? { name: session.donorName, document_number: session.donorDocument }
+      : null;
 
   const amount = payment.amount_in_cents / 100;
   const paidAt = payment.completed_at ?? payment.created_at;
@@ -127,7 +118,7 @@ function ApprovedReceipt({ payment, session }) {
             </div>
             <div>
               <dt>Método de pago</dt>
-              <dd>{paymentMethodLabel(payment.payment_method_type)}</dd>
+              <dd>{payment.payment_method ?? "—"}</dd>
             </div>
             <div>
               <dt>Seguridad</dt>
@@ -156,8 +147,8 @@ function ApprovedReceipt({ payment, session }) {
           </div>
           {isDonation && !donor ? (
             <p className={styles.hint}>
-              El certificado se genera con los datos del donante guardados en el navegador donde se hizo la
-              donación.
+              El certificado se genera con el nombre y el documento que escribiste al donar, guardados en el
+              navegador donde se hizo la donación.
             </p>
           ) : null}
         </article>
@@ -213,6 +204,37 @@ export function PaymentResultPage() {
   const reference = params.get("reference") ?? lastPaymentReference();
   const { status, payment, message, timedOut } = usePaymentStatus(reference);
   const session = reference ? loadPaymentSession(reference) : null;
+  const [retryState, setRetryState] = useState({ pending: false, error: "" });
+
+  /**
+   * Crea otro intento de pago para la misma venta o donación (el backend la
+   * reutiliza: no se repiten los datos del comprador ni los productos).
+   */
+  async function retryPayment() {
+    setRetryState({ pending: true, error: "" });
+    try {
+      const target =
+        payment.kind === "sale"
+          ? { kind: "sale", sale_id: payment.sale_id }
+          : { kind: "donation", donation_id: payment.donation_id, amount: payment.amount_in_cents / 100 };
+      const checkout = await paymentsService.createCheckout({
+        ...target,
+        payment_method_id: WOMPI_PAYMENT_METHOD_ID,
+        account_id: WOMPI_ACCOUNT_ID,
+      });
+      savePaymentSession({
+        reference: checkout.reference,
+        kind: payment.kind,
+        personId: session?.personId ?? "",
+        ...(session?.frequency ? { frequency: session.frequency } : {}),
+        ...(session?.donorName ? { donorName: session.donorName } : {}),
+        ...(session?.donorDocument ? { donorDocument: session.donorDocument } : {}),
+      });
+      window.location.assign(checkout.checkout_url);
+    } catch (error) {
+      setRetryState({ pending: false, error: describeError(error).message });
+    }
+  }
 
   let content;
   if (status === "loading") {
@@ -223,7 +245,7 @@ export function PaymentResultPage() {
     );
   } else if (status === "notfound") {
     content = (
-      <PaymentStatusMessage tone="error" title="No encontramos el pago" retryTo="/">
+      <PaymentStatusMessage tone="error" title="No encontramos el pago">
         {reference
           ? "No existe un pago con esa referencia."
           : "No hay un pago reciente en este navegador. Abre esta página desde el mismo navegador donde pagaste."}
@@ -241,8 +263,8 @@ export function PaymentResultPage() {
       </PaymentStatusMessage>
     );
   } else {
-    const retryTo = payment.kind === "sale" ? "/apoyanos-tienda" : "/";
     const outcome = outcomeOf(payment);
+    const canRetry = Boolean(payment.sale_id ?? payment.donation_id);
 
     if (outcome === "approved") {
       content = <ApprovedReceipt payment={payment} session={session} />;
@@ -253,20 +275,17 @@ export function PaymentResultPage() {
             "No pudimos registrar la operación de forma automática. Contacta a ASISCO con esta referencia."}
         </PaymentStatusMessage>
       );
-    } else if (outcome === "rejected") {
+    } else if (outcome === "rejected" || outcome === "failed") {
       content = (
         <PaymentStatusMessage
           tone="error"
           title="El pago no fue aprobado"
           reference={payment.reference}
-          retryTo={retryTo}
+          onRetry={canRetry ? retryPayment : undefined}
+          retryState={retryState}
         >
-          {`Wompi respondió con el estado ${payment.wompi_status}.`}
+          {payment.wompi_status ? `Wompi respondió con el estado ${payment.wompi_status}.` : null}
         </PaymentStatusMessage>
-      );
-    } else if (outcome === "failed") {
-      content = (
-        <PaymentStatusMessage tone="error" title="No se pudo crear el pago" reference={payment.reference} retryTo={retryTo} />
       );
     } else {
       content = (

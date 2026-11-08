@@ -4,10 +4,8 @@ export { API_URL, AUTH_URL, WOMPI_ACCOUNT_ID, WOMPI_PAYMENT_METHOD_ID } from "./
 export { request, setUnauthorizedHandler } from "./httpClient.js";
 export { clearToken, getToken, setToken } from "./tokenStorage.js";
 export { authService } from "./services/authService.js";
-export { resolveCustomer } from "./services/resolveCustomer.js";
 export {
   accountsService,
-  customersService,
   donationsService,
   healthService,
   inventoryService,

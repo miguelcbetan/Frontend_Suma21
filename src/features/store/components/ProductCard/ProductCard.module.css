@@ -10,6 +10,13 @@
   border-bottom: var(--border-width) solid var(--color-border);
 }
 
+.image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
 .body {
   display: flex;
   flex: 1;

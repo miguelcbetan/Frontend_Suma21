@@ -136,7 +136,9 @@ export function ResourcePanel({ section }) {
                     {state.records.map((record) => (
                       <tr key={record.id}>
                         {columns.map((column) => (
-                          <td key={column.key}>{formatCell(record[column.key])}</td>
+                          <td key={column.key}>
+                            {formatCell(column.format ? column.format(record) : record[column.key])}
+                          </td>
                         ))}
                         {hasActions ? (
                           <td className={styles.actions}>
