@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
+import muralSrc from "@/assets/images/mural.jpeg";
 import { Container } from "@/components/layout/Container";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { Icon } from "@/components/ui/Icon";
 import { cx } from "@/core/utils/cx";
 
 import { useAuth } from "../../context/useAuth.js";
@@ -13,8 +14,26 @@ import { RegisterForm } from "../RegisterForm";
 import styles from "./AuthPage.module.css";
 
 const TABS = [
-  { id: "login", label: "Iniciar sesión", title: "Bienvenido de nuevo" },
-  { id: "register", label: "Crear cuenta", title: "Crea tu cuenta para comprar y donar" },
+  {
+    id: "login",
+    label: "Iniciar sesión",
+    title: "Hola de nuevo",
+    subtitle: "Ingresa con el correo y la contraseña de tu cuenta.",
+  },
+  {
+    id: "register",
+    label: "Crear cuenta",
+    title: "Crea tu cuenta",
+    subtitle: "Regístrate para comprar en la tienda y hacer donaciones.",
+  },
+];
+
+/** Lo que la cuenta permite hacer hoy en la plataforma. */
+const BENEFITS = [
+  { icon: "bag", text: "Comprar en la tienda solidaria" },
+  { icon: "heart", text: "Donar en línea y obtener tu certificado" },
+  { icon: "package", text: "Registrar donaciones en especie" },
+  { icon: "receipt", text: "Consultar el estado de tus pagos" },
 ];
 
 /** Destino tras iniciar sesión: la ruta que pidió el usuario o la de su rol. */
@@ -39,8 +58,26 @@ export function AuthPage() {
 
   return (
     <Container className={styles.page}>
-      <Card className={styles.card}>
-        <CardHeader>
+      <div className={styles.shell}>
+        <aside className={styles.brand} aria-label="Beneficios de tu cuenta">
+          <img src={muralSrc} alt="" className={styles.brandImage} />
+          <div className={styles.brandContent}>
+            <p className={styles.brandEyebrow}>SUMA21 by ASISCO</p>
+            <p className={styles.brandTitle}>Con tu cuenta puedes:</p>
+            <ul className={styles.benefits}>
+              {BENEFITS.map(({ icon, text }) => (
+                <li key={text}>
+                  <span className={styles.benefitIcon}>
+                    <Icon name={icon} size={18} />
+                  </span>
+                  {text}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </aside>
+
+        <div className={styles.formSide}>
           <div role="tablist" aria-label="Acceso" className={styles.tabs}>
             {TABS.map(({ id, label }) => (
               <button
@@ -57,18 +94,29 @@ export function AuthPage() {
               </button>
             ))}
           </div>
-        </CardHeader>
-        <CardBody>
           <div role="tabpanel" id="auth-panel" aria-labelledby={`auth-tab-${tab}`} className={styles.panel}>
-            <h1 className={styles.title}>{active.title}</h1>
+            <div className={styles.heading}>
+              <h1 className={styles.title}>{active.title}</h1>
+              <p className={styles.subtitle}>{active.subtitle}</p>
+            </div>
             {tab === "login" ? (
               <LoginForm onSuccess={handleSuccess} />
             ) : (
               <RegisterForm onSuccess={handleSuccess} />
             )}
+            <p className={styles.switch}>
+              {tab === "login" ? "¿Aún no tienes cuenta?" : "¿Ya tienes una cuenta?"}{" "}
+              <button
+                type="button"
+                className={styles.switchButton}
+                onClick={() => setTab(tab === "login" ? "register" : "login")}
+              >
+                {tab === "login" ? "Crea una aquí" : "Inicia sesión"}
+              </button>
+            </p>
           </div>
-        </CardBody>
-      </Card>
+        </div>
+      </div>
     </Container>
   );
 }

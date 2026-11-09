@@ -91,3 +91,8 @@
   gap: var(--space-3);
   justify-items: start;
 }
+
+.skeleton {
+  display: grid;
+  gap: var(--space-2);
+}

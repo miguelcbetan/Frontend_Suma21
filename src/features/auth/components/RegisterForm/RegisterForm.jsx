@@ -75,7 +75,7 @@ export function RegisterForm({ onSuccess }) {
         hint={`Mínimo ${MIN_PASSWORD} caracteres.`}
         error={error.fields.clave}
       />
-      <Button type="submit" size="lg" disabled={pending}>
+      <Button type="submit" size="lg" block disabled={pending}>
         {pending ? "Creando cuenta…" : "Crear mi cuenta"}
       </Button>
     </form>

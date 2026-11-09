@@ -7,18 +7,19 @@ import { NavList } from "./NavList.jsx";
 import styles from "./SiteHeader.module.css";
 
 /**
- * Cabecera con marca, navegación principal y acciones. No conoce rutas ni
- * features: todo llega por props o slots.
+ * Cabecera con marca, navegación principal, acciones y una llamada a la
+ * acción siempre visible. No conoce rutas ni features: todo llega por props o
+ * slots.
  * @param {{
  *   brand: import("react").ReactNode,
  *   items: { label: string, href: string, current?: boolean }[],
- *   leading?: import("react").ReactNode,
+ *   cta?: import("react").ReactNode,
  *   actions?: import("react").ReactNode,
  *   navLabel?: string,
  *   linkAs?: import("react").ElementType,
  * }} props
  */
-export function SiteHeader({ brand, items, leading, actions, navLabel = "Principal", linkAs }) {
+export function SiteHeader({ brand, items, cta, actions, navLabel = "Principal", linkAs }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const toggleRef = useRef(null);
@@ -39,8 +40,14 @@ export function SiteHeader({ brand, items, leading, actions, navLabel = "Princip
   return (
     <header className={styles.header}>
       <Container className={styles.bar}>
-        {leading ? <div className={styles.leading}>{leading}</div> : null}
         <div className={styles.brand}>{brand}</div>
+        <div id={panelId} className={cx(styles.panel, open && styles.open)}>
+          <nav aria-label={navLabel} className={styles.nav}>
+            <NavList items={items} onNavigate={() => setOpen(false)} linkAs={linkAs} />
+          </nav>
+          {actions ? <div className={styles.actions}>{actions}</div> : null}
+        </div>
+        {cta ? <div className={styles.cta}>{cta}</div> : null}
         <button
           ref={toggleRef}
           type="button"
@@ -60,12 +67,6 @@ export function SiteHeader({ brand, items, leading, actions, navLabel = "Princip
             />
           </svg>
         </button>
-        <div id={panelId} className={cx(styles.panel, open && styles.open)}>
-          <nav aria-label={navLabel}>
-            <NavList items={items} onNavigate={() => setOpen(false)} linkAs={linkAs} />
-          </nav>
-          {actions ? <div className={styles.actions}>{actions}</div> : null}
-        </div>
       </Container>
     </header>
   );

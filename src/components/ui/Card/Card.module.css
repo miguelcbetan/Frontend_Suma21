@@ -1,6 +1,6 @@
 .card {
   background: var(--color-bg);
-  border: var(--border-width) solid var(--color-border);
+  border: var(--border-width) solid var(--color-gray-200);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
@@ -8,8 +8,8 @@
 
 .header {
   padding: var(--space-4) var(--space-5);
-  border-bottom: var(--border-width) solid var(--color-border);
-  background: var(--color-surface);
+  border-bottom: var(--border-width) solid var(--color-gray-200);
+  background: var(--color-gray-50);
 }
 
 .body {

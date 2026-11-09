@@ -12,8 +12,9 @@ import styles from "./Section.module.css";
  *   title: string,
  *   eyebrow?: string,
  *   description?: string,
- *   tone?: "default" | "muted",
+ *   tone?: "default" | "muted" | "brand",
  *   align?: "start" | "center",
+ *   headingLevel?: 1 | 2,
  * }} props
  */
 export function Section({
@@ -22,11 +23,13 @@ export function Section({
   description,
   tone = "default",
   align = "center",
+  headingLevel = 2,
   className,
   children,
   ...rest
 }) {
   const titleId = useId();
+  const Heading = `h${headingLevel}`;
 
   return (
     <section
@@ -37,9 +40,9 @@ export function Section({
       <Container className={styles.inner}>
         <header className={cx(styles.header, styles[align])}>
           {eyebrow ? <Badge tone="green">{eyebrow}</Badge> : null}
-          <h2 id={titleId} className={styles.title}>
+          <Heading id={titleId} className={styles.title}>
             {title}
-          </h2>
+          </Heading>
           {description ? <p className={styles.description}>{description}</p> : null}
         </header>
         {children}

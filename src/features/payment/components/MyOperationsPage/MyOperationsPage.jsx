@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Container } from "@/components/layout/Container";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button, buttonClassName } from "@/components/ui/Button";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Icon } from "@/components/ui/Icon";
 import { describeError, paymentsService } from "@/core/api";
 import { listPaymentSessions, paymentKindOf } from "@/core/utils/paymentSession";
 
@@ -13,8 +15,9 @@ import { STATUS_LABELS, formatCop, formatDateTime, outcomeOf } from "../PaymentR
 
 import styles from "./MyOperationsPage.module.css";
 
-const TONES = { approved: "green", rejected: "orange", pending: "neutral" };
+const TONES = { approved: "green", rejected: "danger", pending: "neutral" };
 const KIND_LABELS = { sale: "Compra", donation: "Donación" };
+const KIND_ICONS = { sale: "bag", donation: "heart" };
 
 /**
  * Página `/mis-operaciones`: compras y donaciones monetarias iniciadas en este
@@ -56,75 +59,86 @@ export function MyOperationsPage({ userId = null }) {
 
   return (
     <Container className={styles.page}>
-      <header className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Mis operaciones</h1>
-          <p className={styles.lead}>
-            Compras y donaciones monetarias que iniciaste desde este navegador, con el estado que confirma el
-            servidor.
-          </p>
-        </div>
-        <Button variant="secondary" size="sm" onClick={refresh} disabled={rows.length === 0}>
-          Actualizar estados
-        </Button>
-      </header>
+      <PageHeader
+        eyebrow="Tu cuenta"
+        title="Mis operaciones"
+        description="Compras y donaciones monetarias que iniciaste, con el estado que confirma el servidor."
+        actions={
+          rows.length > 0 ? (
+            <Button variant="outline" onClick={refresh}>
+              <Icon name="refresh" size={18} />
+              Actualizar estados
+            </Button>
+          ) : null
+        }
+      />
+
+      <Alert tone="info">
+        Por ahora esta lista muestra las operaciones iniciadas desde <strong>este navegador</strong>. Si pagaste
+        desde otro dispositivo, consulta allí su estado.
+      </Alert>
 
       {rows.length === 0 ? (
-        <Alert tone="info">
-          Aún no tienes operaciones registradas en este navegador.{" "}
-          <Link to="/apoyanos-tienda">Visita la tienda</Link> o usa «Donar ahora».
-        </Alert>
+        <EmptyState
+          icon="receipt"
+          tone="brand"
+          title="Aún no tienes operaciones"
+          description="Cuando compres en la tienda o hagas una donación monetaria, verás aquí su estado y su comprobante."
+          actions={
+            <>
+              <Link to="/apoyanos-tienda" className={buttonClassName()}>
+                Visitar la tienda
+              </Link>
+              <Link to="/" className={buttonClassName({ variant: "outline" })}>
+                Ir al inicio para donar
+              </Link>
+            </>
+          }
+        />
       ) : (
         <ul className={styles.list}>
           {rows.map(({ session, state, payment, error }) => {
             const kind = paymentKindOf(session.reference) ?? session.kind;
             const outcome = payment ? outcomeOf(payment) : null;
             return (
-              <li key={session.reference}>
-                <Card>
-                  <CardHeader className={styles.cardHeader}>
+              <li key={session.reference} className={styles.row}>
+                <span className={styles.kindIcon}>
+                  <Icon name={KIND_ICONS[kind] ?? "receipt"} size={20} />
+                </span>
+                <div className={styles.main}>
+                  <div className={styles.titleRow}>
                     <h2 className={styles.kind}>{KIND_LABELS[kind] ?? "Pago"}</h2>
                     {state === "loading" ? <Badge>Consultando…</Badge> : null}
-                    {state === "error" ? <Badge tone="orange">{error}</Badge> : null}
+                    {state === "error" ? <Badge tone="danger">{error}</Badge> : null}
                     {payment ? <Badge tone={TONES[outcome]}>{STATUS_LABELS[payment.status] ?? payment.status}</Badge> : null}
-                  </CardHeader>
-                  <CardBody>
-                    <dl className={styles.details}>
+                  </div>
+                  {session.summary ? <p className={styles.summary}>{session.summary}</p> : null}
+                  <dl className={styles.details}>
+                    <div>
+                      <dt>Fecha</dt>
+                      <dd>{formatDateTime(payment?.created_at ?? session.createdAt)}</dd>
+                    </div>
+                    <div>
+                      <dt>Referencia</dt>
+                      <dd className={styles.mono}>{session.reference}</dd>
+                    </div>
+                    {payment?.payment_method ? (
                       <div>
-                        <dt>Referencia</dt>
-                        <dd>{session.reference}</dd>
+                        <dt>Medio de pago</dt>
+                        <dd>{payment.payment_method}</dd>
                       </div>
-                      {payment ? (
-                        <div>
-                          <dt>Monto</dt>
-                          <dd>{formatCop(payment.amount_in_cents / 100)}</dd>
-                        </div>
-                      ) : null}
-                      <div>
-                        <dt>Fecha</dt>
-                        <dd>{formatDateTime(payment?.created_at ?? session.createdAt)}</dd>
-                      </div>
-                      {session.summary ? (
-                        <div>
-                          <dt>Detalle</dt>
-                          <dd>{session.summary}</dd>
-                        </div>
-                      ) : null}
-                      {payment?.payment_method ? (
-                        <div>
-                          <dt>Medio de pago</dt>
-                          <dd>{payment.payment_method}</dd>
-                        </div>
-                      ) : null}
-                    </dl>
-                    <Link
-                      to={`/payment-result?reference=${encodeURIComponent(session.reference)}`}
-                      className={buttonClassName({ variant: "ghost", size: "sm" })}
-                    >
-                      Ver detalle
-                    </Link>
-                  </CardBody>
-                </Card>
+                    ) : null}
+                  </dl>
+                </div>
+                <div className={styles.side}>
+                  {payment ? <p className={styles.amount}>{formatCop(payment.amount_in_cents / 100)}</p> : null}
+                  <Link
+                    to={`/payment-result?reference=${encodeURIComponent(session.reference)}`}
+                    className={buttonClassName({ variant: "outline", size: "sm" })}
+                  >
+                    Ver detalle
+                  </Link>
+                </div>
               </li>
             );
           })}

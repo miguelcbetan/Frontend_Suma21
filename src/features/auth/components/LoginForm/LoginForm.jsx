@@ -50,7 +50,7 @@ export function LoginForm({ onSuccess }) {
         required
         error={error.fields.clave}
       />
-      <Button type="submit" size="lg" disabled={pending}>
+      <Button type="submit" size="lg" block disabled={pending}>
         {pending ? "Ingresando…" : "Iniciar sesión"}
       </Button>
     </form>

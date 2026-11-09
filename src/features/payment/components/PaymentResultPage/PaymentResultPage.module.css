@@ -1,343 +1,171 @@
-/*
- * Pantalla de resultado de pago y recibo. Reproduce el mockup entregado por el
- * equipo de diseño: sus colores propios se declaran como variables locales para
- * conservar el aspecto exacto sin tocar los tokens globales.
- */
 .page {
-  --brand: #1e938a;
-  --brand-dark: #006a64;
-  --orange: #f19727;
-  --orange-dark: #875200;
-  --orange-soft: #fdefd9;
-  --canvas: #faf8ff;
-  --lavender: #f2f3ff;
-  --muted: #4f5f5d;
-  --aqua: #94f3e9;
-
-  background: var(--canvas);
-}
-
-.main {
-  max-width: 1280px;
-  margin: auto;
-}
-
-/* Gracias */
-.thanks {
-  padding: 50px 20px 32px;
   background:
-    radial-gradient(circle at 95%, rgb(148 243 233 / 0.31), transparent 30%),
-    radial-gradient(circle at 5%, rgb(241 151 39 / 0.19), transparent 25%),
-    linear-gradient(#f2f3ff, #faf8ff);
-  text-align: center;
+    radial-gradient(50rem 24rem at 50% 0%, var(--color-green-50), transparent 70%),
+    var(--color-gray-50);
 }
 
-.heart {
-  position: relative;
+.inner {
   display: grid;
-  place-items: center;
-  width: 74px;
-  height: 74px;
-  margin: auto;
-  background: var(--orange);
-  border: 9px solid #ffd184;
-  border-radius: 50%;
-  color: #fff;
-  font-size: 30px;
+  gap: var(--space-6);
+  padding-block: var(--space-7) var(--space-8);
 }
 
-.heart i {
-  position: absolute;
-  right: -5px;
-  bottom: -3px;
+/* Estados sin recibo */
+.status {
+  width: 100%;
+  max-width: 44rem;
+  margin-inline: auto;
+  border-style: solid;
+  box-shadow: var(--shadow-sm);
+}
+
+.reference {
+  margin-top: var(--space-2);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.loading {
   display: grid;
-  place-items: center;
-  width: 25px;
-  height: 25px;
-  background: var(--brand);
-  border-radius: 50%;
-  font-size: 14px;
-  font-style: normal;
-}
-
-.badge {
-  display: inline-block;
-  margin-top: 16px;
-  padding: 6px 14px;
-  background: var(--aqua);
-  border-radius: 99px;
-  color: var(--brand-dark);
-  font-size: 11px;
-}
-
-.thanks h1 {
-  margin: 8px;
-  font-size: 42px;
-  line-height: 1.05;
-}
-
-.thanksText {
-  max-width: 660px;
-  margin: 15px auto;
-  color: var(--muted);
-}
-
-/* Recibo e impacto */
-.receiptLayout {
-  display: grid;
-  grid-template-columns: 1.35fr 0.8fr;
-  gap: 28px;
-  padding: 0 20px 44px;
-}
-
-.receiptLayoutSingle {
-  grid-template-columns: minmax(0, 1fr);
-  max-width: 760px;
+  justify-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 44rem;
   margin-inline: auto;
 }
 
-.receiptCard,
-.impactCard {
-  padding: 28px;
-  background: #fff;
-  border-radius: 20px;
-  box-shadow: 0 8px 24px rgb(25 43 52 / 0.06);
+.loadingText {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-semibold);
 }
 
-.receiptCard {
-  border-top: 5px solid var(--orange);
+/* Agradecimiento */
+.thanks {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 44rem;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.thanksIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  border: 6px solid var(--color-orange-100);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+}
+
+.thanksTitle {
+  font-size: var(--font-size-3xl);
+}
+
+.thanksText {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-lg);
+}
+
+/* Recibo */
+.receipt {
+  width: 100%;
+  max-width: 44rem;
+  margin-inline: auto;
+  overflow: hidden;
+  background: var(--color-bg);
+  border: var(--border-width) solid var(--color-gray-200);
+  border-top: 5px solid var(--color-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+}
+
+.receiptHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-5) var(--space-3);
+}
+
+.receiptEyebrow {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-black);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
 }
 
 .receiptTitle {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
+  font-size: var(--font-size-xl);
 }
 
-.receiptTitle small {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+.details {
+  display: grid;
+  margin: 0 var(--space-5);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-gray-50);
+  border-radius: var(--radius-md);
 }
 
-.receiptTitle h2 {
-  margin: 5px 0;
+.details div {
+  display: grid;
+  gap: var(--space-1);
+  padding-block: var(--space-3);
 }
 
-.receiptTitle > span {
-  padding: 5px 9px;
-  background: var(--aqua);
-  border-radius: 99px;
-  color: var(--brand-dark);
-  font-size: 10px;
+.details div + div {
+  border-top: var(--border-width) solid var(--color-gray-200);
 }
 
-.receiptCard dl {
-  padding: 18px;
-  background: var(--canvas);
-  border-radius: 12px;
+.details dt {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
-.receiptCard dl div {
-  display: flex;
-  justify-content: space-between;
-  padding: 10px 0;
-}
-
-.receiptCard dt {
-  color: var(--muted);
-}
-
-.receiptCard dd {
+.details dd {
   margin: 0;
-  font-weight: 600;
-  text-align: right;
+  font-weight: var(--font-weight-bold);
+  overflow-wrap: anywhere;
 }
 
-.receiptCard dd.amount {
-  color: var(--orange-dark);
-  font-size: 20px;
+.mono {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}
+
+.totalRow dd.amount {
+  color: var(--color-accent-text);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-black);
 }
 
 .receiptActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-}
-
-.actionPrimary,
-.actionGhost {
-  padding: 11px 18px;
-  border: 0;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.actionPrimary {
-  background: var(--orange);
-  color: #352000;
-}
-
-.actionGhost {
-  background: var(--lavender);
-  color: #1c2b2a;
-}
-
-.actionPrimary:disabled,
-.actionGhost:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
+  gap: var(--space-3);
+  padding: var(--space-5);
 }
 
 .hint {
-  margin-top: 10px;
-  color: var(--muted);
-  font-size: 12px;
+  padding: 0 var(--space-5) var(--space-5);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
-.impactCard h2 {
-  margin: 5px 0;
-}
-
-.impactCard > p {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.eyebrow {
-  margin: 0 0 5px;
-  color: var(--brand-dark);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-}
-
-.impactItem {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 10px;
-  padding: 14px;
-  background: var(--lavender);
-  border-radius: 12px;
-}
-
-.impactItem b {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 28px;
-  height: 28px;
-  background: var(--orange-soft);
-  border-radius: 50%;
-  color: var(--orange-dark);
-}
-
-/* Testimonio */
-.quote {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  max-width: 900px;
-  margin: 10px auto 70px;
-  padding: 22px;
-  background: #fff;
-  border-radius: 18px;
-  box-shadow: 0 8px 25px rgb(0 0 0 / 0.05);
-  font-style: italic;
-}
-
-.quoteImage {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 110px;
-  height: 100px;
-  background: var(--lavender);
-  border-radius: 14px;
-  color: var(--muted);
-  font-size: 11px;
-  font-style: normal;
-  text-align: center;
-}
-
-.quote cite {
-  display: block;
-  margin-top: 10px;
-  color: var(--muted);
-  font-size: 11px;
-  font-style: normal;
-}
-
-/* Estados sin recibo */
-.status {
-  display: grid;
-  gap: 16px;
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 64px 20px;
-}
-
-.statusActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.reference {
-  font-size: 12px;
-  color: var(--muted);
-  overflow-wrap: anywhere;
-}
-
-@media (max-width: 900px) {
-  .thanks h1 {
-    font-size: 30px;
+@media (min-width: 40rem) {
+  .details div {
+    grid-template-columns: 1fr 1.3fr;
+    align-items: baseline;
   }
 
-  .receiptLayout {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 560px) {
-  .receiptCard,
-  .impactCard {
-    padding: 18px;
-  }
-
-  .receiptCard dl div {
-    display: block;
-  }
-
-  .receiptCard dd {
-    margin-top: 4px;
-    text-align: left;
-  }
-
-  .receiptActions {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-
-  .receiptTitle {
-    display: block;
-  }
-
-  .receiptTitle > span {
-    display: inline-block;
-  }
-
-  .quote {
-    align-items: flex-start;
-    margin: 10px 16px 50px;
-  }
-
-  .quoteImage {
-    width: 74px;
-    height: 74px;
+  .details dd {
+    text-align: right;
   }
 }

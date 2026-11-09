@@ -3,7 +3,9 @@ import { useEffect, useState } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { describeError } from "@/core/api";
 import { formatCurrency } from "@/core/utils/currency";
 
@@ -94,7 +96,7 @@ export function ReportPanel({ section }) {
               ))}
             </Field>
             <div className={styles.filterActions}>
-              <Button type="submit">Aplicar</Button>
+              <Button type="submit" variant="secondary">Aplicar</Button>
               <Button
                 variant="ghost"
                 onClick={() => {
@@ -121,7 +123,18 @@ export function ReportPanel({ section }) {
           ) : null}
         </CardHeader>
         <CardBody className={styles.results}>
-          {state.status === "loading" ? <p role="status">Cargando…</p> : null}
+          {state.status === "loading" ? (
+            <>
+              <p role="status" className="sr-only">
+                Cargando…
+              </p>
+              <div className={styles.skeleton} aria-hidden="true">
+                {[1, 2, 3, 4].map((n) => (
+                  <Skeleton key={n} height="2.75rem" />
+                ))}
+              </div>
+            </>
+          ) : null}
           {state.status === "error" ? (
             <div className={styles.errorBox}>
               <Alert tone="error">{state.error}</Alert>
@@ -138,7 +151,12 @@ export function ReportPanel({ section }) {
             </div>
           ) : null}
           {state.status === "ready" && state.data.length === 0 ? (
-            <p>No hay registros para los filtros elegidos.</p>
+            <EmptyState
+              compact
+              icon={section.icon ?? "chart"}
+              title="No hay registros para los filtros elegidos"
+              description="Prueba con otro rango de fechas o limpia los filtros."
+            />
           ) : null}
           {state.status === "ready" && state.data.length > 0 ? (
             <DataTable

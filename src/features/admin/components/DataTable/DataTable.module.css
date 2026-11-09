@@ -1,6 +1,6 @@
 .scroll {
   overflow-x: auto;
-  border: var(--border-width) solid var(--color-border);
+  border: var(--border-width) solid var(--color-gray-200);
   border-radius: var(--radius-md);
 }
 
@@ -17,24 +17,38 @@
 
 .table th,
 .table td {
-  padding: var(--space-2) var(--space-3);
-  border-bottom: var(--border-width) solid var(--color-border);
+  padding: var(--space-3);
+  border-bottom: var(--border-width) solid var(--color-gray-100);
   text-align: left;
   vertical-align: middle;
 }
 
 .table th {
-  background: var(--color-surface);
-  font-weight: var(--font-weight-bold);
+  background: var(--color-gray-50);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-black);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
-.table tbody tr:nth-child(even) {
-  background: var(--color-gray-50);
+.table tbody tr {
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.table tbody tr:hover {
+  background: var(--color-surface-brand);
 }
 
 .table tbody tr:last-child td {
   border-bottom: 0;
+}
+
+.idCell {
+  color: var(--color-text-muted);
+  font-family: var(--font-family-mono);
+  white-space: nowrap;
 }
 
 .thumb {
@@ -49,9 +63,88 @@
   color: var(--color-text-muted);
 }
 
+.actionsHead {
+  text-align: right;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: var(--space-1);
   min-width: 12rem;
+}
+
+/* Móvil: cada fila como tarjeta */
+@media (max-width: 47.99rem) {
+  .scroll {
+    overflow: visible;
+    border: 0;
+  }
+
+  .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .table,
+  .table tbody,
+  .table tr,
+  .table td {
+    display: block;
+    width: 100%;
+  }
+
+  .table tbody {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .table tbody tr {
+    padding: var(--space-2) var(--space-4);
+    border: var(--border-width) solid var(--color-gray-200);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+  }
+
+  .table tbody tr:hover {
+    background: var(--color-bg);
+  }
+
+  .table td {
+    display: grid;
+    grid-template-columns: 7rem minmax(0, 1fr);
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+    overflow-wrap: anywhere;
+  }
+
+  .table tbody tr td:last-child {
+    border-bottom: 0;
+  }
+
+  .table td::before {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    text-transform: uppercase;
+    content: attr(data-label);
+  }
+
+  .actionsCell {
+    display: block !important;
+  }
+
+  .actionsCell::before {
+    display: none;
+  }
+
+  .actions {
+    justify-content: flex-start;
+    min-width: 0;
+    padding-top: var(--space-2);
+  }
 }

@@ -1,7 +1,7 @@
 .fieldset {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-4);
+  gap: var(--space-3);
   min-width: 0;
   padding: 0;
   border: 0;
@@ -28,22 +28,34 @@
   align-items: center;
   justify-content: center;
   min-height: 3.5rem;
-  background: var(--color-overlay-dark);
-  border: var(--border-width) solid rgb(255 255 255 / 0.12);
-  border-radius: var(--radius-sm);
-  color: var(--color-on-dark);
+  background: var(--color-bg);
+  border: 2px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
   font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-black);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
+}
+
+.tile:hover .text {
+  border-color: var(--color-orange-500);
 }
 
 .input:checked + .text {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-md);
-  color: var(--color-primary-contrast);
+  background: var(--color-orange-50);
+  border-color: var(--color-orange-500);
+  color: var(--color-brown-900);
 }
 
 .input:focus-visible + .text {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 3px;
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+@media (max-width: 24rem) {
+  .text {
+    font-size: var(--font-size-md);
+  }
 }

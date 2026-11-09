@@ -1,7 +1,9 @@
 .badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-full);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
   line-height: var(--line-height-tight);
@@ -20,4 +22,9 @@
 .orange {
   background: var(--color-orange-100);
   color: var(--color-orange-700);
+}
+
+.danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
 }

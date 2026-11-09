@@ -31,10 +31,10 @@ export function ConfirmDialog({ open, title, children, confirmLabel = "Eliminar"
         <div className={styles.body}>{children}</div>
         {error ? <Alert tone="error">{error}</Alert> : null}
         <div className={styles.actions}>
-          <Button variant="ghost" onClick={onCancel} disabled={pending}>
+          <Button variant="outline" onClick={onCancel} disabled={pending}>
             Cancelar
           </Button>
-          <Button onClick={onConfirm} disabled={pending}>
+          <Button variant="dangerSolid" onClick={onConfirm} disabled={pending}>
             {pending ? "Procesando…" : confirmLabel}
           </Button>
         </div>

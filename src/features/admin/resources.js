@@ -12,6 +12,7 @@ import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, validateImageFile } from "@/core/uti
 const ROLE_OPTIONS = ["ADMIN", "DONANTE", "ESTUDIANTE", "ACUDIENTE", "TALLERISTA"];
 
 const SALE_STATUS_LABELS = { PENDING: "Pendiente", APPROVED: "Aprobada", DECLINED: "Rechazada" };
+const SALE_STATUS_TONES = { PENDING: "neutral", APPROVED: "green", DECLINED: "danger" };
 
 const money = (value) => (value == null || value === "" ? "—" : formatCurrency(Number(value)));
 const centsToMoney = (cents) => money(Number(cents) / 100);
@@ -45,6 +46,7 @@ export const SECTIONS = [
   {
     id: "products",
     label: "Productos",
+    icon: "bag",
     singular: "producto",
     description:
       "Productos de la tienda. Para reponer unidades de un producto que ya existe usa «Aumentar stock» en lugar de crear uno nuevo.",
@@ -86,6 +88,7 @@ export const SECTIONS = [
   {
     id: "inventory",
     label: "Inventario",
+    icon: "package",
     singular: "artículo de inventario",
     description:
       "Artículos de la fundación. Marca «Solicitado por la fundación» para que aparezca en la lista de donaciones en especie que ven los clientes.",
@@ -151,8 +154,9 @@ export const SECTIONS = [
   {
     id: "sales-report",
     label: "Ingresos por ventas",
+    icon: "coins",
     singular: "venta",
-    description: "Ventas cuyo pago aprobó Wompi (GET /transactions/sales).",
+    description: "Ventas de la tienda cuyo pago aprobó Wompi. Filtra por fechas para ver los ingresos de un periodo.",
     report: transactionsService.sales,
     columns: [
       { key: "completed_at", label: "Fecha", format: (record) => formatDateTimeShort(record.completed_at) },
@@ -171,8 +175,9 @@ export const SECTIONS = [
   {
     id: "sales",
     label: "Ventas registradas",
+    icon: "receipt",
     singular: "venta",
-    description: "Todas las ventas creadas desde la tienda, incluidas las pendientes de pago (GET /sales).",
+    description: "Todas las ventas creadas desde la tienda, incluidas las que siguen pendientes de pago o fueron rechazadas.",
     list: salesService.list,
     searchKeys: ["id", "customerId", "status"],
     columns: [
@@ -185,15 +190,22 @@ export const SECTIONS = [
         format: (record) => (record.items ?? []).map((item) => `${item.quantity} × #${item.productId}`).join(", "),
       },
       { key: "totalPrice", label: "Total", format: (record) => money(record.totalPrice) },
-      { key: "status", label: "Estado", format: (record) => SALE_STATUS_LABELS[record.status] ?? record.status },
+      {
+        key: "status",
+        label: "Estado",
+        type: "status",
+        tones: SALE_STATUS_TONES,
+        format: (record) => SALE_STATUS_LABELS[record.status] ?? record.status,
+      },
     ],
   },
   {
     id: "donations-report",
     label: "Donaciones monetarias",
+    icon: "heart",
     singular: "donación",
     description:
-      "Donaciones monetarias aprobadas por Wompi (GET /transactions/donations). El backend aún no ofrece un listado de donaciones en especie.",
+      "Donaciones monetarias cuyo pago aprobó Wompi. El listado de donaciones en especie aún no está disponible en el servidor.",
     report: transactionsService.donations,
     columns: [
       { key: "completed_at", label: "Fecha", format: (record) => formatDateTimeShort(record.completed_at) },
@@ -207,9 +219,10 @@ export const SECTIONS = [
   {
     id: "users",
     label: "Usuarios",
+    icon: "users",
     singular: "usuario",
     description:
-      "Alta de usuarios en el servicio de autenticación (POST /auth/usuarios). Desde aquí solo se crean cuentas; el listado y la edición no están integrados.",
+      "Crea cuentas nuevas y asígnales un rol. Desde aquí solo se crean cuentas: el listado y la edición de usuarios aún no están disponibles.",
     create: ({ roles, ...rest }) => authService.createUser({ ...rest, roles: [roles] }),
     fields: [
       { name: "username", label: "Nombre de usuario", type: "text", required: true },

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/Button";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { Icon } from "@/components/ui/Icon";
 import { formatCurrency } from "@/core/utils/currency";
 
 import styles from "./CartSummary.module.css";
@@ -32,15 +32,26 @@ export function CartSummary({
   const units = lines.reduce((sum, { quantity }) => sum + quantity, 0);
 
   return (
-    <Card id="carrito">
-      <CardHeader>
-        <h3 className={styles.heading}>
-          Tu carrito{units > 0 ? <span className={styles.units}> · {units} {units === 1 ? "unidad" : "unidades"}</span> : null}
-        </h3>
-      </CardHeader>
-      <CardBody className={styles.body}>
+    <section id="carrito" className={styles.cart} aria-labelledby="cart-title">
+      <header className={styles.header}>
+        <h2 id="cart-title" className={styles.heading}>
+          <Icon name="cart" size={20} />
+          Tu carrito
+        </h2>
+        {units > 0 ? (
+          <span className={styles.units}>
+            {units} {units === 1 ? "unidad" : "unidades"}
+          </span>
+        ) : null}
+      </header>
+
+      <div className={styles.body}>
         {lines.length === 0 ? (
-          <p className={styles.empty}>Aún no has agregado productos.</p>
+          <div className={styles.empty}>
+            <Icon name="cart" size={28} />
+            <p>Tu carrito está vacío.</p>
+            <p className={styles.emptyHint}>Agrega productos del catálogo para armar tu pedido.</p>
+          </div>
         ) : (
           <ul className={styles.list}>
             {lines.map(({ product, quantity }) => (
@@ -48,7 +59,7 @@ export function CartSummary({
                 <div className={styles.info}>
                   <p className={styles.name}>{product.name}</p>
                   <p className={styles.subtotal}>
-                    {quantity} × {formatCurrency(product.price)} = <strong>{formatCurrency(product.price * quantity)}</strong>
+                    {quantity} × {formatCurrency(product.price)}
                   </p>
                   {onDelete ? (
                     <button type="button" className={styles.delete} onClick={() => onDelete(product.id)}>
@@ -56,25 +67,26 @@ export function CartSummary({
                     </button>
                   ) : null}
                 </div>
-                <div className={styles.quantity}>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onRemove(product.id)}
-                    aria-label={`Quitar una unidad: ${product.name}`}
-                  >
-                    −
-                  </Button>
-                  <span aria-label={`Cantidad: ${quantity}`}>{quantity}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onAdd(product.id)}
-                    disabled={quantity >= product.stock}
-                    aria-label={`Agregar una unidad: ${product.name}`}
-                  >
-                    +
-                  </Button>
+                <div className={styles.side}>
+                  <strong className={styles.lineTotal}>{formatCurrency(product.price * quantity)}</strong>
+                  <div className={styles.stepper}>
+                    <button
+                      type="button"
+                      onClick={() => onRemove(product.id)}
+                      aria-label={`Quitar una unidad: ${product.name}`}
+                    >
+                      −
+                    </button>
+                    <span aria-label={`Cantidad: ${quantity}`}>{quantity}</span>
+                    <button
+                      type="button"
+                      onClick={() => onAdd(product.id)}
+                      disabled={quantity >= product.stock}
+                      aria-label={`Agregar una unidad: ${product.name}`}
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
               </li>
             ))}
@@ -86,15 +98,12 @@ export function CartSummary({
           <strong>{formatCurrency(total)}</strong>
         </p>
 
-        <Button
-          className={styles.checkout}
-          disabled={lines.length === 0 || checkoutDisabled}
-          onClick={onCheckout}
-        >
+        <Button size="lg" block disabled={lines.length === 0 || checkoutDisabled} onClick={onCheckout}>
+          <Icon name="lock" size={18} />
           {checkoutLabel}
         </Button>
         {note ? <p className={styles.note}>{note}</p> : null}
-      </CardBody>
-    </Card>
+      </div>
+    </section>
   );
 }

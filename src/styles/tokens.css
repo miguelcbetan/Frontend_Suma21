@@ -9,21 +9,29 @@
  */
 :root {
   /* Paleta de marca */
+  --color-green-50: #f2f9f8;
   --color-green-100: #e3f2f0;
+  --color-green-200: #c4e4e0;
   --color-green-500: #2e938a;
   --color-green-600: #257a72;
   --color-green-700: #1f6f68;
+  --color-orange-50: #fef8ef;
   --color-orange-100: #fdf0dd;
+  --color-orange-200: #fbdcb0;
+  --color-orange-600: #e0841a;
   --color-orange-500: #f19727;
   --color-orange-700: #a65a00;
   --color-gray-50: #f7f7f7;
   --color-gray-100: #edeced;
+  --color-gray-200: #e2e1e2;
   --color-ink: #1f2a29;
   --color-brown-700: #4d3010;
   --color-brown-900: #261a0d;
   --color-on-dark: #ffffff;
   --color-on-dark-muted: #e3d9cc;
   --color-overlay-dark: rgb(0 0 0 / 0.7);
+  --color-red-50: #fdf1f0;
+  --color-red-700: #b42318;
 
   /* Color: superficie y texto */
   --color-bg: #ffffff;
@@ -40,6 +48,10 @@
   --color-accent-text: var(--color-orange-700);
   --color-link: var(--color-green-600);
   --color-focus: var(--color-green-700);
+  --color-danger: var(--color-red-700);
+  --color-danger-soft: var(--color-red-50);
+  --color-surface-brand: var(--color-green-50);
+  --color-surface-warm: var(--color-orange-50);
 
   /* Tipografía */
   --font-family-base: "Nunito Variable", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -48,11 +60,19 @@
   --font-size-md: 1rem;
   --font-size-lg: 1.25rem;
   --font-size-xl: 1.75rem;
+  --font-size-xs: 0.75rem;
   --font-size-2xl: 2.25rem;
+  --font-size-3xl: clamp(2rem, 1.4rem + 2.4vw, 2.75rem);
+  --font-size-4xl: clamp(2.5rem, 1.6rem + 3.6vw, 3.75rem);
   --font-weight-regular: 400;
   --font-weight-medium: 500;
+  --font-weight-semibold: 600;
   --font-weight-bold: 700;
+  --font-weight-black: 800;
   --line-height-tight: 1.2;
+  --line-height-snug: 1.35;
+  --letter-spacing-tight: -0.02em;
+  --letter-spacing-wide: 0.08em;
   --line-height-base: 1.55;
 
   /* Espaciado (escala de 4px) */
@@ -64,18 +84,29 @@
   --space-6: 2rem;
   --space-7: 3rem;
   --space-8: 4rem;
+  --space-9: 6rem;
 
   /* Bordes y sombras */
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 999px;
   --border-width: 1px;
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
   --shadow-md: 0 4px 12px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 16px 40px rgb(31 42 41 / 0.12);
+  --ring-focus: 0 0 0 3px rgb(46 147 138 / 0.25);
+
+  /* Movimiento */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 
   /* Layout */
   --container-max-width: 72rem;
   --container-gutter: var(--space-4);
+  --header-height: 4.5rem;
 }
 
 @media (min-width: 48rem) {

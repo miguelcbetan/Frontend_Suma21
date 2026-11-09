@@ -1,35 +1,54 @@
 .page {
-  display: flex;
-  justify-content: center;
   padding-block: var(--space-7);
 }
 
 .card {
-  width: 100%;
-  max-width: 32rem;
+  overflow: hidden;
+  max-width: 40rem;
+  margin-inline: auto;
+  background: var(--color-bg);
+  border: var(--border-width) solid var(--color-gray-200);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-5);
+  background: var(--color-surface-brand);
+  border-bottom: var(--border-width) solid var(--color-green-100);
+}
+
+.avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: var(--radius-full);
+  background: var(--color-secondary);
+  color: var(--color-secondary-contrast);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-black);
+}
+
+.identity {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
 }
 
 .title {
   font-size: var(--font-size-xl);
+  overflow-wrap: anywhere;
 }
 
-.body {
-  display: grid;
-  gap: var(--space-5);
-}
-
-.list {
-  display: grid;
-  gap: var(--space-4);
-}
-
-.list dt {
+.email {
   color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.list dd {
-  font-weight: var(--font-weight-bold);
   overflow-wrap: anywhere;
 }
 
@@ -37,10 +56,79 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  margin-top: var(--space-1);
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
+.body {
+  display: grid;
   gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.sectionTitle {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+.shortcuts {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.shortcut {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  text-decoration: none;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
+}
+
+.shortcut:hover {
+  background: var(--color-gray-50);
+  border-color: var(--color-green-500);
+}
+
+.shortcutIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  background: var(--color-green-100);
+  color: var(--color-green-700);
+}
+
+.shortcutTitle {
+  display: block;
+  font-weight: var(--font-weight-bold);
+}
+
+.shortcutText {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.chevron {
+  margin-left: auto;
+  color: var(--color-text-muted);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-4) var(--space-5);
+  border-top: var(--border-width) solid var(--color-gray-200);
 }

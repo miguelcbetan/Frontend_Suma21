@@ -1,65 +1,106 @@
 .page {
   display: grid;
   gap: var(--space-5);
-  padding-block: var(--space-6);
-}
-
-.header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.title {
-  font-size: var(--font-size-2xl);
-}
-
-.lead {
-  max-width: 40rem;
-  color: var(--color-text-muted);
+  padding-block: var(--space-7);
 }
 
 .list {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.cardHeader {
+.row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-bg);
+  border: var(--border-width) solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.kindIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-md);
+  background: var(--color-orange-100);
+  color: var(--color-orange-700);
+}
+
+.main {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.titleRow {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .kind {
-  margin-right: auto;
   font-size: var(--font-size-lg);
 }
 
-.details {
-  display: grid;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
-}
-
-.details dt {
+.summary {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
 
+.details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
+  font-size: var(--font-size-sm);
+}
+
+.details dt {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
 .details dd {
   margin: 0;
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-semibold);
   overflow-wrap: anywhere;
 }
 
+.mono {
+  font-family: var(--font-family-mono);
+}
+
+.side {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.amount {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-black);
+}
+
 @media (min-width: 48rem) {
-  .details {
-    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  .row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .side {
+    flex-direction: column;
+    grid-column: auto;
+    align-items: flex-end;
   }
 }

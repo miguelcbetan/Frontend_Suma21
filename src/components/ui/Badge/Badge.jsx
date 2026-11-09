@@ -5,7 +5,7 @@ import styles from "./Badge.module.css";
 /**
  * Etiqueta corta.
  * @param {import("react").ComponentPropsWithRef<"span"> & {
- *   tone?: "neutral" | "green" | "orange",
+ *   tone?: "neutral" | "green" | "orange" | "danger",
  * }} props
  */
 export function Badge({ tone = "neutral", className, ...rest }) {

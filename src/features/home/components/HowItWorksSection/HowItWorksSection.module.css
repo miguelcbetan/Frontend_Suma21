@@ -1,0 +1,56 @@
+.steps {
+  display: grid;
+  gap: var(--space-6);
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.marker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  color: var(--color-green-700);
+}
+
+.number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  font-weight: var(--font-weight-black);
+}
+
+.title {
+  font-size: var(--font-size-lg);
+}
+
+.description {
+  color: var(--color-text-muted);
+}
+
+@media (min-width: 48rem) {
+  .steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .step:not(:last-child) .marker::after {
+    flex: 1;
+    height: 2px;
+    margin-right: var(--space-4);
+    background: repeating-linear-gradient(90deg, var(--color-green-200) 0 8px, transparent 8px 14px);
+    content: "";
+  }
+}

@@ -6,6 +6,10 @@
   background: var(--color-gray-50);
 }
 
+.brand {
+  background: var(--color-surface-brand);
+}
+
 .inner {
   display: flex;
   flex-direction: column;
@@ -30,11 +34,12 @@
 }
 
 .title {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-3xl);
 }
 
 .description {
   color: var(--color-text-muted);
+  font-size: var(--font-size-lg);
 }
 
 @media (min-width: 48rem) {

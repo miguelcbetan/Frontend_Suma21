@@ -1,43 +1,67 @@
+import { Link } from "react-router-dom";
+
 import muralSrc from "@/assets/images/mural.jpeg";
 import { Container } from "@/components/layout/Container";
-import { Grid } from "@/components/layout/Grid";
 import { Badge } from "@/components/ui/Badge";
-import { ButtonLink } from "@/components/ui/ButtonLink";
-import { Stat } from "@/components/ui/Stat";
+import { buttonClassName } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 
 import styles from "./Hero.module.css";
 
-const STATS = [1, 2, 3].map((n) => ({ id: n, value: "[Cifra]", label: "[Descripción]" }));
+/** Garantías que la plataforma cumple hoy (pago con Wompi, comprobante y certificado). */
+const TRUST = [
+  { icon: "lock", text: "Pagos seguros con Wompi" },
+  { icon: "receipt", text: "Comprobante de cada operación" },
+  { icon: "checkCircle", text: "Certificado de donación" },
+];
 
-export function Hero() {
+/**
+ * Portada: propósito de SUMA21 y acciones principales.
+ * @param {{ donateButton?: import("react").ReactNode }} props
+ */
+export function Hero({ donateButton }) {
   return (
     <section className={styles.hero} aria-labelledby="hero-title">
       <Container className={styles.inner}>
         <div className={styles.content}>
-          <Badge tone="green">Asociación de Interés Social Comunitario</Badge>
+          <Badge tone="green">Asociación de Interés Social Comunitario · ASISCO</Badge>
           <h1 id="hero-title" className={styles.title}>
-            SUMA21 by ASISCO
+            Súmate a la inclusión de jóvenes con <span className={styles.highlight}>síndrome de Down</span>
           </h1>
-          <p className={styles.lead}>[Descripción breve de la asociación y su propósito]</p>
+          {/* PENDIENTE DE CONTENIDO: confirmar la frase oficial de propósito de SUMA21. */}
+          <p className={styles.lead}>
+            SUMA21 es la plataforma de ASISCO para donar, comprar en la tienda solidaria y aportar los artículos
+            que la fundación necesita. Tus aportes apoyan sus programas de formación laboral, arte, barismo
+            inclusivo y autonomía.
+          </p>
           <div className={styles.actions}>
-            <ButtonLink href="/apoyanos-tienda">Donar / Apoyar</ButtonLink>
-            <ButtonLink href="/donaciones-en-especie" variant="secondary">
+            {donateButton}
+            <Link to="/apoyanos-tienda" className={buttonClassName({ variant: "secondary", size: "lg" })}>
+              <Icon name="bag" />
+              Visitar la tienda
+            </Link>
+            <Link to="/donaciones-en-especie" className={buttonClassName({ variant: "outline", size: "lg" })}>
               Donar en especie
-            </ButtonLink>
+            </Link>
           </div>
-          <Grid columns={3} className={styles.stats}>
-            {STATS.map(({ id, value, label }) => (
-              <Stat key={id} value={value} label={label} />
+          <ul className={styles.trust}>
+            {TRUST.map(({ icon, text }) => (
+              <li key={text}>
+                <Icon name={icon} size={18} />
+                {text}
+              </li>
             ))}
-          </Grid>
+          </ul>
         </div>
-        <img
-          src={muralSrc}
-          alt="Mural ASISCO UP"
-          width={2383}
-          height={900}
-          className={styles.media}
-        />
+        <figure className={styles.media}>
+          <img
+            src={muralSrc}
+            alt="Mural colorido con el lema «¡No somos Down, somos UP!», manos pintadas y un avión de papel"
+            width={2383}
+            height={900}
+            fetchPriority="high"
+          />
+        </figure>
       </Container>
     </section>
   );

@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
-import { Alert } from "@/components/ui/Alert";
-import { buttonClassName } from "@/components/ui/Button";
+import { Container } from "@/components/layout/Container";
+import { Badge } from "@/components/ui/Badge";
+import { Button, buttonClassName } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Icon } from "@/components/ui/Icon";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { lastPaymentReference, loadPaymentSession, paymentKindOf } from "@/core/utils/paymentSession";
 
 import { CertificateDocument } from "../CertificateDocument";
@@ -11,36 +15,52 @@ import { STATUS_LABELS, formatCop, formatDateTime, outcomeOf } from "./format.js
 import styles from "./PaymentResultPage.module.css";
 import { usePaymentStatus } from "./usePaymentStatus.js";
 
-const IMPACT_ITEMS = ["3 Semanas de Formación Barista", "Materiales Adaptados de Pintura", "Acompañamiento Psicosocial"];
+/*
+ * PENDIENTE DE CONTENIDO: se ocultaron hasta confirmar su veracidad el bloque
+ * «¿A dónde va tu aporte?» (3 módulos), el testimonio con foto, la línea
+ * «Cifrado seguro SSL de 256 bits» y el botón «Enviar copia a mi correo»
+ * (el servidor no envía correos).
+ */
+
+const TONE_ICON = { error: "alert", info: "clock" };
 
 /** Mensaje para los pagos que todavía no tienen recibo. */
 function PaymentStatusMessage({ tone, title, children, reference, action, onRefresh }) {
   return (
-    <div className={styles.status}>
-      <Alert tone={tone}>
-        <strong>{title}</strong>
-        {children ? <p>{children}</p> : null}
-      </Alert>
-      {reference ? <p className={styles.reference}>Referencia del pago: {reference}</p> : null}
-      <div className={styles.statusActions}>
-        {onRefresh ? (
-          <button type="button" className={buttonClassName({ variant: "secondary" })} onClick={onRefresh}>
-            Actualizar estado
-          </button>
-        ) : null}
-        {action ? (
-          <Link to={action.to} className={buttonClassName({ variant: "secondary" })}>
-            {action.label}
+    <EmptyState
+      icon={TONE_ICON[tone] ?? "info"}
+      tone={tone === "error" ? "danger" : "brand"}
+      headingLevel={1}
+      title={title}
+      className={styles.status}
+      description={
+        <>
+          {children ? <p>{children}</p> : null}
+          {reference ? <p className={styles.reference}>Referencia del pago: {reference}</p> : null}
+        </>
+      }
+      actions={
+        <>
+          {onRefresh ? (
+            <Button onClick={onRefresh}>
+              <Icon name="refresh" size={18} />
+              Actualizar estado
+            </Button>
+          ) : null}
+          {action ? (
+            <Link to={action.to} className={buttonClassName({ variant: onRefresh ? "outline" : "primary" })}>
+              {action.label}
+            </Link>
+          ) : null}
+          <Link to="/mis-operaciones" className={buttonClassName({ variant: "outline" })}>
+            Mis operaciones
           </Link>
-        ) : null}
-        <Link to="/mis-operaciones" className={buttonClassName({ variant: "ghost" })}>
-          Mis operaciones
-        </Link>
-        <Link to="/" className={buttonClassName({ variant: "ghost" })}>
-          Ir al inicio
-        </Link>
-      </div>
-    </div>
+          <Link to="/" className={buttonClassName({ variant: "ghost" })}>
+            Ir al inicio
+          </Link>
+        </>
+      }
+    />
   );
 }
 
@@ -59,129 +79,83 @@ function ApprovedReceipt({ payment, kind, session }) {
 
   return (
     <>
-      <section className={styles.thanks}>
-        <div className={styles.heart}>
-          ♥<i>✓</i>
-        </div>
-        <p className={styles.badge}>
-          {isDonation ? "Aporte confirmado · impacto inmediato" : "Compra confirmada"}
-        </p>
-        <h1>
-          {isDonation ? (
-            <>
-              ¡Gracias de corazón por
-              <br />
-              transformar vidas!
-            </>
-          ) : (
-            <>¡Gracias por tu compra!</>
-          )}
+      <section className={styles.thanks} aria-labelledby="thanks-title">
+        <span className={styles.thanksIcon}>
+          <Icon name={isDonation ? "heart" : "checkCircle"} size={34} />
+        </span>
+        <Badge tone="green">{isDonation ? "Aporte confirmado" : "Compra confirmada"}</Badge>
+        <h1 id="thanks-title" className={styles.thanksTitle}>
+          {isDonation ? "¡Gracias de corazón por transformar vidas!" : "¡Gracias por tu compra!"}
         </h1>
         <p className={styles.thanksText}>
           {isDonation
-            ? "Tu aporte impulsa la autonomía, formación artística y empleo digno de jóvenes con síndrome de Down Colombia."
-            : "Tu compra apoya la autonomía, formación artística y empleo digno de jóvenes con síndrome de Down en Colombia."}
+            ? "Tu aporte impulsa la autonomía, la formación artística y el empleo digno de jóvenes con síndrome de Down en Colombia."
+            : "Tu compra apoya la autonomía, la formación artística y el empleo digno de jóvenes con síndrome de Down en Colombia."}
         </p>
       </section>
 
-      <section className={`${styles.receiptLayout} ${isDonation ? "" : styles.receiptLayoutSingle}`}>
-        <article className={styles.receiptCard}>
-          <div className={styles.receiptTitle}>
-            <div>
-              <small>COMPROBANTE OFICIAL ELECTRÓNICO</small>
-              <h2>{isDonation ? "Recibo de Donación" : "Recibo de Compra"}</h2>
-            </div>
-            <span>Aprobado y confirmado</span>
+      <article className={styles.receipt} aria-labelledby="receipt-title">
+        <header className={styles.receiptHeader}>
+          <div>
+            <p className={styles.receiptEyebrow}>Comprobante electrónico</p>
+            <h2 id="receipt-title" className={styles.receiptTitle}>
+              {isDonation ? "Recibo de donación" : "Recibo de compra"}
+            </h2>
           </div>
-          <dl>
-            <div>
-              <dt>Modalidad del aporte</dt>
-              <dd>{modality}</dd>
-            </div>
-            {!isDonation && session?.summary ? (
-              <div>
-                <dt>Productos</dt>
-                <dd>{session.summary}</dd>
-              </div>
-            ) : null}
-            <div>
-              <dt>Referencia</dt>
-              <dd>{payment.reference}</dd>
-            </div>
-            <div>
-              <dt>{isDonation ? "Monto aportado" : "Total pagado"}</dt>
-              <dd className={styles.amount}>{formatCop(amount)}</dd>
-            </div>
-            <div>
-              <dt>Fecha y hora de inicio del pago</dt>
-              <dd>{formatDateTime(paidAt)}</dd>
-            </div>
-            <div>
-              <dt>Método de pago</dt>
-              <dd>{payment.payment_method ?? "—"}</dd>
-            </div>
-            <div>
-              <dt>Seguridad</dt>
-              <dd>✓ Cifrado seguro SSL de 256 bits</dd>
-            </div>
-          </dl>
-          <div className={styles.receiptActions}>
-            {isDonation ? (
-              <button
-                type="button"
-                className={styles.actionPrimary}
-                disabled={!donor}
-                onClick={() => setShowCertificate(true)}
-              >
-                ▣ Ver certificado de donación
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className={styles.actionGhost}
-              disabled
-              title="Aún no está disponible: el servidor no tiene envío de correos."
-            >
-              Enviar copia a mi correo
-            </button>
+          <Badge tone="green">
+            <Icon name="check" size={14} />
+            Aprobado
+          </Badge>
+        </header>
+        <dl className={styles.details}>
+          <div>
+            <dt>Modalidad</dt>
+            <dd>{modality}</dd>
           </div>
-          {isDonation && !donor ? (
-            <p className={styles.hint}>
-              El certificado se genera con el nombre y el documento que escribiste al donar, guardados en el
-              navegador donde se hizo la donación.
-            </p>
+          {!isDonation && session?.summary ? (
+            <div>
+              <dt>Productos</dt>
+              <dd>{session.summary}</dd>
+            </div>
           ) : null}
-        </article>
-
-        {isDonation ? (
-          <aside className={styles.impactCard}>
-            <p className={styles.eyebrow}>TRANSPARENCIA TOTAL</p>
-            <h2>¿A dónde va tu aporte?</h2>
-            <p>
-              Con tu aporte de {formatCop(amount)} aseguras directamente estos tres módulos de desarrollo:
-            </p>
-            {IMPACT_ITEMS.map((item, index) => (
-              <div className={styles.impactItem} key={item}>
-                <b>{index + 1}</b>
-                <span>{item}</span>
-              </div>
-            ))}
-          </aside>
-        ) : null}
-      </section>
-
-      {isDonation ? (
-        <blockquote className={styles.quote}>
-          <div className={styles.quoteImage} role="img" aria-label="Foto de Mateo Gómez, aprendiz barista">
-            [Foto]
+          <div>
+            <dt>Referencia</dt>
+            <dd className={styles.mono}>{payment.reference}</dd>
           </div>
           <div>
-            “Gracias por creer en mis capacidades. Cada día que aprendo en la cafetería estoy más cerca de mi
-            sueño.”
-            <cite>Mateo Gómez · Aprendiz Barista</cite>
+            <dt>Fecha y hora de inicio del pago</dt>
+            <dd>{formatDateTime(paidAt)}</dd>
           </div>
-        </blockquote>
-      ) : null}
+          <div>
+            <dt>Método de pago</dt>
+            <dd>{payment.payment_method ?? "—"}</dd>
+          </div>
+          <div className={styles.totalRow}>
+            <dt>{isDonation ? "Monto aportado" : "Total pagado"}</dt>
+            <dd className={styles.amount}>{formatCop(amount)}</dd>
+          </div>
+        </dl>
+        <footer className={styles.receiptActions}>
+          {isDonation ? (
+            <Button disabled={!donor} onClick={() => setShowCertificate(true)}>
+              <Icon name="receipt" size={18} />
+              Ver certificado de donación
+            </Button>
+          ) : null}
+          <Link to="/mis-operaciones" className={buttonClassName({ variant: "outline" })}>
+            Mis operaciones
+          </Link>
+          <Link to="/" className={buttonClassName({ variant: "ghost" })}>
+            Ir al inicio
+          </Link>
+        </footer>
+        {isDonation && !donor ? (
+          <p className={styles.hint}>
+            El certificado se genera con el nombre y el documento que escribiste al donar, guardados en el
+            navegador donde se hizo la donación.
+          </p>
+        ) : null}
+      </article>
 
       {showCertificate && donor ? (
         <CertificateDocument
@@ -218,8 +192,13 @@ export function PaymentResultPage({ onSaleApproved }) {
   let content;
   if (status === "loading") {
     content = (
-      <div className={styles.status}>
-        <p role="status">Consultando tu pago…</p>
+      <div className={styles.loading}>
+        <p role="status" className={styles.loadingText}>
+          Consultando tu pago…
+        </p>
+        <Skeleton height="4rem" width="4rem" radius="lg" />
+        <Skeleton height="2rem" width="60%" />
+        <Skeleton height="14rem" radius="lg" />
       </div>
     );
   } else if (status === "notfound") {
@@ -276,7 +255,7 @@ export function PaymentResultPage({ onSaleApproved }) {
 
   return (
     <div className={styles.page}>
-      <main className={styles.main}>{content}</main>
+      <Container className={styles.inner}>{content}</Container>
     </div>
   );
 }

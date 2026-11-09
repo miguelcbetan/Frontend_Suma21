@@ -1,17 +1,35 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { Grid } from "@/components/layout/Grid";
 import { Section } from "@/components/layout/Section";
 import { Alert } from "@/components/ui/Alert";
-import { Badge } from "@/components/ui/Badge";
 import { Button, buttonClassName } from "@/components/ui/Button";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
+import { Icon } from "@/components/ui/Icon";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { describeError, donationsService, inventoryService, toList } from "@/core/api";
+import { cx } from "@/core/utils/cx";
 import { todayISO } from "@/core/utils/date";
 
 import styles from "./InKindDonationPage.module.css";
+
+const STEPS = ["Elige los artículos", "Indica las cantidades", "Registra tu donación"];
+
+function ListSkeleton() {
+  return (
+    <div className={styles.grid} aria-hidden="true">
+      {[1, 2, 3, 4].map((n) => (
+        <div key={n} className={styles.skeletonCard}>
+          <Skeleton height="1.25rem" width="60%" />
+          <Skeleton height="0.875rem" />
+          <Skeleton height="0.875rem" width="80%" />
+          <Skeleton height="2.25rem" width="50%" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /**
  * Página de donaciones físicas: lista los artículos que la fundación necesita
@@ -99,63 +117,111 @@ export function InKindDonationPage({ session = { authenticated: false } }) {
       eyebrow="Donaciones en especie"
       title="Lo que la fundación necesita"
       description="Estos son los artículos que la fundación está solicitando. Elige los que puedes aportar e indica la cantidad."
+      headingLevel={1}
+      align="start"
     >
+      <ol className={styles.steps} aria-label="Cómo donar en especie">
+        {STEPS.map((step, index) => (
+          <li key={step}>
+            <span className={styles.stepNumber}>{index + 1}</span>
+            {step}
+          </li>
+        ))}
+      </ol>
+
       <div className={styles.layout}>
         <div className={styles.list}>
-          {needed.status === "loading" ? <p role="status">Cargando artículos solicitados…</p> : null}
+          {needed.status === "ready" && needed.items.length > 0 ? (
+            <p className={styles.count}>
+              {needed.items.length} {needed.items.length === 1 ? "artículo solicitado" : "artículos solicitados"}
+            </p>
+          ) : null}
+
+          {needed.status === "loading" ? (
+            <>
+              <p role="status" className="sr-only">
+                Cargando artículos solicitados…
+              </p>
+              <ListSkeleton />
+            </>
+          ) : null}
+
           {needed.status === "error" ? (
-            <div className={styles.errorBox}>
-              <Alert tone="error">{needed.error}</Alert>
-              <Button variant="secondary" size="sm" onClick={reload}>
-                Reintentar
-              </Button>
-            </div>
+            <EmptyState
+              icon="alert"
+              tone="danger"
+              title="No pudimos cargar la lista"
+              description={needed.error}
+              actions={
+                <Button variant="outline" onClick={reload}>
+                  <Icon name="refresh" size={18} />
+                  Reintentar
+                </Button>
+              }
+            />
           ) : null}
+
           {needed.status === "ready" && needed.items.length === 0 ? (
-            <Alert tone="info">Por ahora la fundación no tiene artículos solicitados. ¡Gracias por tu interés!</Alert>
+            <EmptyState
+              icon="package"
+              tone="brand"
+              title="Por ahora no hay artículos solicitados"
+              description="¡Gracias por tu interés! Vuelve pronto o apoya con una donación monetaria."
+            />
           ) : null}
+
           {needed.items.length > 0 ? (
-            <Grid columns={2}>
+            <ul className={styles.grid}>
               {needed.items.map((item) => {
                 const id = String(item.id);
                 const isSelected = id in selection;
                 return (
-                  <Card key={id} className={styles.item}>
-                    <CardBody className={styles.itemBody}>
-                      <Badge tone="orange">Solicitado</Badge>
-                      <h3 className={styles.itemTitle}>{item.name}</h3>
-                      {item.description ? <p className={styles.itemDescription}>{item.description}</p> : null}
-                      <Button
-                        variant={isSelected ? "secondary" : "primary"}
-                        size="sm"
-                        onClick={() => (isSelected ? unselect(id) : select(id))}
-                        aria-pressed={isSelected}
-                        className={styles.itemAction}
-                      >
-                        {isSelected ? "Quitar de mi donación" : "Quiero donar esto"}
-                      </Button>
-                    </CardBody>
-                  </Card>
+                  <li key={id} className={cx(styles.item, isSelected && styles.itemSelected)}>
+                    <div className={styles.itemHeader}>
+                      <span className={styles.itemIcon}>
+                        <Icon name={isSelected ? "check" : "package"} size={20} />
+                      </span>
+                      <h2 className={styles.itemTitle}>{item.name}</h2>
+                    </div>
+                    {item.description ? <p className={styles.itemDescription}>{item.description}</p> : null}
+                    <Button
+                      variant={isSelected ? "outline" : "secondary"}
+                      size="sm"
+                      onClick={() => (isSelected ? unselect(id) : select(id))}
+                      aria-pressed={isSelected}
+                      className={styles.itemAction}
+                    >
+                      {isSelected ? "Quitar de mi donación" : "Quiero donar esto"}
+                    </Button>
+                  </li>
                 );
               })}
-            </Grid>
+            </ul>
           ) : null}
         </div>
 
-        <aside className={styles.aside} aria-label="Tu donación en especie">
+        <aside className={styles.aside} aria-labelledby="inkind-summary-title">
           {submit.status === "success" ? <Alert tone="success">{submit.message}</Alert> : null}
-          <Card>
-            <CardHeader>
-              <h3 className={styles.heading}>Tu donación</h3>
-            </CardHeader>
-            <CardBody>
+          <div className={styles.panel}>
+            <header className={styles.panelHeader}>
+              <h2 id="inkind-summary-title" className={styles.heading}>
+                <Icon name="gift" size={20} />
+                Tu donación
+              </h2>
+              {selected.length > 0 ? (
+                <span className={styles.selectedCount}>
+                  {selected.length} {selected.length === 1 ? "artículo" : "artículos"}
+                </span>
+              ) : null}
+            </header>
+            <div className={styles.panelBody}>
               {!session.authenticated ? (
                 <div className={styles.gate}>
-                  <p>Para registrar tu donación necesitas iniciar sesión.</p>
+                  <p>Para registrar tu donación necesitas iniciar sesión. Puedes revisar la lista sin cuenta.</p>
                   <Link
                     to="/login"
                     state={{ from: "/donaciones-en-especie" }}
-                    className={buttonClassName({ variant: "secondary" })}
+                    className={buttonClassName({ block: true })}
                   >
                     Iniciar sesión o crear cuenta
                   </Link>
@@ -164,7 +230,10 @@ export function InKindDonationPage({ session = { authenticated: false } }) {
                 <form className={styles.form} onSubmit={handleSubmit} noValidate>
                   {submit.status === "error" ? <Alert tone="error">{submit.message}</Alert> : null}
                   {selected.length === 0 ? (
-                    <p className={styles.empty}>Elige artículos de la lista para agregarlos aquí.</p>
+                    <p className={styles.empty}>
+                      <Icon name="arrowLeft" size={18} />
+                      Elige artículos de la lista para agregarlos aquí.
+                    </p>
                   ) : (
                     <ul className={styles.selected}>
                       {selected.map(([id, quantity]) => (
@@ -195,13 +264,13 @@ export function InKindDonationPage({ session = { authenticated: false } }) {
                     onChange={(event) => setNotes(event.target.value)}
                     hint="Por ejemplo: estado de los artículos o cuándo puedes entregarlos."
                   />
-                  <Button type="submit" disabled={pending || selected.length === 0}>
+                  <Button type="submit" size="lg" block disabled={pending || selected.length === 0}>
                     {pending ? "Registrando…" : "Registrar mi donación"}
                   </Button>
                 </form>
               )}
-            </CardBody>
-          </Card>
+            </div>
+          </div>
         </aside>
       </div>
     </Section>

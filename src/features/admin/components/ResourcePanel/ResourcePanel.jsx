@@ -3,7 +3,10 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
+import { Icon } from "@/components/ui/Icon";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { describeError, toList } from "@/core/api";
 import { cx } from "@/core/utils/cx";
 
@@ -216,24 +219,58 @@ export function ResourcePanel({ section }) {
                   className={styles.search}
                 />
               ) : null}
-              <Button variant="secondary" size="sm" onClick={reload} disabled={state.status === "loading"}>
+              <Button variant="outline" size="sm" onClick={reload} disabled={state.status === "loading"}>
+                <Icon name="refresh" size={16} />
                 Actualizar
               </Button>
             </div>
           </CardHeader>
           <CardBody className={styles.listBody}>
-            {state.status === "loading" ? <p role="status">Cargando…</p> : null}
-            {state.status === "error" ? (
-              <div className={styles.errorBox}>
-                <Alert tone="error">{state.error}</Alert>
-                <Button variant="secondary" size="sm" onClick={reload}>
-                  Reintentar
-                </Button>
-              </div>
+            {state.status === "loading" ? (
+              <>
+                <p role="status" className="sr-only">
+                  Cargando…
+                </p>
+                <div className={styles.skeleton} aria-hidden="true">
+                  {[1, 2, 3, 4].map((n) => (
+                    <Skeleton key={n} height="2.75rem" />
+                  ))}
+                </div>
+              </>
             ) : null}
-            {state.status === "ready" && state.records.length === 0 ? <p>Aún no hay registros.</p> : null}
+            {state.status === "error" ? (
+              <EmptyState
+                compact
+                icon="alert"
+                tone="danger"
+                title="No se pudieron cargar los registros"
+                description={state.error}
+                actions={
+                  <Button variant="outline" size="sm" onClick={reload}>
+                    Reintentar
+                  </Button>
+                }
+              />
+            ) : null}
+            {state.status === "ready" && state.records.length === 0 ? (
+              <EmptyState
+                compact
+                icon={section.icon ?? "info"}
+                title="Aún no hay registros"
+                description={create ? `Usa el formulario de arriba para registrar el primer ${singular}.` : undefined}
+              />
+            ) : null}
             {state.status === "ready" && state.records.length > 0 && visible.length === 0 ? (
-              <p>Ningún registro coincide con «{query}».</p>
+              <EmptyState
+                compact
+                icon="search"
+                title={`Ningún registro coincide con «${query}»`}
+                actions={
+                  <Button variant="outline" size="sm" onClick={() => setQuery("")}>
+                    Limpiar búsqueda
+                  </Button>
+                }
+              />
             ) : null}
             {state.status === "ready" && visible.length > 0 ? (
               <DataTable
@@ -245,14 +282,15 @@ export function ResourcePanel({ section }) {
                     ? (record) => (
                         <>
                           {update ? (
-                            <Button variant="ghost" size="sm" onClick={() => startEdit(record)}>
+                            <Button variant="outline" size="sm" onClick={() => startEdit(record)}>
+                              <Icon name="pencil" size={16} />
                               Editar
                             </Button>
                           ) : null}
                           {rowActions.map((action) => (
                             <Button
                               key={action.label(record)}
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
                               disabled={busyRow === record.id}
                               onClick={() => runRowAction(action, record)}
@@ -262,10 +300,11 @@ export function ResourcePanel({ section }) {
                           ))}
                           {remove ? (
                             <Button
-                              variant="ghost"
+                              variant="danger"
                               size="sm"
                               onClick={() => setDeleting({ record, pending: false, error: "" })}
                             >
+                              <Icon name="trash" size={16} />
                               Eliminar
                             </Button>
                           ) : null}

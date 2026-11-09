@@ -6,7 +6,12 @@
 }
 
 .label {
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
+}
+
+.required {
+  color: var(--color-accent-text);
 }
 
 .control {
@@ -14,19 +19,88 @@
   min-height: 2.75rem;
   padding: var(--space-2) var(--space-3);
   background: var(--color-bg);
-  border: var(--border-width) solid var(--color-text-muted);
+  border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-md);
   color: var(--color-text);
   font: inherit;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.control:hover:not(:disabled) {
+  border-color: var(--color-text-muted);
+}
+
+.control:focus-visible {
+  border-color: var(--color-green-600);
+  outline: none;
+  box-shadow: var(--ring-focus);
+}
+
+.control:disabled {
+  background: var(--color-gray-50);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.control[type="file"] {
+  padding: var(--space-2);
+  cursor: pointer;
+}
+
+.control[type="file"]::file-selector-button {
+  margin-right: var(--space-3);
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-surface-brand);
+  border: var(--border-width) solid var(--color-green-200);
+  border-radius: var(--radius-sm);
+  color: var(--color-green-700);
+  font: inherit;
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
 }
 
 textarea.control {
-  min-height: 5rem;
+  min-height: 6rem;
   resize: vertical;
 }
 
 .control[aria-invalid="true"] {
-  border-color: var(--color-orange-700);
+  border-color: var(--color-danger);
+}
+
+.control[aria-invalid="true"]:focus-visible {
+  box-shadow: 0 0 0 3px rgb(180 35 24 / 0.2);
+}
+
+.inputWrap {
+  position: relative;
+}
+
+.withToggle {
+  padding-right: 5.5rem;
+}
+
+.toggle {
+  position: absolute;
+  top: 50%;
+  right: var(--space-1);
+  min-height: 2.25rem;
+  padding: var(--space-1) var(--space-3);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--color-link);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.toggle:hover {
+  background: var(--color-surface-brand);
 }
 
 .hint,
@@ -39,6 +113,6 @@ textarea.control {
 }
 
 .error {
-  color: var(--color-orange-700);
+  color: var(--color-danger);
   font-weight: var(--font-weight-bold);
 }
