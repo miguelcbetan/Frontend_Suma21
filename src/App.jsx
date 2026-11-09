@@ -196,7 +196,7 @@ function Layout() {
           }
         />
         <Route path="/apoyanos-tienda" element={<StorePage session={session} />} />
-        <Route path="/donaciones-en-especie" element={<InKindDonationPage session={session} />} />
+        <Route path="/donaciones-en-especie" element={<InKindDonationPage />} />
         <Route
           path="/payment-result"
           element={

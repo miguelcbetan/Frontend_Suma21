@@ -12,7 +12,7 @@ const STEPS = [
   {
     icon: "heart",
     title: "Elige cómo aportar",
-    description: "Haz una donación, agrega productos al carrito o selecciona artículos de la lista de donaciones en especie.",
+    description: "Haz una donación monetaria o agrega productos de la tienda solidaria a tu carrito.",
   },
   {
     icon: "receipt",

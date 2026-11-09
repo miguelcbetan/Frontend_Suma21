@@ -32,7 +32,6 @@ const TABS = [
 const BENEFITS = [
   { icon: "bag", text: "Comprar en la tienda solidaria" },
   { icon: "heart", text: "Donar en línea y obtener tu certificado" },
-  { icon: "package", text: "Registrar donaciones en especie" },
   { icon: "receipt", text: "Consultar el estado de tus pagos" },
 ];
 

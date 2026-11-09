@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { describeError } from "@/core/api";
 
+import { RecordPicker } from "../RecordPicker";
+
 import styles from "./StockForm.module.css";
 
 /**
@@ -23,16 +25,11 @@ import styles from "./StockForm.module.css";
  * }} props
  */
 export function StockForm({ records, singular, flow, onDone }) {
-  const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [operation, setOperation] = useState("increase");
   const [quantity, setQuantity] = useState("1");
   const [state, setState] = useState({ pending: false, error: "", fieldError: "" });
 
-  const term = query.trim().toLowerCase();
-  const options = term
-    ? records.filter((record) => `${record.id} ${record.name} ${record.description ?? ""}`.toLowerCase().includes(term))
-    : records;
   const selected = records.find((record) => String(record.id) === selectedId) ?? null;
   const current = selected ? Number(selected[flow.stockKey] ?? 0) : 0;
   const amount = Number(quantity);
@@ -73,46 +70,32 @@ export function StockForm({ records, singular, flow, onDone }) {
   return (
     <form className={styles.form} onSubmit={handleSubmit} noValidate>
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
-      <div className={styles.grid}>
-        <Field
-          label={`Buscar ${singular}`}
-          type="search"
-          value={query}
-          hint="Por nombre, descripción o ID."
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        <Field
-          as="select"
-          label={`${singular.charAt(0).toUpperCase()}${singular.slice(1)} existente`}
-          required
-          value={selectedId}
-          hint={term ? `${options.length} coincidencia(s).` : `${records.length} registro(s).`}
-          onChange={(event) => setSelectedId(event.target.value)}
-        >
-          <option value="">Selecciona…</option>
-          {options.map((record) => (
-            <option key={record.id} value={String(record.id)}>
-              #{record.id} · {flow.describe(record)}
-            </option>
-          ))}
-        </Field>
-      </div>
-
       {selected ? (
         <div className={styles.current} aria-live="polite">
-          <p className={styles.name}>{selected.name}</p>
-          {selected.description ? <p className={styles.description}>{selected.description}</p> : null}
-          <p>
-            Stock actual: <strong>{current}</strong>
-            {validAmount ? (
-              <>
-                {" "}
-                → después del ajuste: <strong>{next}</strong>
-              </>
-            ) : null}
-          </p>
+          <div className={styles.currentText}>
+            <p className={styles.selectedLabel}>
+              {singular.charAt(0).toUpperCase()}
+              {singular.slice(1)} elegido · #{selected.id}
+            </p>
+            <p className={styles.name}>{selected.name}</p>
+            {selected.description ? <p className={styles.description}>{selected.description}</p> : null}
+            <p>
+              Stock actual: <strong>{current}</strong>
+              {validAmount ? (
+                <>
+                  {" "}
+                  → después del ajuste: <strong>{next}</strong>
+                </>
+              ) : null}
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setSelectedId("")}>
+            Cambiar
+          </Button>
         </div>
-      ) : null}
+      ) : (
+        <RecordPicker records={records} singular={singular} stockKey={flow.stockKey} onSelect={setSelectedId} />
+      )}
 
       <div className={styles.grid}>
         {flow.allowDecrease ? (

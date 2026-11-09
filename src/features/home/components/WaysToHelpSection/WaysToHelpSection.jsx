@@ -60,7 +60,7 @@ export function WaysToHelpSection({ donateButton }) {
       tone: "green",
       title: "Donación en especie",
       description:
-        "Consulta la lista de artículos que la fundación está solicitando, elige los que puedes aportar e indica la cantidad.",
+        "Consulta la lista de artículos que la fundación está solicitando y contáctanos para coordinar la entrega de los que puedas aportar.",
       meta:
         neededCount > 0
           ? neededCount === 1
@@ -81,7 +81,7 @@ export function WaysToHelpSection({ donateButton }) {
       id="como-apoyar"
       eyebrow="Formas de apoyar"
       title="Elige cómo quieres sumar"
-      description="Tres maneras de aportar desde SUMA21. Para registrar tu aporte solo necesitas crear una cuenta."
+      description="Tres maneras de aportar a los programas de ASISCO desde SUMA21."
     >
       <ul className={styles.grid}>
         {ways.map(({ icon, tone, title, description, meta, action }) => (
