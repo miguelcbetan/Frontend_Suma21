@@ -1,200 +1,215 @@
 import {
-  accountsService,
   authService,
-  donationsService,
   inventoryService,
-  paymentMethodsService,
   productsService,
   salesService,
+  transactionsService,
 } from "@/core/api";
-
-/**
- * Fuentes de las listas desplegables de IDs (`type: "ref"`): de qué servicio
- * salen las opciones y cómo se muestra cada una.
- */
-export const REF_SOURCES = {
-  products: {
-    service: productsService,
-    label: (record) => `${record.name} · $${record.unit_price} · stock ${record.stock_qty}`,
-  },
-  paymentMethods: { service: paymentMethodsService, label: (record) => record.name },
-  accounts: { service: accountsService, label: (record) => record.name },
-  inventory: { service: inventoryService, label: (record) => `${record.name} · stock ${record.stock}` },
-};
+import { formatCurrency } from "@/core/utils/currency";
+import { formatDateTimeShort } from "@/core/utils/date";
+import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, validateImageFile } from "@/core/utils/imageFile";
 
 const ROLE_OPTIONS = ["ADMIN", "DONANTE", "ESTUDIANTE", "ACUDIENTE", "TALLERISTA"];
 
-/** `customer_id` y `donor_id` son el ID del usuario del servicio de seguridad (el backend ya no tiene clientes). */
-const USER_ID_HINT = "ID del usuario en el servicio de seguridad.";
+const SALE_STATUS_LABELS = { PENDING: "Pendiente", APPROVED: "Aprobada", DECLINED: "Rechazada" };
+
+const money = (value) => (value == null || value === "" ? "—" : formatCurrency(Number(value)));
+const centsToMoney = (cents) => money(Number(cents) / 100);
+
+const imageField = {
+  name: "image",
+  label: "Imagen del producto",
+  type: "file",
+  accept: IMAGE_ACCEPT,
+  validate: validateImageFile,
+  hint: `Formatos permitidos: ${IMAGE_FORMATS_LABEL}. Máximo 5 MB. Al editar, déjala vacía para conservar la actual.`,
+};
 
 /**
- * Secciones del panel, una por grupo de endpoints del backend de datos.
+ * Secciones del panel, una por grupo de endpoints de `/api/v1` (y el alta de
+ * usuarios del servicio de autenticación). Cada operación usa un endpoint real.
  *
- * Campo: `{ name, label, type, required?, hint?, min?, step?, source?, options?,
- * defaultValue?, serialize?, itemFields? }`. Tipos: text, email, password,
- * textarea, number, integer, date, checkbox, select, ref, items, file.
- * Sección: con `list` muestra una tabla; `update`/`remove` activan editar y borrar;
- * `describeResult` redacta el aviso con la respuesta del alta. Una columna puede
- * traer `format(record)` para mostrar algo distinto de su valor.
+ * Campo: `{ name, label, type, required?, hint?, min?, step?, options?,
+ * defaultValue?, accept?, validate?, full? }`. Tipos: text, email, password,
+ * textarea, number, integer, date, checkbox, select, file.
+ *
+ * Sección de recurso: con `list` muestra una tabla con búsqueda; `create` +
+ * `fields` el alta (`editFields` si la edición admite otros campos);
+ * `update`/`remove` activan editar y eliminar (con confirmación);
+ * `stockFlow` añade la opción «aumentar stock de un registro existente»;
+ * `rowActions` agrega acciones por fila. Una columna puede traer `format(record)`.
+ *
+ * Sección de reporte (`report`): tabla paginada en el servidor con filtros de fecha.
  */
 export const SECTIONS = [
   {
     id: "products",
     label: "Productos",
     singular: "producto",
+    description:
+      "Productos de la tienda. Para reponer unidades de un producto que ya existe usa «Aumentar stock» en lugar de crear uno nuevo.",
     list: productsService.list,
     create: productsService.create,
     update: productsService.update,
     remove: productsService.remove,
+    searchKeys: ["name", "description"],
     columns: [
       { key: "id", label: "ID" },
       { key: "name", label: "Nombre" },
       { key: "description", label: "Descripción" },
-      { key: "unit_price", label: "Precio" },
+      { key: "unit_price", label: "Precio", format: (record) => money(record.unit_price) },
       { key: "stock_qty", label: "Stock" },
-      { key: "image_url", label: "Imagen", format: (record) => (record.image_url ? "Sí" : "—") },
+      { key: "image_url", label: "Imagen", type: "image" },
     ],
     fields: [
       { name: "name", label: "Nombre", type: "text", required: true },
-      { name: "description", label: "Descripción", type: "textarea" },
-      { name: "unit_price", label: "Precio unitario", type: "number", required: true, min: 0, step: "any" },
+      { name: "unit_price", label: "Precio unitario (COP)", type: "number", required: true, min: 0, step: "any" },
       {
         name: "stock_qty",
-        label: "Cantidad en stock",
+        label: "Unidades en stock",
         type: "integer",
-        min: 0,
-        hint: "El servidor solo acepta enteros positivos al escribir una cantidad. Si lo dejas vacío empieza en 0.",
+        required: true,
+        min: 1,
+        defaultValue: "1",
+        hint: "Entero mayor o igual a 1.",
       },
-      {
-        name: "image",
-        label: "Imagen del producto",
-        type: "file",
-        hint: "JPG, PNG, WEBP, GIF o AVIF de hasta 5 MB. Al editar, déjala vacía para conservar la actual.",
-      },
+      { name: "description", label: "Descripción", type: "textarea", full: true },
+      { ...imageField, full: true },
     ],
-  },
-  {
-    id: "payment-methods",
-    label: "Métodos de pago",
-    singular: "método de pago",
-    list: paymentMethodsService.list,
-    create: paymentMethodsService.create,
-    columns: [
-      { key: "id", label: "ID" },
-      { key: "name", label: "Nombre" },
-      { key: "description", label: "Descripción" },
-    ],
-    fields: [
-      { name: "name", label: "Nombre", type: "text", required: true },
-      { name: "description", label: "Descripción", type: "textarea" },
-    ],
-  },
-  {
-    id: "accounts",
-    label: "Cuentas",
-    singular: "cuenta",
-    list: accountsService.list,
-    create: accountsService.create,
-    columns: [
-      { key: "id", label: "ID" },
-      { key: "name", label: "Nombre" },
-      { key: "opening_balance", label: "Saldo inicial" },
-    ],
-    fields: [
-      { name: "name", label: "Nombre", type: "text", required: true },
-      { name: "opening_balance", label: "Saldo inicial", type: "number", required: true, min: 0, step: "any" },
-    ],
+    stockFlow: {
+      stockKey: "stock_qty",
+      allowDecrease: false,
+      describe: (record) => `${record.name} · stock ${record.stock_qty}`,
+      apply: (record, _operation, quantity) => productsService.increaseStock(record.id, quantity),
+    },
   },
   {
     id: "inventory",
     label: "Inventario",
-    singular: "artículo",
+    singular: "artículo de inventario",
+    description:
+      "Artículos de la fundación. Marca «Solicitado por la fundación» para que aparezca en la lista de donaciones en especie que ven los clientes.",
     list: inventoryService.list,
     create: inventoryService.create,
+    update: inventoryService.update,
+    remove: inventoryService.remove,
+    removeHint: "Solo se pueden desactivar artículos con stock 0.",
+    searchKeys: ["name", "description"],
     columns: [
       { key: "id", label: "ID" },
       { key: "name", label: "Nombre" },
       { key: "description", label: "Descripción" },
       { key: "stock", label: "Stock" },
+      { key: "is_needed", label: "Solicitado", type: "flag", trueLabel: "Solicitado", falseLabel: "No" },
     ],
     fields: [
       { name: "name", label: "Nombre", type: "text", required: true },
-      { name: "description", label: "Descripción", type: "textarea" },
-      { name: "stock", label: "Stock inicial", type: "integer", min: 1, hint: "Entero positivo. Si lo dejas vacío empieza en 0." },
+      {
+        name: "stock",
+        label: "Stock inicial",
+        type: "integer",
+        required: true,
+        min: 1,
+        defaultValue: "1",
+        hint: "Entero mayor o igual a 1.",
+      },
+      { name: "description", label: "Descripción", type: "textarea", full: true },
+      {
+        name: "is_needed",
+        label: "Solicitado por la fundación (se muestra en donaciones en especie)",
+        type: "checkbox",
+        full: true,
+      },
     ],
+    editFields: [
+      { name: "name", label: "Nombre", type: "text", required: true },
+      { name: "description", label: "Descripción", type: "textarea", full: true },
+      {
+        name: "is_needed",
+        label: "Solicitado por la fundación (se muestra en donaciones en especie)",
+        type: "checkbox",
+        full: true,
+      },
+    ],
+    rowActions: [
+      {
+        label: (record) => (record.is_needed ? "Dejar de solicitar" : "Marcar solicitado"),
+        run: (record) => inventoryService.update(record.id, { is_needed: !record.is_needed }),
+        notice: (record) =>
+          record.is_needed
+            ? `«${record.name}» ya no aparece en la lista de donaciones.`
+            : `«${record.name}» ahora aparece en la lista de donaciones.`,
+      },
+    ],
+    stockFlow: {
+      stockKey: "stock",
+      allowDecrease: true,
+      describe: (record) => `${record.name} · stock ${record.stock}`,
+      apply: (record, operation, quantity) => inventoryService.adjustStock(record.id, { operation, quantity }),
+    },
+  },
+  {
+    id: "sales-report",
+    label: "Ingresos por ventas",
+    singular: "venta",
+    description: "Ventas cuyo pago aprobó Wompi (GET /transactions/sales).",
+    report: transactionsService.sales,
+    columns: [
+      { key: "completed_at", label: "Fecha", format: (record) => formatDateTimeShort(record.completed_at) },
+      { key: "reference", label: "Referencia" },
+      { key: "sale_id", label: "Venta" },
+      {
+        key: "items",
+        label: "Productos",
+        format: (record) => (record.items ?? []).map((item) => `${item.quantity} × ${item.name}`).join(", "),
+      },
+      { key: "amount_in_cents", label: "Monto", format: (record) => centsToMoney(record.amount_in_cents) },
+      { key: "payment_method", label: "Medio de pago" },
+    ],
+    amountKey: "amount_in_cents",
   },
   {
     id: "sales",
-    label: "Ventas",
+    label: "Ventas registradas",
     singular: "venta",
-    create: salesService.create,
-    describeResult: ({ saleId, total }) => `Se registró la venta #${saleId} por un total de $${total}.`,
-    fields: [
-      { name: "customer_id", label: "Comprador (ID de usuario)", type: "text", required: true, hint: USER_ID_HINT },
-      { name: "payment_method_id", label: "Método de pago", type: "ref", source: "paymentMethods", required: true },
-      { name: "account_id", label: "Cuenta", type: "ref", source: "accounts", required: true },
-      { name: "sale_date", label: "Fecha de la venta", type: "date", required: true },
-      { name: "receipt_reference", label: "Referencia del recibo", type: "text" },
+    description: "Todas las ventas creadas desde la tienda, incluidas las pendientes de pago (GET /sales).",
+    list: salesService.list,
+    searchKeys: ["id", "customerId", "status"],
+    columns: [
+      { key: "id", label: "Venta" },
+      { key: "createdAt", label: "Fecha", format: (record) => formatDateTimeShort(record.createdAt) },
+      { key: "customerId", label: "Usuario" },
       {
-        name: "items",
-        label: "Productos vendidos",
-        type: "items",
-        required: true,
-        itemLabel: "producto",
-        itemFields: [
-          { name: "product_id", label: "Producto", type: "ref", source: "products", required: true },
-          { name: "quantity", label: "Cantidad", type: "integer", required: true, min: 1, defaultValue: "1" },
-        ],
+        key: "items",
+        label: "Productos",
+        format: (record) => (record.items ?? []).map((item) => `${item.quantity} × #${item.productId}`).join(", "),
       },
+      { key: "totalPrice", label: "Total", format: (record) => money(record.totalPrice) },
+      { key: "status", label: "Estado", format: (record) => SALE_STATUS_LABELS[record.status] ?? record.status },
     ],
   },
   {
-    id: "donations-monetary",
-    label: "Donación monetaria",
-    singular: "donación monetaria",
-    create: donationsService.createMonetary,
-    describeResult: ({ donationId, amount }) => `Se registró la donación #${donationId} por $${amount}.`,
-    fields: [
-      { name: "donor_id", label: "Donante (ID de usuario)", type: "text", required: true, hint: USER_ID_HINT },
-      { name: "payment_method_id", label: "Método de pago", type: "ref", source: "paymentMethods", required: true },
-      { name: "account_id", label: "Cuenta", type: "ref", source: "accounts", required: true },
-      { name: "amount", label: "Monto", type: "number", required: true, min: 0.01, step: "any" },
-      { name: "txn_date", label: "Fecha", type: "date", required: true },
-      { name: "certificate_issued", label: "Certificado emitido", type: "checkbox" },
-      { name: "certificate_number", label: "Número de certificado", type: "text" },
-      { name: "frequency", label: "Frecuencia", type: "integer", min: 1 },
-      { name: "end_date", label: "Fecha de finalización", type: "date", defaultValue: "" },
-      { name: "receipt_reference", label: "Referencia del recibo", type: "text" },
+    id: "donations-report",
+    label: "Donaciones monetarias",
+    singular: "donación",
+    description:
+      "Donaciones monetarias aprobadas por Wompi (GET /transactions/donations). El backend aún no ofrece un listado de donaciones en especie.",
+    report: transactionsService.donations,
+    columns: [
+      { key: "completed_at", label: "Fecha", format: (record) => formatDateTimeShort(record.completed_at) },
+      { key: "reference", label: "Referencia" },
+      { key: "donation_id", label: "Donación" },
+      { key: "amount_in_cents", label: "Monto", format: (record) => centsToMoney(record.amount_in_cents) },
+      { key: "payment_method", label: "Medio de pago" },
     ],
-  },
-  {
-    id: "donations-inkind",
-    label: "Donación en especie",
-    singular: "donación en especie",
-    create: donationsService.createInKind,
-    describeResult: ({ donationId }) => `Se registró la donación en especie #${donationId} y se actualizó el inventario.`,
-    fields: [
-      { name: "donor_id", label: "Donante (ID de usuario)", type: "text", required: true, hint: USER_ID_HINT },
-      { name: "donation_date", label: "Fecha", type: "date", required: true },
-      { name: "notes", label: "Notas", type: "textarea" },
-      {
-        name: "items",
-        label: "Artículos donados",
-        type: "items",
-        required: true,
-        itemLabel: "artículo",
-        itemFields: [
-          { name: "inventory_item_id", label: "Artículo", type: "ref", source: "inventory", required: true },
-          { name: "quantity", label: "Cantidad", type: "number", required: true, min: 0.01, step: "any", defaultValue: "1" },
-          { name: "estimated_unit_value", label: "Valor unitario estimado", type: "number", min: 0, step: "any" },
-        ],
-      },
-    ],
+    amountKey: "amount_in_cents",
   },
   {
     id: "users",
     label: "Usuarios",
     singular: "usuario",
+    description:
+      "Alta de usuarios en el servicio de autenticación (POST /auth/usuarios). Desde aquí solo se crean cuentas; el listado y la edición no están integrados.",
     create: ({ roles, ...rest }) => authService.createUser({ ...rest, roles: [roles] }),
     fields: [
       { name: "username", label: "Nombre de usuario", type: "text", required: true },
@@ -207,6 +222,7 @@ export const SECTIONS = [
         required: true,
         options: ROLE_OPTIONS.map((role) => ({ value: role, label: role })),
         defaultValue: "DONANTE",
+        hint: "DONANTE es la cuenta de cliente (compras y donaciones); ADMIN accede a este panel.",
       },
     ],
   },

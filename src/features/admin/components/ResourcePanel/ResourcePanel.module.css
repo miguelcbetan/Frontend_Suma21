@@ -7,38 +7,87 @@
   font-size: var(--font-size-lg);
 }
 
+.count {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-regular);
+}
+
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.dismiss {
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.formHeader,
+.listHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.modes {
+  display: inline-flex;
+  flex-wrap: wrap;
+  padding: var(--space-1);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
+
+.mode {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.mode:has(input:focus-visible) {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.modeSelected {
+  background: var(--color-secondary);
+  color: var(--color-secondary-contrast);
+  font-weight: var(--font-weight-bold);
+}
+
+.listTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.search {
+  min-width: min(16rem, 100%);
+}
+
+.listBody {
+  display: grid;
+  gap: var(--space-3);
+}
+
 .errorBox {
   display: grid;
   gap: var(--space-3);
   justify-items: start;
-}
-
-.scroll {
-  overflow-x: auto;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--font-size-sm);
-}
-
-.table th,
-.table td {
-  padding: var(--space-2) var(--space-3);
-  border-bottom: var(--border-width) solid var(--color-border);
-  text-align: left;
-  vertical-align: top;
-}
-
-.table th {
-  background: var(--color-surface);
-  white-space: nowrap;
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  white-space: nowrap;
 }

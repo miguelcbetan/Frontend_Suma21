@@ -1,7 +1,7 @@
 import { createContext } from "react";
 
 /**
- * @typedef {{ id: string | null, username: string, email: string, roles: string[], donorId: string | null }} AuthUser
+ * @typedef {{ id: string | null, username: string, email: string, roles: string[] }} AuthUser
  * @typedef {{
  *   status: "loading" | "authenticated" | "anonymous",
  *   user: AuthUser | null,

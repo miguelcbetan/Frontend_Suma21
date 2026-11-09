@@ -32,13 +32,55 @@ La aplicación queda disponible en `http://localhost:5173`.
 
 ## Conexión con el backend
 
-Hay dos servicios, ambos desplegados en Render y configurables en `.env.example`: el backend de datos (`VITE_API_URL`, rutas `/api/*` y `/health`) y el servicio de autenticación (`VITE_AUTH_URL`, rutas `/auth/*`). Para usar un backend de datos local: `VITE_API_URL=http://127.0.0.1:3000`. `VITE_WOMPI_PAYMENT_METHOD_ID` y `VITE_WOMPI_ACCOUNT_ID` indican el método de pago y la cuenta (existentes en el backend de datos) con los que se registran los pagos de Wompi.
+Contratos, flujo de pago y pendientes del backend: **[docs/integracion-backend.md](docs/integracion-backend.md)**.
 
-- **Cliente HTTP y servicios**: `src/core/api/`. `httpClient.js` elige el servicio con la opción `base` (`api` o `auth`), adjunta el token `Bearer` solo al de autenticación y convierte los errores del backend (`{ error, detalles }`) en `ApiError`. `services/` tiene un servicio por grupo de endpoints: `/auth/*` (`authService`) y los del backend de datos (productos, métodos de pago, cuentas, inventario, ventas, donaciones, pagos con Wompi y `/health`; ver `/api-docs` de ese backend). Los productos aceptan imagen (`multipart/form-data`, campo `image`). El backend responde con la clave primaria como `<recurso>_id` (`product_id`, `account_id`…); los servicios añaden `id` a cada registro para que el resto de la app use un único nombre.
-- **Login y sesión**: `src/features/auth/`. Rutas `/login` (inicio de sesión y registro de donantes) y guard `RequireRole`. El portal solo admite los roles `ADMIN` y `DONANTE`; el token se guarda en `localStorage` y se valida con `GET /auth/perfil` al abrir la app.
-- **Panel de administración**: `src/features/admin/`, ruta `/admin` (solo `ADMIN`). Una pestaña por grupo de endpoints de `API.md`, generada desde `resources.js`.
-- **Tienda y donaciones**: la tienda lista `GET /api/products` (con `image_url`). «Finalizar compra» y «Donar ahora» exigen sesión: el ID del usuario (perfil de `/auth/perfil`) es el `customer_id` / `donor_id` del backend de datos, que ya no tiene clientes. Crean el pago con `POST /api/payments/checkout` y envían al usuario a Wompi Sandbox.
-- **Resultado del pago**: `src/features/payment/`, ruta `/payment-result`. Consulta `GET /api/payments/:reference`, muestra el recibo, el certificado de donación y, si el pago falló, permite reintentarlo con `sale_id` o `donation_id`. La referencia, la frecuencia y el nombre y documento del certificado se guardan en `localStorage` al crear el pago, porque el backend no los devuelve.
+- **Configuración** (`src/core/api/config.js`): `VITE_API_URL` (origen del backend de datos, por defecto Render), `VITE_API_PREFIX` (por defecto `/api/v1`) y `VITE_AUTH_URL` (servicio de autenticación). Ver `.env.example`. No hay claves de Wompi en el frontend.
+- **Cliente HTTP** (`src/core/api/httpClient.js`): bases `api` (`/api/v1`), `root` (`/health`) y `auth` (`/auth/*`). Envía el token `Bearer` a los dos servicios y convierte los errores (`{ error, code }`) en `ApiError`. Solo un 401 del servicio de auth cierra la sesión.
+- **Servicios** (`src/core/api/services/`): `authService`, `productsService`, `inventoryService`, `salesService`, `donationsService`, `transactionsService`, `paymentsService` y `healthService`. Cada uno llama a un endpoint real de Swagger.
+- **Roles** (`src/features/auth/session.js`): `ADMIN` usa el panel `/admin`. `DONANTE` (o `CUSTOMER`) es la experiencia de cliente. El registro público crea cuentas `DONANTE`.
+- **Tienda y carrito** (`src/features/store/`): catálogo (exige sesión), carrito por usuario y compra con `POST /api/v1/sales`. El backend aún no tiene endpoint de carrito: el carrito se guarda en este navegador y toda su persistencia está en `cart/cartStorage.js`.
+- **Donaciones** (`src/features/donation/`): «Donar ahora» usa `POST /api/v1/donations/monetary`. `/donaciones-en-especie` lista `GET /api/v1/inventory/needed` y registra con `POST /api/v1/donations/inkind`.
+- **Pagos** (`src/features/payment/`, `src/core/utils/wompiWidget.js`): widget de Wompi con la firma que entrega el backend. `/payment-result` y `/mis-operaciones` consultan `GET /api/v1/payments/:reference`. Solo `APPROVED` cuenta como pago exitoso.
+- **Panel de administración** (`src/features/admin/`): productos (crear o aumentar stock de uno existente, imagen validada), inventario (crear o ajustar stock, marcar «Solicitado»), ingresos paginados, ventas registradas y alta de usuarios.
+
+## Pruebas locales
+
+```bash
+npm install
+```
+
+```bash
+npm run dev
+```
+
+Abre exactamente `http://localhost:5173` (no `127.0.0.1`): es el único origen local que acepta el CORS del backend de datos. Sin `.env.local` se usa el backend de Render.
+
+Qué funciona desde localhost:
+
+- Navegación, diseño responsive y páginas públicas.
+- Estado del servidor (`/health`) y lista pública de artículos solicitados (`/donaciones-en-especie`).
+
+Qué **no** funciona desde localhost: iniciar sesión. El servicio de autenticación responde 403 al origen `http://localhost:5173`. Mientras su equipo no lo habilite, la tienda, el carrito, los pagos, las donaciones y el panel admin se prueban en el frontend desplegado.
+
+Verificaciones antes de desplegar:
+
+```bash
+npm run lint
+```
+
+```bash
+npm run build
+```
+
+```bash
+npm run preview
+```
+
+## Despliegue (Render, sitio estático)
+
+- Build command: `npm ci && npm run build`. Publish directory: `dist`.
+- Variables de entorno (se leen al compilar): `VITE_API_URL`, `VITE_API_PREFIX` y `VITE_AUTH_URL` (opcionales: sus valores por defecto ya apuntan a Render).
+- Regla de reescritura para el enrutado del SPA: `/*` → `/index.html` (Rewrite). Sin ella, `/payment-result` daría 404 al volver de Wompi.
 
 ## Arquitectura
 

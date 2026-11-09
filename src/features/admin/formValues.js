@@ -7,13 +7,7 @@ function initialValue(field) {
   if (field.defaultValue !== undefined) return field.defaultValue;
   if (field.type === "date") return todayISO();
   if (field.type === "checkbox") return false;
-  if (field.type === "items") return [emptyRow(field)];
   return "";
-}
-
-/** Fila vacía de un campo `items`. */
-export function emptyRow(field) {
-  return Object.fromEntries(field.itemFields.map((sub) => [sub.name, initialValue(sub)]));
 }
 
 /** Valores iniciales de un formulario nuevo. */
@@ -26,6 +20,7 @@ export function valuesFromRecord(fields, record) {
   return Object.fromEntries(
     fields.map((field) => {
       const raw = record[field.name];
+      if (field.type === "file") return [field.name, null];
       if (raw == null) return [field.name, initialValue({ ...field, defaultValue: "" })];
       if (field.type === "checkbox") return [field.name, Boolean(raw)];
       if (field.type === "date") return [field.name, String(raw).slice(0, 10)];
@@ -36,7 +31,11 @@ export function valuesFromRecord(fields, record) {
 
 function parseScalar(field, raw) {
   if (field.type === "checkbox") return { value: Boolean(raw) };
-  if (field.type === "file") return raw ? { value: raw } : { skip: true };
+  if (field.type === "file") {
+    if (!raw) return { skip: true };
+    const error = field.validate?.(raw);
+    return error ? { error } : { value: raw };
+  }
 
   const text = typeof raw === "string" ? raw.trim() : raw;
   if (text === "" || text == null) {
@@ -53,7 +52,7 @@ function parseScalar(field, raw) {
 
 /**
  * Convierte los valores del formulario en el cuerpo de la petición: números
- * como número, opcionales vacíos omitidos y filas de `items` anidadas.
+ * como número, opcionales vacíos omitidos y archivos validados.
  * @returns {{ body: Record<string, unknown>, errors: Record<string, string> }}
  */
 export function buildBody(fields, values) {
@@ -61,16 +60,6 @@ export function buildBody(fields, values) {
   const errors = {};
 
   for (const field of fields) {
-    if (field.type === "items") {
-      const rows = values[field.name].map((row) => buildBody(field.itemFields, row));
-      if (rows.length === 0) errors[field.name] = `Agrega al menos un ${field.itemLabel}.`;
-      else if (rows.some((row) => Object.keys(row.errors).length > 0)) {
-        errors[field.name] = `Revisa los datos de cada ${field.itemLabel}.`;
-      }
-      body[field.name] = rows.map((row) => row.body);
-      continue;
-    }
-
     const result = parseScalar(field, values[field.name]);
     if (result.error) errors[field.name] = result.error;
     else if (!result.skip) body[field.name] = result.value;

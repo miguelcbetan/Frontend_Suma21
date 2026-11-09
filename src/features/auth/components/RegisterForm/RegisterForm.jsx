@@ -12,7 +12,7 @@ const MIN_USERNAME = 3;
 const MIN_PASSWORD = 12;
 
 /**
- * Registro público de donantes (`POST /auth/registro`) y acceso inmediato.
+ * Registro público de clientes (`POST /auth/registro`, rol DONANTE) y acceso inmediato.
  * @param {{ onSuccess: (user: import("../../context/authContext.js").AuthUser) => void }} props
  */
 export function RegisterForm({ onSuccess }) {
@@ -76,7 +76,7 @@ export function RegisterForm({ onSuccess }) {
         error={error.fields.clave}
       />
       <Button type="submit" size="lg" disabled={pending}>
-        {pending ? "Creando cuenta…" : "Crear cuenta de donante"}
+        {pending ? "Creando cuenta…" : "Crear mi cuenta"}
       </Button>
     </form>
   );

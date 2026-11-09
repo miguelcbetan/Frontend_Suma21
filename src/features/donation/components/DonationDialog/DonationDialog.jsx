@@ -1,16 +1,16 @@
 import { useId, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
-import { WOMPI_ACCOUNT_ID, WOMPI_PAYMENT_METHOD_ID, describeError, paymentsService } from "@/core/api";
+import { describeError, donationsService } from "@/core/api";
 import { savePaymentSession } from "@/core/utils/paymentSession";
+import { PAYMENT_RESULT_PATH, openWompiCheckout } from "@/core/utils/wompiWidget";
 
 import { AmountSelector } from "../AmountSelector";
-import { FrequencyToggle } from "../FrequencyToggle";
 import { SecurityNotice } from "../SecurityNotice";
 
 import styles from "./DonationDialog.module.css";
@@ -25,21 +25,24 @@ const DEFAULT_AMOUNT = 70000;
 
 const formatAmount = (value) => `$${value.toLocaleString("es-CO")}`;
 
+/** Pesos con máximo dos decimales (lo que acepta `POST /donations/monetary`). */
+const hasValidDecimals = (value) => Math.round(value * 100) === value * 100;
+
 /**
- * Interfaz de donación. Con sesión iniciada crea la donación pendiente y su pago
- * de Wompi Sandbox (`POST /api/payments/checkout`) y lleva al donante a pagar.
- * `session.donorId` es el ID del usuario, que el backend registra como `donor_id`.
+ * Interfaz de donación monetaria. Con sesión iniciada crea la donación
+ * pendiente con `POST /api/v1/donations/monetary` (el backend toma al donante
+ * del token) y abre el widget de Wompi con el checkout que devuelve.
  * El nombre y el documento que se piden solo sirven para el certificado de este
  * navegador: no se envían al backend.
  * @param {{
  *   open: boolean,
  *   onClose: () => void,
- *   session?: { authenticated: boolean, donorId: string | null, name?: string },
+ *   session?: { authenticated: boolean, userId: string | null, name?: string },
  * }} props
  */
-export function DonationDialog({ open, onClose, session = { authenticated: false, donorId: null } }) {
+export function DonationDialog({ open, onClose, session = { authenticated: false, userId: null } }) {
   const titleId = useId();
-  const [frequency, setFrequency] = useState("monthly");
+  const navigate = useNavigate();
   const [amount, setAmount] = useState(DEFAULT_AMOUNT);
   const [otherAmount, setOtherAmount] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
@@ -48,17 +51,17 @@ export function DonationDialog({ open, onClose, session = { authenticated: false
   const [documentNumber, setDocumentNumber] = useState("");
   const [state, setState] = useState({ status: "idle", message: "", fields: {} });
 
-  const canDonate = session.authenticated && Boolean(session.donorId);
+  const canDonate = session.authenticated;
   const donorName = typedName ?? session.name ?? "";
   const value = otherAmount ? Number(customAmount) : amount;
-  const validAmount = Number.isFinite(value) && value > 0;
+  const validAmount = Number.isFinite(value) && value > 0 && hasValidDecimals(value);
   const pending = state.status === "pending";
 
   async function handleSubmit(event) {
     event.preventDefault();
 
     if (!validAmount) {
-      setState({ status: "error", message: "Escribe un monto mayor que cero.", fields: {} });
+      setState({ status: "error", message: "Escribe un monto mayor que cero, con máximo dos decimales.", fields: {} });
       return;
     }
     const fields = {};
@@ -71,23 +74,28 @@ export function DonationDialog({ open, onClose, session = { authenticated: false
 
     setState({ status: "pending", message: "", fields: {} });
     try {
-      const checkout = await paymentsService.createCheckout({
-        kind: "donation",
-        donor_id: session.donorId,
-        payment_method_id: WOMPI_PAYMENT_METHOD_ID,
-        account_id: WOMPI_ACCOUNT_ID,
-        amount: value,
-        ...(frequency === "monthly" ? { frequency: 1 } : {}),
-      });
+      const { checkout } = await donationsService.createMonetary({ amount: value });
+      const { reference } = checkout;
       savePaymentSession({
-        reference: checkout.reference,
+        reference,
         kind: "donation",
-        personId: session.donorId,
-        frequency,
+        ...(session.userId ? { personId: session.userId } : {}),
         donorName: donorName.trim(),
         donorDocument: documentNumber.trim(),
       });
-      window.location.assign(checkout.checkout_url);
+      // El diálogo modal ocupa la capa superior del navegador: se cierra antes de
+      // abrir el widget de Wompi para que este quede visible y usable.
+      onClose();
+      const mode = await openWompiCheckout(checkout, {
+        onFinished: () => navigate(`${PAYMENT_RESULT_PATH}?reference=${encodeURIComponent(reference)}`),
+      });
+      if (mode === "widget") {
+        setState({
+          status: "waiting",
+          message: `Completa el pago en la ventana de Wompi (referencia ${reference}). Si la cerraste sin pagar, puedes consultar el estado en «Mis operaciones».`,
+          fields: {},
+        });
+      }
     } catch (error) {
       setState({ status: "error", ...describeError(error) });
     }
@@ -115,7 +123,6 @@ export function DonationDialog({ open, onClose, session = { authenticated: false
         </p>
 
         <form className={styles.form} onSubmit={handleSubmit} noValidate>
-          <FrequencyToggle value={frequency} onChange={setFrequency} />
           <AmountSelector amounts={AMOUNTS} value={amount} onChange={setAmount} />
           <div className={styles.options}>
             <Checkbox
@@ -151,6 +158,7 @@ export function DonationDialog({ open, onClose, session = { authenticated: false
                   type="number"
                   inputMode="numeric"
                   min={1}
+                  step="0.01"
                   value={customAmount}
                   onChange={(event) => setCustomAmount(event.target.value)}
                 />
@@ -184,18 +192,13 @@ export function DonationDialog({ open, onClose, session = { authenticated: false
             <Alert tone="info" className={styles.alert}>
               Para registrar tu donación{" "}
               <Link to="/login" onClick={onClose} className={styles.link}>
-                inicia sesión o crea tu cuenta de donante
+                inicia sesión o crea tu cuenta
               </Link>
               .
             </Alert>
           ) : null}
-          {session.authenticated && !session.donorId ? (
-            <Alert tone="error" className={styles.alert}>
-              Tu cuenta no tiene un identificador de usuario disponible para registrar la donación. Contacta a
-              ASISCO.
-            </Alert>
-          ) : null}
           {state.status === "error" ? <Alert tone="error" className={styles.alert}>{state.message}</Alert> : null}
+          {state.status === "waiting" ? <Alert tone="info" className={styles.alert}>{state.message}</Alert> : null}
 
           <Button type="submit" size="lg" className={styles.submit} disabled={!canDonate || pending}>
             {pending ? "Preparando el pago…" : `Donar ${validAmount ? formatAmount(value) : ""} ahora`}

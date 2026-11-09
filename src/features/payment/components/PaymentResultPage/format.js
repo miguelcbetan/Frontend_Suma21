@@ -1,20 +1,28 @@
-/** Estados de Wompi con los que un pago `PENDING` en realidad ya fue rechazado. */
-const REJECTED_WOMPI_STATUSES = ["DECLINED", "ERROR", "VOIDED"];
+/** Estados finales con los que Wompi rechazó o anuló el pago. */
+const REJECTED_STATUSES = ["DECLINED", "VOIDED", "ERROR"];
 
 /**
- * Resultado de un pago a partir de lo que devuelve `GET /api/payments/:reference`.
- * `FAILED` es el estado final de un pago que Wompi rechazó; `wompi_status` guarda
- * el motivo y también sirve para detectar un rechazo que aún figure `PENDING`.
- * @param {{ status: string, wompi_status: string | null }} payment
- * @returns {"approved" | "review" | "failed" | "rejected" | "pending"}
+ * Resultado de un pago según `status` de `GET /api/v1/payments/:reference`
+ * (`PENDING`, `APPROVED`, `DECLINED`, `VOIDED` o `ERROR`). El backend lo
+ * actualiza con el evento firmado de Wompi; volver de Wompi no basta para
+ * darlo por aprobado.
+ * @param {{ status: string }} payment
+ * @returns {"approved" | "rejected" | "pending"}
  */
 export function outcomeOf(payment) {
   if (payment.status === "APPROVED") return "approved";
-  if (payment.status === "APPROVED_ACTION_REQUIRED") return "review";
-  if (payment.status === "FAILED") return "failed";
-  if (REJECTED_WOMPI_STATUSES.includes(payment.wompi_status)) return "rejected";
+  if (REJECTED_STATUSES.includes(payment.status)) return "rejected";
   return "pending";
 }
+
+/** Texto corto en español para cada estado del backend. */
+export const STATUS_LABELS = {
+  PENDING: "Pendiente",
+  APPROVED: "Aprobado",
+  DECLINED: "Rechazado",
+  VOIDED: "Anulado",
+  ERROR: "Error",
+};
 
 /** `70000` → `$70.000 COP` */
 export function formatCop(amount) {

@@ -3,53 +3,12 @@ import { useState } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { describeError } from "@/core/api";
+import { cx } from "@/core/utils/cx";
 
-import { buildBody, emptyRow, initialValues } from "../../formValues.js";
+import { buildBody, initialValues } from "../../formValues.js";
 
 import { ControlField } from "./ControlField.jsx";
 import styles from "./RecordForm.module.css";
-
-/** Filas repetibles (productos de una venta, artículos de una donación…). */
-function ItemsField({ field, rows, error, onChange }) {
-  function setRowValue(index, name, value) {
-    onChange(rows.map((row, i) => (i === index ? { ...row, [name]: value } : row)));
-  }
-
-  return (
-    <fieldset className={styles.items}>
-      <legend>
-        {field.label}
-        <span aria-hidden="true"> *</span>
-      </legend>
-      {rows.map((row, index) => (
-        <div key={index} className={styles.row}>
-          <div className={styles.rowFields}>
-            {field.itemFields.map((sub) => (
-              <ControlField
-                key={sub.name}
-                field={sub}
-                value={row[sub.name]}
-                onChange={(value) => setRowValue(index, sub.name, value)}
-              />
-            ))}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={rows.length === 1}
-            onClick={() => onChange(rows.filter((_, i) => i !== index))}
-          >
-            Quitar {field.itemLabel} {index + 1}
-          </Button>
-        </div>
-      ))}
-      {error ? <p className={styles.itemsError}>{error}</p> : null}
-      <Button variant="secondary" size="sm" onClick={() => onChange([...rows, emptyRow(field)])}>
-        Agregar {field.itemLabel}
-      </Button>
-    </fieldset>
-  );
-}
 
 /**
  * Formulario generado desde la definición de campos de `resources.js`.
@@ -58,12 +17,13 @@ function ItemsField({ field, rows, error, onChange }) {
  * @param {{
  *   fields: any[],
  *   initial?: Record<string, any>,
+ *   record?: Record<string, any> | null,
  *   submitLabel: string,
  *   onSubmit: (body: Record<string, unknown>) => Promise<void>,
  *   onCancel?: () => void,
  * }} props
  */
-export function RecordForm({ fields, initial, submitLabel, onSubmit, onCancel }) {
+export function RecordForm({ fields, initial, record, submitLabel, onSubmit, onCancel }) {
   const [values, setValues] = useState(() => initial ?? initialValues(fields));
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState("");
@@ -71,6 +31,7 @@ export function RecordForm({ fields, initial, submitLabel, onSubmit, onCancel })
 
   function setValue(name, value) {
     setValues((current) => ({ ...current, [name]: value }));
+    setErrors((current) => (current[name] ? { ...current, [name]: undefined } : current));
   }
 
   async function handleSubmit(event) {
@@ -78,7 +39,7 @@ export function RecordForm({ fields, initial, submitLabel, onSubmit, onCancel })
     const { body, errors: localErrors } = buildBody(fields, values);
     if (Object.keys(localErrors).length > 0) {
       setErrors(localErrors);
-      setFormError("Revisa los datos del formulario.");
+      setFormError("Revisa los campos marcados.");
       return;
     }
 
@@ -105,32 +66,25 @@ export function RecordForm({ fields, initial, submitLabel, onSubmit, onCancel })
     <form onSubmit={handleSubmit} noValidate className={styles.form}>
       {formError ? <Alert tone="error">{formError}</Alert> : null}
       <div className={styles.grid}>
-        {fields.map((field) =>
-          field.type === "items" ? (
-            <ItemsField
-              key={field.name}
-              field={field}
-              rows={values[field.name]}
-              error={errors[field.name]}
-              onChange={(rows) => setValue(field.name, rows)}
-            />
-          ) : (
+        {fields.map((field) => (
+          <div key={field.name} className={cx(field.full && styles.full)}>
             <ControlField
-              key={field.name}
               field={field}
               value={values[field.name]}
               error={errors[field.name]}
+              currentUrl={field.type === "file" ? (record?.image_url ?? null) : undefined}
               onChange={(value) => setValue(field.name, value)}
             />
-          ),
-        )}
+          </div>
+        ))}
       </div>
+      <p className={styles.legend}>Los campos con * son obligatorios.</p>
       <div className={styles.actions}>
         <Button type="submit" disabled={pending}>
           {pending ? "Guardando…" : submitLabel}
         </Button>
         {onCancel ? (
-          <Button variant="ghost" onClick={onCancel}>
+          <Button variant="ghost" onClick={onCancel} disabled={pending}>
             Cancelar
           </Button>
         ) : null}

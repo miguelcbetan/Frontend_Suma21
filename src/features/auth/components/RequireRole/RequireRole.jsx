@@ -31,7 +31,10 @@ export function RequireRole({ requiredRole, children }) {
   if (requiredRole && !hasRole(user, requiredRole)) {
     return (
       <Container className={styles.container}>
-        <Alert tone="error">No tienes permisos para ver esta sección.</Alert>
+        <Alert tone="error">
+          No tienes permisos para ver esta sección. Si crees que es un error, cierra sesión e ingresa con una
+          cuenta de administración.
+        </Alert>
       </Container>
     );
   }

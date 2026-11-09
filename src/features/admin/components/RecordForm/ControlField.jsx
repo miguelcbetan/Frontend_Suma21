@@ -1,54 +1,68 @@
+import { useState } from "react";
+
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Field } from "@/components/ui/Field";
 
-import { useRefOptions } from "./useRefOptions.js";
+import styles from "./RecordForm.module.css";
 
-function RefField({ field, value, error, onChange }) {
-  const { status, options } = useRefOptions(field.source);
+/**
+ * Selector de imagen con validación inmediata (tipo y tamaño) y vista previa.
+ * Un input de archivo no es controlado: se informa el `File` elegido (o `null`).
+ */
+function FileField({ field, error, currentUrl, onChange }) {
+  const [preview, setPreview] = useState(null);
+  const [localError, setLocalError] = useState("");
 
-  // Sin lista (error o vacía) se permite escribir el ID a mano.
-  if (status !== "ready" || options.length === 0) {
-    return (
-      <Field
-        label={field.label}
-        type="text"
-        inputMode="numeric"
-        required={field.required}
-        value={value}
-        hint={status === "loading" ? "Cargando opciones…" : "No hay lista disponible: escribe el ID."}
-        error={error}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    );
+  function showPreview(file) {
+    setPreview((previous) => {
+      if (previous) URL.revokeObjectURL(previous);
+      return file ? URL.createObjectURL(file) : null;
+    });
   }
 
+  function handleChange(event) {
+    const file = event.target.files?.[0] ?? null;
+    const problem = file ? field.validate?.(file) : null;
+    if (problem) {
+      setLocalError(problem);
+      event.target.value = "";
+      showPreview(null);
+      onChange(null);
+      return;
+    }
+    setLocalError("");
+    showPreview(file);
+    onChange(file);
+  }
+
+  const shown = preview ?? currentUrl ?? null;
+
   return (
-    <Field
-      as="select"
-      label={field.label}
-      required={field.required}
-      value={value}
-      error={error}
-      onChange={(event) => onChange(event.target.value)}
-    >
-      <option value="">Selecciona…</option>
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </Field>
+    <div className={styles.file}>
+      <Field
+        label={field.label}
+        type="file"
+        accept={field.accept}
+        hint={field.hint}
+        error={localError || error}
+        onChange={handleChange}
+      />
+      {shown ? (
+        <figure className={styles.preview}>
+          <img src={shown} alt={preview ? "Vista previa de la imagen elegida" : "Imagen actual del producto"} />
+          <figcaption>{preview ? "Imagen elegida" : "Imagen actual"}</figcaption>
+        </figure>
+      ) : null}
+    </div>
   );
 }
 
 /**
  * Control de un campo según su `type`.
- * @param {{ field: any, value: any, error?: string, onChange: (value: any) => void }} props
+ * @param {{ field: any, value: any, error?: string, currentUrl?: string | null, onChange: (value: any) => void }} props
  */
-export function ControlField({ field, value, error, onChange }) {
+export function ControlField({ field, value, error, currentUrl, onChange }) {
   switch (field.type) {
-    case "ref":
-      return <RefField field={field} value={value} error={error} onChange={onChange} />;
     case "checkbox":
       return (
         <Checkbox
@@ -64,6 +78,7 @@ export function ControlField({ field, value, error, onChange }) {
           label={field.label}
           required={field.required}
           value={value}
+          hint={field.hint}
           error={error}
           onChange={(event) => onChange(event.target.value)}
         >
@@ -75,17 +90,7 @@ export function ControlField({ field, value, error, onChange }) {
         </Field>
       );
     case "file":
-      // Un input de archivo no es controlado: se informa el `File` elegido (o `null`).
-      return (
-        <Field
-          label={field.label}
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
-          hint={field.hint}
-          error={error}
-          onChange={(event) => onChange(event.target.files?.[0] ?? null)}
-        />
-      );
+      return <FileField field={field} error={error} currentUrl={currentUrl} onChange={onChange} />;
     case "textarea":
       return (
         <Field
@@ -93,6 +98,7 @@ export function ControlField({ field, value, error, onChange }) {
           label={field.label}
           required={field.required}
           value={value}
+          hint={field.hint}
           error={error}
           onChange={(event) => onChange(event.target.value)}
         />

@@ -59,3 +59,26 @@
 .checkout {
   width: 100%;
 }
+
+.units {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-regular);
+}
+
+.delete {
+  margin-top: var(--space-1);
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--color-link);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.note {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}

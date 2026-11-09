@@ -1,28 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { Alert } from "@/components/ui/Alert";
 import { buttonClassName } from "@/components/ui/Button";
-import { WOMPI_ACCOUNT_ID, WOMPI_PAYMENT_METHOD_ID, describeError, paymentsService } from "@/core/api";
-import { lastPaymentReference, loadPaymentSession, savePaymentSession } from "@/core/utils/paymentSession";
+import { lastPaymentReference, loadPaymentSession, paymentKindOf } from "@/core/utils/paymentSession";
 
 import { CertificateDocument } from "../CertificateDocument";
 
-import { formatCop, formatDateTime, outcomeOf } from "./format.js";
+import { STATUS_LABELS, formatCop, formatDateTime, outcomeOf } from "./format.js";
 import styles from "./PaymentResultPage.module.css";
 import { usePaymentStatus } from "./usePaymentStatus.js";
 
 const IMPACT_ITEMS = ["3 Semanas de Formación Barista", "Materiales Adaptados de Pintura", "Acompañamiento Psicosocial"];
 
 /** Mensaje para los pagos que todavía no tienen recibo. */
-function PaymentStatusMessage({ tone, title, children, reference, onRetry, retryState, onRefresh }) {
+function PaymentStatusMessage({ tone, title, children, reference, action, onRefresh }) {
   return (
     <div className={styles.status}>
       <Alert tone={tone}>
         <strong>{title}</strong>
         {children ? <p>{children}</p> : null}
       </Alert>
-      {retryState?.error ? <Alert tone="error">{retryState.error}</Alert> : null}
       {reference ? <p className={styles.reference}>Referencia del pago: {reference}</p> : null}
       <div className={styles.statusActions}>
         {onRefresh ? (
@@ -30,16 +28,14 @@ function PaymentStatusMessage({ tone, title, children, reference, onRetry, retry
             Actualizar estado
           </button>
         ) : null}
-        {onRetry ? (
-          <button
-            type="button"
-            className={buttonClassName({ variant: "secondary" })}
-            onClick={onRetry}
-            disabled={retryState?.pending}
-          >
-            {retryState?.pending ? "Preparando el pago…" : "Reintentar el pago"}
-          </button>
+        {action ? (
+          <Link to={action.to} className={buttonClassName({ variant: "secondary" })}>
+            {action.label}
+          </Link>
         ) : null}
+        <Link to="/mis-operaciones" className={buttonClassName({ variant: "ghost" })}>
+          Mis operaciones
+        </Link>
         <Link to="/" className={buttonClassName({ variant: "ghost" })}>
           Ir al inicio
         </Link>
@@ -48,9 +44,9 @@ function PaymentStatusMessage({ tone, title, children, reference, onRetry, retry
   );
 }
 
-function ApprovedReceipt({ payment, session }) {
+function ApprovedReceipt({ payment, kind, session }) {
   const [showCertificate, setShowCertificate] = useState(false);
-  const isDonation = payment.kind === "donation";
+  const isDonation = kind === "donation";
   // El backend no guarda el documento del donante: viene de lo que escribió al donar en este navegador.
   const donor =
     isDonation && session?.donorName && session?.donorDocument
@@ -58,14 +54,8 @@ function ApprovedReceipt({ payment, session }) {
       : null;
 
   const amount = payment.amount_in_cents / 100;
-  const paidAt = payment.completed_at ?? payment.created_at;
-  const modality = isDonation
-    ? session?.frequency === "once"
-      ? "Donación única"
-      : session?.frequency === "monthly"
-        ? "Donación mensual"
-        : "Donación"
-    : "Compra en la tienda SUMA21";
+  const paidAt = payment.created_at;
+  const modality = isDonation ? "Donación monetaria" : "Compra en la tienda SUMA21";
 
   return (
     <>
@@ -108,12 +98,22 @@ function ApprovedReceipt({ payment, session }) {
               <dt>Modalidad del aporte</dt>
               <dd>{modality}</dd>
             </div>
+            {!isDonation && session?.summary ? (
+              <div>
+                <dt>Productos</dt>
+                <dd>{session.summary}</dd>
+              </div>
+            ) : null}
             <div>
-              <dt>Monto aportado</dt>
+              <dt>Referencia</dt>
+              <dd>{payment.reference}</dd>
+            </div>
+            <div>
+              <dt>{isDonation ? "Monto aportado" : "Total pagado"}</dt>
               <dd className={styles.amount}>{formatCop(amount)}</dd>
             </div>
             <div>
-              <dt>Fecha y hora</dt>
+              <dt>Fecha y hora de inicio del pago</dt>
               <dd>{formatDateTime(paidAt)}</dd>
             </div>
             <div>
@@ -196,45 +196,24 @@ function ApprovedReceipt({ payment, session }) {
 }
 
 /**
- * Página `/payment-result`: estado del pago de Wompi (`GET /api/payments/:reference`).
- * Toma la referencia de `?reference=` o del último pago iniciado en este navegador.
+ * Página `/payment-result`: estado del pago (`GET /api/v1/payments/:reference`).
+ * Toma la referencia de `?reference=` o del último pago iniciado en este
+ * navegador. Solo se da por aprobado lo que el backend confirma.
+ * @param {{ onSaleApproved?: (reference: string) => void }} props
  */
-export function PaymentResultPage() {
+export function PaymentResultPage({ onSaleApproved }) {
   const [params] = useSearchParams();
   const reference = params.get("reference") ?? lastPaymentReference();
   const { status, payment, message, timedOut } = usePaymentStatus(reference);
   const session = reference ? loadPaymentSession(reference) : null;
-  const [retryState, setRetryState] = useState({ pending: false, error: "" });
+  const kind = paymentKindOf(payment?.reference ?? reference) ?? session?.kind ?? null;
+  const outcome = status === "ready" ? outcomeOf(payment) : null;
+  const approvedSale = outcome === "approved" && kind === "sale" ? payment.reference : null;
 
-  /**
-   * Crea otro intento de pago para la misma venta o donación (el backend la
-   * reutiliza: no se repiten los datos del comprador ni los productos).
-   */
-  async function retryPayment() {
-    setRetryState({ pending: true, error: "" });
-    try {
-      const target =
-        payment.kind === "sale"
-          ? { kind: "sale", sale_id: payment.sale_id }
-          : { kind: "donation", donation_id: payment.donation_id, amount: payment.amount_in_cents / 100 };
-      const checkout = await paymentsService.createCheckout({
-        ...target,
-        payment_method_id: WOMPI_PAYMENT_METHOD_ID,
-        account_id: WOMPI_ACCOUNT_ID,
-      });
-      savePaymentSession({
-        reference: checkout.reference,
-        kind: payment.kind,
-        personId: session?.personId ?? "",
-        ...(session?.frequency ? { frequency: session.frequency } : {}),
-        ...(session?.donorName ? { donorName: session.donorName } : {}),
-        ...(session?.donorDocument ? { donorDocument: session.donorDocument } : {}),
-      });
-      window.location.assign(checkout.checkout_url);
-    } catch (error) {
-      setRetryState({ pending: false, error: describeError(error).message });
-    }
-  }
+  // Una compra aprobada vacía el carrito.
+  useEffect(() => {
+    if (approvedSale) onSaleApproved?.(approvedSale);
+  }, [approvedSale, onSaleApproved]);
 
   let content;
   if (status === "loading") {
@@ -262,45 +241,37 @@ export function PaymentResultPage() {
         {message}
       </PaymentStatusMessage>
     );
+  } else if (outcome === "approved") {
+    content = <ApprovedReceipt payment={payment} kind={kind} session={session} />;
+  } else if (outcome === "rejected") {
+    content = (
+      <PaymentStatusMessage
+        tone="error"
+        title="El pago no fue aprobado"
+        reference={payment.reference}
+        action={
+          kind === "sale"
+            ? { to: "/apoyanos-tienda#carrito", label: "Volver al carrito" }
+            : { to: "/", label: "Ir al inicio para donar de nuevo" }
+        }
+      >
+        {`Wompi informó el estado «${STATUS_LABELS[payment.status] ?? payment.status}». El cobro no se completó.`}
+        {kind === "sale" ? " Tus productos siguen en el carrito para que vuelvas a intentarlo." : null}
+      </PaymentStatusMessage>
+    );
   } else {
-    const outcome = outcomeOf(payment);
-    const canRetry = Boolean(payment.sale_id ?? payment.donation_id);
-
-    if (outcome === "approved") {
-      content = <ApprovedReceipt payment={payment} session={session} />;
-    } else if (outcome === "review") {
-      content = (
-        <PaymentStatusMessage tone="info" title="Tu pago fue aprobado, pero requiere revisión" reference={payment.reference}>
-          {payment.processing_error ??
-            "No pudimos registrar la operación de forma automática. Contacta a ASISCO con esta referencia."}
-        </PaymentStatusMessage>
-      );
-    } else if (outcome === "rejected" || outcome === "failed") {
-      content = (
-        <PaymentStatusMessage
-          tone="error"
-          title="El pago no fue aprobado"
-          reference={payment.reference}
-          onRetry={canRetry ? retryPayment : undefined}
-          retryState={retryState}
-        >
-          {payment.wompi_status ? `Wompi respondió con el estado ${payment.wompi_status}.` : null}
-        </PaymentStatusMessage>
-      );
-    } else {
-      content = (
-        <PaymentStatusMessage
-          tone="info"
-          title={timedOut ? "Tu pago sigue pendiente" : "Estamos confirmando tu pago con Wompi"}
-          reference={payment.reference}
-          onRefresh={timedOut ? () => window.location.reload() : undefined}
-        >
-          {timedOut
-            ? "Aún no recibimos la confirmación. Puedes volver a esta página más tarde con el botón de actualizar."
-            : "Esta página se actualiza sola en unos segundos."}
-        </PaymentStatusMessage>
-      );
-    }
+    content = (
+      <PaymentStatusMessage
+        tone="info"
+        title={timedOut ? "Tu pago sigue pendiente" : "Estamos confirmando tu pago con Wompi"}
+        reference={payment.reference}
+        onRefresh={timedOut ? () => window.location.reload() : undefined}
+      >
+        {timedOut
+          ? "Aún no recibimos la confirmación de Wompi. Puedes volver más tarde o revisar el estado en «Mis operaciones»."
+          : "Esta página se actualiza sola en unos segundos."}
+      </PaymentStatusMessage>
+    );
   }
 
   return (

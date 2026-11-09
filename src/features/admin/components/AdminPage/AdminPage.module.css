@@ -43,6 +43,26 @@
 }
 
 .sectionTitle {
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-2);
   font-size: var(--font-size-xl);
+}
+
+.sectionDescription {
+  max-width: 48rem;
+  margin-bottom: var(--space-5);
+  color: var(--color-text-muted);
+}
+
+.tabs {
+  overflow-x: auto;
+}
+
+@media (max-width: 47.99rem) {
+  .tabs {
+    flex-wrap: nowrap;
+  }
+
+  .tab {
+    flex: none;
+  }
 }

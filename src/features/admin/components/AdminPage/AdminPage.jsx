@@ -6,6 +6,7 @@ import { healthService } from "@/core/api";
 import { cx } from "@/core/utils/cx";
 
 import { SECTIONS } from "../../resources.js";
+import { ReportPanel } from "../ReportPanel";
 import { ResourcePanel } from "../ResourcePanel";
 
 import styles from "./AdminPage.module.css";
@@ -35,7 +36,7 @@ function ServerStatus() {
   return <Badge tone={tone}>{text}</Badge>;
 }
 
-/** Panel de administración: una pestaña por grupo de endpoints de API.md. */
+/** Panel de administración: una pestaña por grupo de endpoints de `/api/v1` (ver docs/integracion-backend.md). */
 export function AdminPage() {
   const [activeId, setActiveId] = useState(SECTIONS[0].id);
   const section = SECTIONS.find(({ id }) => id === activeId);
@@ -66,7 +67,12 @@ export function AdminPage() {
 
       <div role="tabpanel" id="admin-panel" aria-labelledby={`admin-tab-${activeId}`}>
         <h2 className={styles.sectionTitle}>{section.label}</h2>
-        <ResourcePanel key={section.id} section={section} />
+        {section.description ? <p className={styles.sectionDescription}>{section.description}</p> : null}
+        {section.report ? (
+          <ReportPanel key={section.id} section={section} />
+        ) : (
+          <ResourcePanel key={section.id} section={section} />
+        )}
       </div>
     </Container>
   );

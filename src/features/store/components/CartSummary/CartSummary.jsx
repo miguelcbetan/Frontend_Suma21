@@ -5,15 +5,17 @@ import { formatCurrency } from "@/core/utils/currency";
 import styles from "./CartSummary.module.css";
 
 /**
- * Resumen del pedido: líneas con su cantidad, total y acción de compra.
+ * Resumen del pedido: líneas con cantidad y subtotal, total y acción de compra.
  * @param {{
  *   lines: { product: { id: string, name: string, price: number, stock: number }, quantity: number }[],
  *   total: number,
  *   onAdd: (id: string) => void,
  *   onRemove: (id: string) => void,
+ *   onDelete?: (id: string) => void,
  *   onCheckout: () => void,
  *   checkoutDisabled?: boolean,
  *   checkoutLabel?: string,
+ *   note?: import("react").ReactNode,
  * }} props
  */
 export function CartSummary({
@@ -21,14 +23,20 @@ export function CartSummary({
   total,
   onAdd,
   onRemove,
+  onDelete,
   onCheckout,
   checkoutDisabled = false,
-  checkoutLabel = "Finalizar compra",
+  checkoutLabel = "Pagar con Wompi",
+  note,
 }) {
+  const units = lines.reduce((sum, { quantity }) => sum + quantity, 0);
+
   return (
-    <Card>
+    <Card id="carrito">
       <CardHeader>
-        <h3 className={styles.heading}>Tu pedido</h3>
+        <h3 className={styles.heading}>
+          Tu carrito{units > 0 ? <span className={styles.units}> · {units} {units === 1 ? "unidad" : "unidades"}</span> : null}
+        </h3>
       </CardHeader>
       <CardBody className={styles.body}>
         {lines.length === 0 ? (
@@ -39,7 +47,14 @@ export function CartSummary({
               <li key={product.id} className={styles.line}>
                 <div className={styles.info}>
                   <p className={styles.name}>{product.name}</p>
-                  <p className={styles.subtotal}>{formatCurrency(product.price * quantity)}</p>
+                  <p className={styles.subtotal}>
+                    {quantity} × {formatCurrency(product.price)} = <strong>{formatCurrency(product.price * quantity)}</strong>
+                  </p>
+                  {onDelete ? (
+                    <button type="button" className={styles.delete} onClick={() => onDelete(product.id)}>
+                      Quitar del carrito
+                    </button>
+                  ) : null}
                 </div>
                 <div className={styles.quantity}>
                   <Button
@@ -78,6 +93,7 @@ export function CartSummary({
         >
           {checkoutLabel}
         </Button>
+        {note ? <p className={styles.note}>{note}</p> : null}
       </CardBody>
     </Card>
   );

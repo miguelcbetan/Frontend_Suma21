@@ -1,0 +1,65 @@
+.page {
+  display: grid;
+  gap: var(--space-5);
+  padding-block: var(--space-6);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.title {
+  font-size: var(--font-size-2xl);
+}
+
+.lead {
+  max-width: 40rem;
+  color: var(--color-text-muted);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.kind {
+  margin-right: auto;
+  font-size: var(--font-size-lg);
+}
+
+.details {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.details dt {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.details dd {
+  margin: 0;
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 48rem) {
+  .details {
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  }
+}

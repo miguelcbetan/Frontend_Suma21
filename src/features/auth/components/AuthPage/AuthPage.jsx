@@ -6,7 +6,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { cx } from "@/core/utils/cx";
 
 import { useAuth } from "../../context/useAuth.js";
-import { hasRole } from "../../session.js";
+import { isAdmin } from "../../session.js";
 import { LoginForm } from "../LoginForm";
 import { RegisterForm } from "../RegisterForm";
 
@@ -14,13 +14,13 @@ import styles from "./AuthPage.module.css";
 
 const TABS = [
   { id: "login", label: "Iniciar sesión", title: "Bienvenido de nuevo" },
-  { id: "register", label: "Soy donante nuevo", title: "Crea tu cuenta de donante" },
+  { id: "register", label: "Crear cuenta", title: "Crea tu cuenta para comprar y donar" },
 ];
 
 /** Destino tras iniciar sesión: la ruta que pidió el usuario o la de su rol. */
 function destinationFor(user, from) {
   if (from) return from;
-  return hasRole(user, "ADMIN") ? "/admin" : "/";
+  return isAdmin(user) ? "/admin" : "/apoyanos-tienda";
 }
 
 /** Página `/login`: inicio de sesión y registro de donantes. */

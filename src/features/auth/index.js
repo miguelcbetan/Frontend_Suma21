@@ -4,4 +4,4 @@ export { AuthPage } from "./components/AuthPage";
 export { ProfilePage } from "./components/ProfilePage";
 export { RequireRole } from "./components/RequireRole";
 export { UserMenu } from "./components/UserMenu";
-export { ALLOWED_ROLES, hasRole } from "./session.js";
+export { ADMIN_ROLE, ALLOWED_ROLES, CUSTOMER_ROLES, hasRole, isAdmin, isCustomer } from "./session.js";

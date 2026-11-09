@@ -10,7 +10,7 @@ const MAX_ATTEMPTS = 40;
 const LOADING = { status: "loading", payment: null, message: "", timedOut: false };
 
 /**
- * Consulta `GET /api/payments/:reference` y repite la consulta mientras el pago
+ * Consulta `GET /api/v1/payments/:reference` y repite la consulta mientras el pago
  * siga pendiente (Wompi confirma por un evento que puede tardar unos segundos).
  * @param {string | null} reference
  * @returns {{

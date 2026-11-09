@@ -6,7 +6,7 @@ import { Button, buttonClassName } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 
 import { useAuth } from "../../context/useAuth.js";
-import { hasRole } from "../../session.js";
+import { isAdmin } from "../../session.js";
 
 import styles from "./ProfilePage.module.css";
 
@@ -42,11 +42,15 @@ export function ProfilePage() {
             </div>
           </dl>
           <div className={styles.actions}>
-            {hasRole(user, "ADMIN") ? (
+            {isAdmin(user) ? (
               <Link to="/admin" className={buttonClassName({ variant: "secondary" })}>
                 Ir al panel de administración
               </Link>
-            ) : null}
+            ) : (
+              <Link to="/mis-operaciones" className={buttonClassName({ variant: "secondary" })}>
+                Ver mis operaciones
+              </Link>
+            )}
             <Button variant="ghost" onClick={logout}>
               Cerrar sesión
             </Button>

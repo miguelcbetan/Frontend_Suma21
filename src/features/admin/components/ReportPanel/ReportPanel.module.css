@@ -1,0 +1,58 @@
+.panel {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.heading {
+  font-size: var(--font-size-lg);
+}
+
+.filters {
+  display: grid;
+  gap: var(--space-4);
+  align-items: end;
+}
+
+.filterActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.resultsHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.summary {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.results {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.errorBox {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+@media (min-width: 48rem) {
+  .filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  }
+}

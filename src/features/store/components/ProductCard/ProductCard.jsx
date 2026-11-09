@@ -27,13 +27,14 @@ export function ProductCard({ product, quantity, onAdd }) {
       {imageUrl ? (
         <img src={imageUrl} alt={name} loading="lazy" className={styles.image} />
       ) : (
-        <MediaPlaceholder ratio="standard" label="[Imagen del producto]" />
+        <MediaPlaceholder ratio="standard" label="Producto sin imagen" />
       )}
       <CardBody className={styles.body}>
         {soldOut ? <Badge tone="neutral">Agotado</Badge> : null}
         <h3 className={styles.title}>{name}</h3>
         {description ? <p className={styles.description}>{description}</p> : null}
         <p className={styles.price}>{formatCurrency(price)}</p>
+        {!soldOut ? <p className={styles.stock}>Disponibles: {stock}</p> : null}
         <div className={styles.action}>
           <Button
             onClick={() => onAdd(id)}

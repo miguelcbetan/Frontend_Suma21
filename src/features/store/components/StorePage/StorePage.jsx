@@ -1,20 +1,17 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { Grid } from "@/components/layout/Grid";
 import { Section } from "@/components/layout/Section";
 import { Alert } from "@/components/ui/Alert";
+import { buttonClassName } from "@/components/ui/Button";
+import { Field } from "@/components/ui/Field";
 import { Stat } from "@/components/ui/Stat";
-import {
-  WOMPI_ACCOUNT_ID,
-  WOMPI_PAYMENT_METHOD_ID,
-  describeError,
-  paymentsService,
-  productsService,
-  toList,
-} from "@/core/api";
+import { describeError, productsService, salesService, toList } from "@/core/api";
 import { savePaymentSession } from "@/core/utils/paymentSession";
+import { PAYMENT_RESULT_PATH, openWompiCheckout } from "@/core/utils/wompiWidget";
 
+import { useCart } from "../../cart/useCart.js";
 import { CartSummary } from "../CartSummary";
 import { ProductCard } from "../ProductCard";
 
@@ -22,7 +19,7 @@ import styles from "./StorePage.module.css";
 
 const IMPACT = [1, 2, 3].map((n) => ({ id: n, value: "[Cifra]", label: "[Descripción]" }));
 
-/** Producto del backend (`GET /api/products`) con los nombres que usa la tienda. */
+/** Producto del backend (`GET /api/v1/products`) con los nombres que usa la tienda. */
 function toStoreProduct(record) {
   return {
     id: String(record.id),
@@ -35,23 +32,30 @@ function toStoreProduct(record) {
 }
 
 /**
- * Pantalla de la tienda: catálogo de `GET /api/products` y pago con Wompi Sandbox.
- * `session.donorId` es el ID del usuario con sesión iniciada, que el backend
- * registra como `customer_id` de la venta.
- * @param {{ session?: { authenticated: boolean, donorId: string | null } }} props
+ * Tienda: catálogo de `GET /api/v1/products` (exige sesión), carrito y compra
+ * con `POST /api/v1/sales`, que devuelve el checkout de Wompi. El backend toma
+ * al comprador del token.
+ * @param {{ session?: { authenticated: boolean, userId: string | null } }} props
  */
-export function StorePage({ session = { authenticated: false, donorId: null } }) {
+export function StorePage({ session = { authenticated: false, userId: null } }) {
+  const navigate = useNavigate();
+  const { hash } = useLocation();
+  const cart = useCart();
+  const { reconcile } = cart;
   const [catalog, setCatalog] = useState({ status: "loading", products: [], error: "" });
-  const [cart, setCart] = useState({});
-  const [paying, setPaying] = useState(false);
-  const [checkoutError, setCheckoutError] = useState("");
+  const [query, setQuery] = useState("");
+  const [checkout, setCheckout] = useState({ status: "idle", message: "" });
 
   useEffect(() => {
+    if (!session.authenticated) return undefined;
     let cancelled = false;
     productsService
       .list()
       .then((payload) => {
-        if (!cancelled) setCatalog({ status: "ready", products: toList(payload).map(toStoreProduct), error: "" });
+        if (cancelled) return;
+        const products = toList(payload).map(toStoreProduct);
+        setCatalog({ status: "ready", products, error: "" });
+        reconcile(products);
       })
       .catch((error) => {
         if (!cancelled) setCatalog({ status: "error", products: [], error: describeError(error).message });
@@ -59,41 +63,69 @@ export function StorePage({ session = { authenticated: false, donorId: null } })
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [session.authenticated, reconcile]);
+
+  // El enlace «Carrito» de la cabecera apunta a `#carrito`.
+  useEffect(() => {
+    if (hash === "#carrito" && catalog.status !== "loading") {
+      document.getElementById("carrito")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [hash, catalog.status]);
+
+  if (!session.authenticated) {
+    return (
+      <Section
+        eyebrow="Apóyanos"
+        title="Tienda SUMA21"
+        description="Cada compra apoya los programas de formación y autonomía de la asociación."
+      >
+        <div className={styles.gate}>
+          <Alert tone="info">Para ver el catálogo y comprar necesitas iniciar sesión con tu cuenta.</Alert>
+          <Link to="/login" state={{ from: "/apoyanos-tienda" }} className={buttonClassName({ size: "lg" })}>
+            Iniciar sesión o crear cuenta
+          </Link>
+        </div>
+      </Section>
+    );
+  }
 
   const { products } = catalog;
-  const lines = products.filter(({ id }) => cart[id]).map((product) => ({ product, quantity: cart[product.id] }));
+  const byId = new Map(products.map((product) => [product.id, product]));
+  const lines = Object.entries(cart.items)
+    .filter(([id]) => byId.has(id))
+    .map(([id, quantity]) => ({ product: byId.get(id), quantity }));
   const total = lines.reduce((sum, { product, quantity }) => sum + product.price * quantity, 0);
-  const canPay = session.authenticated && Boolean(session.donorId);
+  const term = query.trim().toLowerCase();
+  const visible = term
+    ? products.filter(({ name, description }) => `${name} ${description}`.toLowerCase().includes(term))
+    : products;
+  const busy = checkout.status === "creating";
 
-  function add(id) {
-    setCart((current) => ({ ...current, [id]: (current[id] ?? 0) + 1 }));
-  }
-
-  function remove(id) {
-    setCart((current) => {
-      const { [id]: quantity = 0, ...rest } = current;
-      return quantity > 1 ? { ...rest, [id]: quantity - 1 } : rest;
-    });
-  }
-
-  /** Crea la venta pendiente y el enlace de pago, y envía al comprador a Wompi. */
+  /** Crea la venta pendiente y abre el widget de Wompi con el checkout del backend. */
   async function pay() {
-    setPaying(true);
-    setCheckoutError("");
+    setCheckout({ status: "creating", message: "" });
     try {
-      const checkout = await paymentsService.createCheckout({
-        kind: "sale",
-        customer_id: session.donorId,
-        payment_method_id: WOMPI_PAYMENT_METHOD_ID,
-        account_id: WOMPI_ACCOUNT_ID,
+      const result = await salesService.create({
         items: lines.map(({ product, quantity }) => ({ product_id: product.id, quantity })),
       });
-      savePaymentSession({ reference: checkout.reference, kind: "sale", personId: session.donorId });
-      window.location.assign(checkout.checkout_url);
+      const { reference } = result.checkout;
+      savePaymentSession({
+        reference,
+        kind: "sale",
+        ...(session.userId ? { personId: session.userId } : {}),
+        summary: lines.map(({ product, quantity }) => `${quantity} × ${product.name}`).join(", "),
+      });
+      const mode = await openWompiCheckout(result.checkout, {
+        onFinished: () => navigate(`${PAYMENT_RESULT_PATH}?reference=${encodeURIComponent(reference)}`),
+      });
+      if (mode === "widget") {
+        setCheckout({
+          status: "waiting",
+          message: `Completa el pago en la ventana de Wompi (referencia ${reference}). Si la cerraste sin pagar, puedes consultar el estado en «Mis operaciones».`,
+        });
+      }
     } catch (error) {
-      setCheckoutError(describeError(error).message);
-      setPaying(false);
+      setCheckout({ status: "error", message: describeError(error).message });
     }
   }
 
@@ -102,45 +134,56 @@ export function StorePage({ session = { authenticated: false, donorId: null } })
       <Section
         eyebrow="Apóyanos"
         title="Tienda SUMA21"
-        description="[Descripción breve de la tienda y de cómo cada compra apoya a la asociación]"
+        description="Cada compra apoya los programas de formación y autonomía de la asociación."
       >
         <div className={styles.layout}>
-          <div>
+          <div className={styles.catalog}>
+            {products.length > 0 ? (
+              <Field
+                label="Buscar productos"
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className={styles.search}
+              />
+            ) : null}
             {catalog.status === "loading" ? <p role="status">Cargando productos…</p> : null}
             {catalog.status === "error" ? <Alert tone="error">{catalog.error}</Alert> : null}
             {catalog.status === "ready" && products.length === 0 ? (
               <p role="status">Por ahora no hay productos disponibles.</p>
             ) : null}
-            {products.length > 0 ? (
+            {products.length > 0 && visible.length === 0 ? <p role="status">Ningún producto coincide con «{query}».</p> : null}
+            {visible.length > 0 ? (
               <Grid columns={2}>
-                {products.map((product) => (
-                  <ProductCard key={product.id} product={product} quantity={cart[product.id] ?? 0} onAdd={add} />
+                {visible.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    quantity={cart.items[product.id] ?? 0}
+                    onAdd={(id) => cart.add(id, product.stock)}
+                  />
                 ))}
               </Grid>
             ) : null}
           </div>
 
-          <aside className={styles.aside} aria-label="Resumen del pedido">
-            {!session.authenticated ? (
-              <Alert tone="info">
-                Para pagar tu pedido <Link to="/login">inicia sesión o crea tu cuenta</Link>.
-              </Alert>
-            ) : null}
-            {session.authenticated && !session.donorId ? (
-              <Alert tone="error">
-                Tu cuenta no tiene un identificador de usuario disponible para registrar la compra. Contacta a
-                ASISCO.
-              </Alert>
-            ) : null}
-            {checkoutError ? <Alert tone="error">{checkoutError}</Alert> : null}
+          <aside className={styles.aside} aria-label="Carrito de compras">
+            {checkout.status === "error" ? <Alert tone="error">{checkout.message}</Alert> : null}
+            {checkout.status === "waiting" ? <Alert tone="info">{checkout.message}</Alert> : null}
             <CartSummary
               lines={lines}
               total={total}
-              onAdd={add}
-              onRemove={remove}
+              onAdd={(id) => cart.add(id, byId.get(id)?.stock)}
+              onRemove={cart.decrement}
+              onDelete={cart.remove}
               onCheckout={pay}
-              checkoutDisabled={!canPay || paying}
-              checkoutLabel={paying ? "Preparando el pago…" : undefined}
+              checkoutDisabled={busy}
+              checkoutLabel={busy ? "Preparando el pago…" : "Pagar con Wompi"}
+              note={
+                cart.persistedRemotely
+                  ? "Tu carrito se guarda en tu cuenta."
+                  : "Tu carrito se guarda en este navegador. El total final lo calcula el servidor con los precios vigentes."
+              }
             />
           </aside>
         </div>

@@ -9,11 +9,12 @@ import {
   setUnauthorizedHandler,
 } from "@/core/api";
 
-import { hasAllowedRole, pickToken, pickUser } from "../session.js";
+import { REGISTER_ROLE, hasAllowedRole, pickToken, pickUser } from "../session.js";
 
 import { AuthContext } from "./authContext.js";
 
-const NO_ACCESS_MESSAGE = "Tu cuenta no tiene acceso a este portal. Solo se admiten los roles ADMIN y DONANTE.";
+const NO_ACCESS_MESSAGE =
+  "Tu cuenta no tiene acceso a este portal. Solo se admiten cuentas de administración y de clientes (DONANTE).";
 
 /** Mantiene la sesión: restaura el token guardado y expone login, registro y logout. */
 export function AuthProvider({ children }) {
@@ -91,7 +92,7 @@ export function AuthProvider({ children }) {
 
   const register = useCallback(
     async ({ username, email, clave }) => {
-      await authService.register({ username, email, clave, rol: "DONANTE" });
+      await authService.register({ username, email, clave, rol: REGISTER_ROLE });
       return login({ email, clave });
     },
     [login],

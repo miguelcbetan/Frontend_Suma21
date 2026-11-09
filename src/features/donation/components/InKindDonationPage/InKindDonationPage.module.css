@@ -1,0 +1,99 @@
+.layout {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: minmax(0, 1fr);
+  text-align: left;
+}
+
+.list {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+}
+
+.errorBox {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+.item {
+  height: 100%;
+}
+
+.itemBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  height: 100%;
+}
+
+.itemTitle {
+  font-size: var(--font-size-lg);
+}
+
+.itemDescription {
+  color: var(--color-text-muted);
+}
+
+.itemAction {
+  margin-top: auto;
+}
+
+.aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.heading {
+  font-size: var(--font-size-lg);
+}
+
+.gate {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+.form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.empty {
+  color: var(--color-text-muted);
+}
+
+.selected {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.line {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.line > :first-child {
+  width: 100%;
+}
+
+@media (min-width: 64rem) {
+  .layout {
+    align-items: start;
+    grid-template-columns: minmax(0, 1fr) 22rem;
+  }
+
+  .aside {
+    position: sticky;
+    top: var(--space-5);
+  }
+}

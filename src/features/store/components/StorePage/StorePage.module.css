@@ -21,3 +21,22 @@
     top: var(--space-5);
   }
 }
+
+.catalog {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+}
+
+.search {
+  max-width: 24rem;
+}
+
+.gate {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: center;
+  max-width: 32rem;
+  margin-inline: auto;
+  text-align: center;
+}
