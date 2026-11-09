@@ -17,8 +17,6 @@ import { CartLink, CartProvider, StorePage, useCart } from "@/features/store";
 
 const PUBLIC_NAV = [
   { label: "Inicio", href: "/" },
-  { label: "Semana Down", href: "/semana-down" },
-  { label: "Iniciativa Café", href: "/iniciativa-cafe" },
   { label: "Tienda", href: "/apoyanos-tienda" },
   { label: "Donar en especie", href: "/donaciones-en-especie" },
 ];

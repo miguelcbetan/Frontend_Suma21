@@ -21,8 +21,8 @@ export function Hero() {
           <p className={styles.lead}>[Descripción breve de la asociación y su propósito]</p>
           <div className={styles.actions}>
             <ButtonLink href="/apoyanos-tienda">Donar / Apoyar</ButtonLink>
-            <ButtonLink href="#iniciativas" variant="secondary">
-              Conoce nuestras iniciativas
+            <ButtonLink href="/donaciones-en-especie" variant="secondary">
+              Donar en especie
             </ButtonLink>
           </div>
           <Grid columns={3} className={styles.stats}>
