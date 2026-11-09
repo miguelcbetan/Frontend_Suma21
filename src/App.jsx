@@ -84,7 +84,7 @@ function NotFound() {
 function Layout() {
   const { pathname } = useLocation();
   const { status, user } = useAuth();
-  const { clear: clearCart } = useCart();
+  const { refresh: refreshCart } = useCart();
 
   const navItems = navItemsFor(status, user);
   const items = navItems.map((item) => ({ ...item, current: item.href === pathname }));
@@ -95,7 +95,7 @@ function Layout() {
     name: user?.username ?? "",
   };
 
-  const handleSaleApproved = useCallback(() => clearCart(), [clearCart]);
+  const handleCartChanged = useCallback(() => refreshCart(), [refreshCart]);
   usePageTitle(pathname);
 
   const header = (
@@ -201,7 +201,7 @@ function Layout() {
           path="/payment-result"
           element={
             <RequireRole>
-              <PaymentResultPage onSaleApproved={handleSaleApproved} />
+              <PaymentResultPage onSaleApproved={handleCartChanged} onCartChanged={handleCartChanged} />
             </RequireRole>
           }
         />

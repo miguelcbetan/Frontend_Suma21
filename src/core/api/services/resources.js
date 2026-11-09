@@ -90,16 +90,49 @@ export const inventoryService = {
  * }} WompiCheckout
  */
 
+/**
+ * Venta tal como la devuelve el backend. El carrito es la venta en estado
+ * `DRAFT` del usuario del token.
+ * @typedef {{
+ *   id: string, customerId: string, totalPrice: number, createdAt: string,
+ *   status: "DRAFT" | "PENDING" | "APPROVED" | "DECLINED",
+ *   items: { productId: string, quantity: number, unitPrice: number, subtotal: number }[],
+ * }} Sale
+ */
+
 export const salesService = {
   /**
-   * Crea la venta pendiente del usuario del token y su checkout de Wompi. El
-   * backend calcula el total con los precios vigentes.
-   * @param {{ items: { product_id: string, quantity: number }[] }} sale
-   * @returns {Promise<{ sale: { id: string, totalPrice: number, status: string }, checkout: WompiCheckout }>}
+   * Carrito (`DRAFT`) del usuario del token, o `null` si aún no tiene. No toca el stock.
+   * @returns {Promise<Sale | null>}
    */
-  create: ({ items }) => request("/sales", { method: "POST", body: { items } }),
+  getCart: () => request("/sales/cart"),
 
-  /** Todas las ventas con su estado (`PENDING`, `APPROVED`…). */
+  /**
+   * Agrega un producto al carrito o **reemplaza** su cantidad (valor absoluto).
+   * Crea el carrito si no existe. No valida ni reserva stock.
+   * @param {string} productId
+   * @param {number} quantity Entero positivo.
+   * @returns {Promise<Sale>}
+   */
+  setCartItem: (productId, quantity) =>
+    request("/sales/cart/items", { method: "POST", body: { productId: String(productId), quantity } }),
+
+  /**
+   * Quita un producto del carrito (404 si no estaba).
+   * @param {string} productId
+   * @returns {Promise<Sale | null>}
+   */
+  removeCartItem: (productId) => request(`/sales/cart/items/${segment(productId)}`, { method: "DELETE" }),
+
+  /**
+   * Finaliza el carrito: valida y reserva stock, pasa la venta de `DRAFT` a
+   * `PENDING` y devuelve el checkout de Wompi. Si falla, el backend repone el
+   * stock y la venta vuelve a `DRAFT`.
+   * @returns {Promise<{ sale: Sale, checkout: WompiCheckout }>}
+   */
+  checkout: () => request("/sales/checkout", { method: "POST" }),
+
+  /** Todas las ventas con su estado (`DRAFT`, `PENDING`, `APPROVED`, `DECLINED`). */
   list: () => request("/sales"),
 };
 

@@ -11,8 +11,13 @@ import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, validateImageFile } from "@/core/uti
 
 const ROLE_OPTIONS = ["ADMIN", "DONANTE", "ESTUDIANTE", "ACUDIENTE", "TALLERISTA"];
 
-const SALE_STATUS_LABELS = { PENDING: "Pendiente", APPROVED: "Aprobada", DECLINED: "Rechazada" };
-const SALE_STATUS_TONES = { PENDING: "neutral", APPROVED: "green", DECLINED: "danger" };
+const SALE_STATUS_LABELS = {
+  DRAFT: "Carrito (sin pagar)",
+  PENDING: "Pendiente de pago",
+  APPROVED: "Aprobada",
+  DECLINED: "Rechazada",
+};
+const SALE_STATUS_TONES = { DRAFT: "neutral", PENDING: "orange", APPROVED: "green", DECLINED: "danger" };
 
 const money = (value) => (value == null || value === "" ? "—" : formatCurrency(Number(value)));
 const centsToMoney = (cents) => money(Number(cents) / 100);
@@ -177,7 +182,7 @@ export const SECTIONS = [
     label: "Ventas registradas",
     icon: "receipt",
     singular: "venta",
-    description: "Todas las ventas creadas desde la tienda, incluidas las que siguen pendientes de pago o fueron rechazadas.",
+    description: "Todas las ventas de la tienda: carritos sin pagar (DRAFT), pendientes de pago, aprobadas y rechazadas.",
     list: salesService.list,
     searchKeys: ["id", "customerId", "status"],
     columns: [

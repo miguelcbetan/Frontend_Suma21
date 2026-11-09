@@ -93,16 +93,16 @@ function StoreGate() {
 }
 
 /**
- * Tienda: catálogo de `GET /api/v1/products` (exige sesión), carrito y compra
- * con `POST /api/v1/sales`, que devuelve el checkout de Wompi. El backend toma
- * al comprador del token.
+ * Tienda: catálogo de `GET /api/v1/products` (exige sesión), carrito guardado
+ * en el backend (`/api/v1/sales/cart…`, ver `cart/CartProvider.jsx`) y compra
+ * con `POST /api/v1/sales/checkout`, que reserva el stock y devuelve el
+ * checkout de Wompi. El backend toma al comprador del token.
  * @param {{ session?: { authenticated: boolean, userId: string | null } }} props
  */
 export function StorePage({ session = { authenticated: false, userId: null } }) {
   const navigate = useNavigate();
   const { hash } = useLocation();
   const cart = useCart();
-  const { reconcile } = cart;
   const [catalog, setCatalog] = useState({ status: "loading", products: [], error: "" });
   const [query, setQuery] = useState("");
   const [checkout, setCheckout] = useState({ status: "idle", message: "" });
@@ -117,7 +117,6 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
         if (cancelled) return;
         const products = toList(payload).map(toStoreProduct);
         setCatalog({ status: "ready", products, error: "" });
-        reconcile(products);
       })
       .catch((error) => {
         if (!cancelled) setCatalog({ status: "error", products: [], error: describeError(error).message });
@@ -125,7 +124,7 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
     return () => {
       cancelled = true;
     };
-  }, [session.authenticated, reconcile, reloadKey]);
+  }, [session.authenticated, reloadKey]);
 
   // El enlace «Carrito» de la cabecera apunta a `#carrito`.
   useEffect(() => {
@@ -144,10 +143,25 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
 
   const { products } = catalog;
   const byId = new Map(products.map((product) => [product.id, product]));
-  const lines = Object.entries(cart.items)
-    .filter(([id]) => byId.has(id))
-    .map(([id, quantity]) => ({ product: byId.get(id), quantity }));
-  const total = lines.reduce((sum, { product, quantity }) => sum + product.price * quantity, 0);
+  const serverById = new Map(cart.serverItems.map((item) => [String(item.productId), item]));
+  // Un producto del carrito que ya no está en el catálogo (eliminado) se muestra como no disponible.
+  const lines =
+    catalog.status === "ready"
+      ? Object.entries(cart.items).map(([id, quantity]) => ({
+          product: byId.get(id) ?? {
+            id,
+            name: `Producto #${id} · no disponible`,
+            price: Number(serverById.get(id)?.unitPrice ?? 0),
+            stock: 0,
+          },
+          quantity,
+          unavailable: !byId.has(id),
+        }))
+      : [];
+  const localTotal = lines.reduce((sum, { product, quantity }) => sum + product.price * quantity, 0);
+  // El total oficial lo calcula el servidor; mientras se sincroniza, se muestra el estimado local.
+  const total = cart.syncing || cart.status !== "ready" ? localTotal : cart.serverTotal;
+  const hasUnavailable = lines.some((line) => line.unavailable);
   const term = query.trim().toLowerCase();
   const visible = term
     ? products.filter(({ name, description }) => `${name} ${description}`.toLowerCase().includes(term))
@@ -159,20 +173,25 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
     setReloadKey((key) => key + 1);
   }
 
-  /** Crea la venta pendiente y abre el widget de Wompi con el checkout del backend. */
+  /**
+   * Finaliza el carrito del servidor (`POST /sales/checkout`: reserva stock y
+   * pasa la venta a PENDING) y abre el widget de Wompi con el checkout.
+   */
   async function pay() {
     setCheckout({ status: "creating", message: "" });
     try {
-      const result = await salesService.create({
-        items: lines.map(({ product, quantity }) => ({ product_id: product.id, quantity })),
-      });
+      await cart.flush();
+      const result = await salesService.checkout();
       const { reference } = result.checkout;
       savePaymentSession({
         reference,
         kind: "sale",
         ...(session.userId ? { personId: session.userId } : {}),
         summary: lines.map(({ product, quantity }) => `${quantity} × ${product.name}`).join(", "),
+        items: (result.sale?.items ?? []).map((item) => ({ productId: String(item.productId), quantity: item.quantity })),
       });
+      // El carrito DRAFT pasó a ser la venta PENDING: el del servidor queda vacío.
+      cart.refresh();
       const mode = await openWompiCheckout(result.checkout, {
         onFinished: () => navigate(`${PAYMENT_RESULT_PATH}?reference=${encodeURIComponent(reference)}`),
       });
@@ -275,6 +294,18 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
         </div>
 
         <aside className={styles.aside} aria-label="Carrito de compras">
+          {cart.status === "error" ? (
+            <Alert tone="error">
+              No pudimos cargar tu carrito: {cart.error}{" "}
+              <Button variant="outline" size="sm" onClick={cart.retry}>
+                Reintentar
+              </Button>
+            </Alert>
+          ) : null}
+          {cart.status === "ready" && cart.error ? <Alert tone="error">{cart.error}</Alert> : null}
+          {hasUnavailable ? (
+            <Alert tone="error">Quita del carrito los productos que ya no están disponibles para poder pagar.</Alert>
+          ) : null}
           {checkout.status === "error" ? <Alert tone="error">{checkout.message}</Alert> : null}
           {checkout.status === "waiting" ? <Alert tone="info">{checkout.message}</Alert> : null}
           <CartSummary
@@ -284,12 +315,12 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
             onRemove={cart.decrement}
             onDelete={cart.remove}
             onCheckout={pay}
-            checkoutDisabled={busy}
-            checkoutLabel={busy ? "Preparando el pago…" : "Pagar con Wompi"}
+            checkoutDisabled={busy || cart.status !== "ready" || hasUnavailable}
+            checkoutLabel={busy ? "Preparando el pago…" : cart.status === "loading" ? "Cargando tu carrito…" : "Pagar con Wompi"}
             note={
-              cart.persistedRemotely
-                ? "Tu carrito se guarda en tu cuenta."
-                : "Tu carrito se guarda en este navegador. El total final lo calcula el servidor con los precios vigentes."
+              cart.syncing
+                ? "Guardando cambios en tu cuenta…"
+                : "Tu carrito se guarda en tu cuenta: lo encontrarás aunque cierres sesión o cambies de dispositivo. El stock se reserva al pagar."
             }
           />
         </aside>

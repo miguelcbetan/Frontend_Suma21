@@ -2,7 +2,7 @@
  * Integración con el Widget de Wompi (https://docs.wompi.co/docs/colombia/widget-checkout-web/).
  *
  * El frontend no firma nada: la llave pública y la firma de integridad llegan
- * del backend en el `checkout` de `POST /sales` o `POST /donations/monetary`.
+ * del backend en el `checkout` de `POST /sales/checkout` o `POST /donations/monetary`.
  * Abrir el widget no confirma el pago: el estado real se consulta siempre en
  * el backend (`GET /payments/:reference`), que lo actualiza con el evento de Wompi.
  */

@@ -2,16 +2,21 @@ import { createContext } from "react";
 
 /**
  * @typedef {{
+ *   status: "idle" | "loading" | "ready" | "error",
+ *   error: string,
  *   items: Record<string, number>,
+ *   serverItems: { productId: string, quantity: number, unitPrice: number, subtotal: number }[],
+ *   serverTotal: number,
+ *   syncing: boolean,
  *   count: number,
  *   enabled: boolean,
- *   persistedRemotely: boolean,
- *   add: (id: string, max?: number) => void,
- *   decrement: (id: string) => void,
- *   setQuantity: (id: string, quantity: number, max?: number) => void,
- *   remove: (id: string) => void,
- *   clear: () => void,
- *   reconcile: (products: { id: string, stock: number }[]) => void,
+ *   add: (id: string, max?: number) => Promise<void>,
+ *   decrement: (id: string) => Promise<void>,
+ *   setQuantity: (id: string, quantity: number, max?: number) => Promise<void>,
+ *   remove: (id: string) => Promise<void>,
+ *   flush: () => Promise<void>,
+ *   refresh: () => Promise<void>,
+ *   retry: () => void,
  * }} CartValue
  */
 

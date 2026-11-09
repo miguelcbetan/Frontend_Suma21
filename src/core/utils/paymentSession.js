@@ -14,6 +14,7 @@ const LAST_KEY = `${PREFIX}last`;
  *   donorName?: string,
  *   donorDocument?: string,
  *   summary?: string,
+ *   items?: { productId: string, quantity: number }[],
  *   createdAt: string,
  * }} PaymentSession
  */

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { Container } from "@/components/layout/Container";
 import { Badge } from "@/components/ui/Badge";
@@ -7,6 +7,7 @@ import { Button, buttonClassName } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { describeError, salesService } from "@/core/api";
 import { lastPaymentReference, loadPaymentSession, paymentKindOf } from "@/core/utils/paymentSession";
 
 import { CertificateDocument } from "../CertificateDocument";
@@ -25,7 +26,7 @@ import { usePaymentStatus } from "./usePaymentStatus.js";
 const TONE_ICON = { error: "alert", info: "clock" };
 
 /** Mensaje para los pagos que todavía no tienen recibo. */
-function PaymentStatusMessage({ tone, title, children, reference, action, onRefresh }) {
+function PaymentStatusMessage({ tone, title, children, reference, action, extraAction, onRefresh }) {
   return (
     <EmptyState
       icon={TONE_ICON[tone] ?? "info"}
@@ -41,6 +42,7 @@ function PaymentStatusMessage({ tone, title, children, reference, action, onRefr
       }
       actions={
         <>
+          {extraAction ?? null}
           {onRefresh ? (
             <Button onClick={onRefresh}>
               <Icon name="refresh" size={18} />
@@ -61,6 +63,45 @@ function PaymentStatusMessage({ tone, title, children, reference, action, onRefr
         </>
       }
     />
+  );
+}
+
+/**
+ * Tras un pago rechazado la venta queda DECLINED y sus productos no vuelven al
+ * carrito: este botón los agrega de nuevo (`POST /sales/cart/items`), sumando
+ * a lo que ya hubiera en el carrito, y lleva a la tienda.
+ */
+function RestoreCartButton({ items, onCartChanged }) {
+  const navigate = useNavigate();
+  const [state, setState] = useState({ pending: false, error: "" });
+
+  async function restore() {
+    setState({ pending: true, error: "" });
+    try {
+      const cart = await salesService.getCart();
+      const current = new Map((cart?.items ?? []).map((item) => [String(item.productId), Number(item.quantity)]));
+      for (const { productId, quantity } of items) {
+        await salesService.setCartItem(productId, (current.get(String(productId)) ?? 0) + quantity);
+      }
+      await onCartChanged?.();
+      navigate("/apoyanos-tienda#carrito");
+    } catch (error) {
+      setState({ pending: false, error: describeError(error).message });
+    }
+  }
+
+  return (
+    <>
+      <Button onClick={restore} disabled={state.pending}>
+        <Icon name="cart" size={18} />
+        {state.pending ? "Agregando…" : "Volver a agregar estos productos al carrito"}
+      </Button>
+      {state.error ? (
+        <p role="alert" className={styles.reference}>
+          {state.error}
+        </p>
+      ) : null}
+    </>
   );
 }
 
@@ -173,9 +214,12 @@ function ApprovedReceipt({ payment, kind, session }) {
  * Página `/payment-result`: estado del pago (`GET /api/v1/payments/:reference`).
  * Toma la referencia de `?reference=` o del último pago iniciado en este
  * navegador. Solo se da por aprobado lo que el backend confirma.
- * @param {{ onSaleApproved?: (reference: string) => void }} props
+ * @param {{
+ *   onSaleApproved?: (reference: string) => void,
+ *   onCartChanged?: () => Promise<void> | void,
+ * }} props
  */
-export function PaymentResultPage({ onSaleApproved }) {
+export function PaymentResultPage({ onSaleApproved, onCartChanged }) {
   const [params] = useSearchParams();
   const reference = params.get("reference") ?? lastPaymentReference();
   const { status, payment, message, timedOut } = usePaymentStatus(reference);
@@ -184,7 +228,7 @@ export function PaymentResultPage({ onSaleApproved }) {
   const outcome = status === "ready" ? outcomeOf(payment) : null;
   const approvedSale = outcome === "approved" && kind === "sale" ? payment.reference : null;
 
-  // Una compra aprobada vacía el carrito.
+  // Una compra aprobada: se vuelve a leer el carrito del servidor (ya no contiene esa venta).
   useEffect(() => {
     if (approvedSale) onSaleApproved?.(approvedSale);
   }, [approvedSale, onSaleApproved]);
@@ -230,12 +274,17 @@ export function PaymentResultPage({ onSaleApproved }) {
         reference={payment.reference}
         action={
           kind === "sale"
-            ? { to: "/apoyanos-tienda#carrito", label: "Volver al carrito" }
+            ? { to: "/apoyanos-tienda", label: "Ir a la tienda" }
             : { to: "/", label: "Ir al inicio para donar de nuevo" }
+        }
+        extraAction={
+          kind === "sale" && session?.items?.length ? (
+            <RestoreCartButton items={session.items} onCartChanged={onCartChanged} />
+          ) : null
         }
       >
         {`Wompi informó el estado «${STATUS_LABELS[payment.status] ?? payment.status}». El cobro no se completó.`}
-        {kind === "sale" ? " Tus productos siguen en el carrito para que vuelvas a intentarlo." : null}
+        {kind === "sale" ? " La compra se canceló y el stock reservado se liberó; puedes volver a armar tu pedido." : null}
       </PaymentStatusMessage>
     );
   } else {

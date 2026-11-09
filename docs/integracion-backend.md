@@ -1,6 +1,6 @@
 # Integración con el backend SUMA 21
 
-Fuentes verificadas el 9 de noviembre de 2026: el código del backend (`backend-suma21`, commit `a6874ed`, solo lectura), Swagger en vivo (`https://suma21-backend.onrender.com/api-docs`), las colecciones Postman del backend y peticiones GET y OPTIONS al despliegue de Render.
+Fuentes verificadas el 9 de noviembre de 2026: el código del backend (`backend-suma21`, commit `b1fd2cb`, solo lectura; el carrito persistente llegó en `ce2824a`), Swagger en vivo (`https://suma21-backend.onrender.com/api-docs`), las colecciones Postman del backend y peticiones GET y OPTIONS al despliegue de Render.
 
 ## Configuración
 
@@ -30,43 +30,51 @@ Todo se centraliza en `src/core/api/config.js`. El frontend no usa claves de Wom
 | Donar en especie | `GET /inventory/needed` | Público. Campo real: `is_needed`. |
 | Admin · Inventario | `GET/POST /inventory`, `PATCH/DELETE /inventory/:id` | ADMIN. Alta `{name, description?, stock ≥ 1, is_needed}`. Edición `{name?, description?, is_needed?}`. DELETE responde 409 si hay stock. |
 | Admin · Ajustar stock de inventario | `PATCH /inventory/:id/stock {operation: increase\|decrease, quantity}` | Atómico. |
-| Tienda · Pagar | `POST /sales {items: [{product_id, quantity}]}` → `{sale, checkout}` | **Compras = SALES.** |
+| Tienda · Carrito | `GET /sales/cart` → venta `DRAFT` o `null` | El carrito es la venta `DRAFT` del usuario del token. No toca el stock. |
+| Tienda · Agregar / cambiar cantidad | `POST /sales/cart/items {productId: "7", quantity: 2}` → carrito | Cantidad **absoluta** (reemplaza). `productId` como string. No valida ni reserva stock. |
+| Tienda · Quitar producto | `DELETE /sales/cart/items/:productId` → carrito o `null` | 404 si el producto no estaba en el carrito. |
+| Tienda · Pagar | `POST /sales/checkout` (sin cuerpo) → `{sale, checkout}` | **Compras = SALES.** Reserva stock y pasa la venta a `PENDING`. Si falla, repone el stock y vuelve a `DRAFT`. `POST /sales` ya no existe. |
 | Donar ahora | `POST /donations/monetary {amount}` → `{donationId, checkout}` | **Donaciones = DONATION.** Máximo 2 decimales. |
 | Donar en especie | `POST /donations/inkind {donation_date, notes?, items: [{inventory_item_id, quantity}]}` | Solo artículos existentes. |
 | Resultado del pago / Mis operaciones | `GET /payments/:reference` | Estados: `PENDING`, `APPROVED`, `DECLINED`, `VOIDED`, `ERROR`. |
 | Admin · Ingresos | `GET /transactions/sales`, `GET /transactions/donations` `?from&to&page&limit` | Paginado (`limit` ≤ 100). Solo aprobadas. |
-| Admin · Ventas registradas | `GET /sales` | Todas las ventas con su estado. |
+| Admin · Ventas registradas | `GET /sales` | Todas las ventas con su estado (`DRAFT`, `PENDING`, `APPROVED`, `DECLINED`). |
 | Admin · Usuarios | `POST /auth/usuarios` | Servicio de auth, ADMIN. |
 
 No se usa `POST /payments/checkout`: firma montos y referencias arbitrarias sin autenticación y no registra la venta ni la donación.
 
 ## Flujo de pago con Wompi (Sandbox)
 
-1. El cliente confirma el carrito (`POST /sales`) o el monto (`POST /donations/monetary`).
+1. El cliente paga su carrito (`POST /sales/checkout`) o confirma el monto (`POST /donations/monetary`).
 2. El backend responde con `checkout = {reference, amountInCents, currency, customerEmail, publicKey, integritySignature, paymentUrl}`.
 3. `src/core/utils/wompiWidget.js` carga `https://checkout.wompi.co/widget.js` y abre `WidgetCheckout` con esos datos y `redirectUrl = <origen>/payment-result`. Si el script no carga, redirige a `paymentUrl` con el parámetro `redirect-url`.
 4. Al cerrar el widget, o al volver de un medio con redirección, se abre `/payment-result?reference=…`. La referencia también queda guardada en este navegador.
 5. `/payment-result` consulta `GET /payments/:reference` cada 3 s mientras siga `PENDING` (máximo 2 minutos). **Solo** `APPROVED` se muestra como pago exitoso; volver de Wompi no basta.
-6. Si una compra queda `APPROVED`, se vacía el carrito. Si queda `DECLINED`, `VOIDED` o `ERROR`, el carrito se conserva para reintentar (cada intento crea una venta nueva).
+6. Después del checkout, el carrito del servidor queda vacío: la venta pasó de `DRAFT` a `PENDING`. Con `APPROVED`, el webhook marca la venta como aprobada. Con `DECLINED`, `VOIDED` o `ERROR`, la venta queda `DECLINED` y el stock se repone, pero **los productos no vuelven al carrito**: `/payment-result` ofrece «Volver a agregar estos productos al carrito», que los agrega de nuevo con `POST /sales/cart/items`.
 
 ## Carrito
 
-El backend **no tiene endpoint de carrito** (`/api/v1/cart` responde 404). El carrito (`src/features/store/cart/`) guarda `{product_id: cantidad}` por usuario en este navegador como apoyo temporal. La interfaz dice «se guarda en este navegador» y nunca lo presenta como guardado en la cuenta. Toda la persistencia está en `cartStorage.js`: cuando exista el endpoint, solo hay que cambiar ese archivo.
+El carrito se guarda en la base de datos como la venta `DRAFT` del usuario. `src/features/store/cart/CartProvider.jsx` lo carga al iniciar sesión, así que sobrevive a recargas, cierres de sesión y cambios de dispositivo.
+
+- Cada cambio se muestra al instante y se envía en una **cola serializada**: cada llamada fija la cantidad absoluta, así que el orden importa. Cuando la cola se vacía, manda la respuesta del servidor; si una llamada falla, se recarga el carrito del servidor y se muestra el error.
+- El total que se muestra es `totalPrice` del servidor, calculado con los precios vigentes.
+- Un producto eliminado del catálogo que siga en el carrito aparece como «no disponible» y bloquea el pago hasta quitarlo. El stock se valida al pagar.
+- El carrito que antes se guardaba en el navegador (`localStorage`, `suma21.cart.*`) ya no se usa ni se migra.
 
 ## Pendientes para el equipo backend / auth
 
 | # | Problema | Qué se necesita |
 |---|---|---|
 | 1 | El servicio de auth responde **403 «Origen no autorizado»** a `http://localhost:5173` (también a `/health`). Sin eso no se puede iniciar sesión desde localhost. | Agregar `http://localhost:5173` a los orígenes permitidos del servicio de auth. |
-| 2 | No existe carrito persistente. | `GET /api/v1/cart` → `{items: [{product_id, quantity}]}` y `PUT /api/v1/cart` con el mismo cuerpo, por usuario del token. Que valide existencia y stock. |
+| 2 | ✅ **Resuelto** con `/sales/cart` y `/sales/checkout` (`ce2824a`). Queda una observación: agregar al carrito no valida stock; el stock se valida recién al pagar. | Opcional: validar stock al agregar para avisar antes. |
 | 3 | `GET /products` exige token: los visitantes no pueden ver el catálogo. | Confirmar si el catálogo debe ser público (como `GET /inventory/needed`). |
-| 4 | `GET /sales` no tiene autenticación y expone todas las ventas. `GET /transactions/*` exige token pero no rol: cualquier cliente ve los ingresos de todos. | Proteger con `requireRole(["ADMIN"])`. |
+| 4 | `GET /sales` no tiene autenticación y expone todas las ventas, ahora **incluidos los carritos `DRAFT` de todos los usuarios**. `GET /transactions/*` exige token pero no rol: cualquier cliente ve los ingresos de todos. | Proteger con `requireRole(["ADMIN"])`. |
 | 5 | `POST /payments/checkout` no tiene autenticación y devuelve firmas de integridad para cualquier referencia o monto. | Protegerlo o retirarlo (el frontend no lo usa). |
 | 6 | No hay «mis operaciones» ni listado de donaciones en especie. | `GET /api/v1/me/sales`, `GET /api/v1/me/donations` (o filtros por usuario del token) y `GET /api/v1/donations/inkind` para ADMIN. «Mis operaciones» hoy muestra solo los pagos iniciados en el navegador. |
 | 7 | Para productos no hay ajuste atómico de stock (para inventario sí). | `PATCH /api/v1/products/:id/stock {operation, quantity}`, como en inventario. Hoy se hace leer y luego escribir, con riesgo de carrera. |
-| 8 | La venta descuenta stock al crearse y solo lo devuelve si Wompi informa `DECLINED`, `VOIDED` o `ERROR`. Un pago abandonado deja el stock retenido. | Expiración de ventas `PENDING` o una reserva con tiempo límite. |
+| 8 | Mejoró: el stock ya no se toca al armar el carrito, solo se reserva en `POST /sales/checkout`. Pero un pago abandonado deja la venta en `PENDING` con el stock retenido (el 9 de noviembre de 2026 había 10 ventas `PENDING`). | Expiración de ventas `PENDING` o una reserva con tiempo límite. |
 | 9 | `POST /donations/inkind` suma el stock de inmediato, aunque el cliente solo registra su intención. | Confirmar si debe quedar pendiente hasta que la fundación reciba los artículos. |
-| 10 | No hay endpoint para reintentar el pago de una venta o donación existente. | Opcional: `POST /api/v1/sales/:id/checkout` y `POST /api/v1/donations/:id/checkout`. |
+| 10 | No hay endpoint para reintentar el pago de una venta o donación existente. Un rechazo deja la venta en `DECLINED` y no devuelve los productos al carrito; el frontend lo resuelve volviendo a agregarlos. | Opcional: `POST /api/v1/sales/:id/checkout`, o que un rechazo devuelva los ítems al `DRAFT`. |
 | 11 | Swagger marca `/products` e `/inventory` sin seguridad, aunque exigen token. La colección Postman de regresión aún incluye `/accounts` y `/payment-methods`, que ya no existen. | Actualizar la documentación. |
 | 12 | Si en el panel de Wompi Sandbox la URL de eventos no apunta al webhook, los pagos se quedan en `PENDING`. | Confirmar que la URL de eventos es `https://suma21-backend.onrender.com/api/v1/payments/webhook` (o `/wompi/events`). |
 | 13 | `PAYMENT_RETURN_URL` solo lo usa el cliente de enlaces de pago, que no participa en el flujo actual. | Nada que hacer en el frontend: el retorno lo define el widget. |
