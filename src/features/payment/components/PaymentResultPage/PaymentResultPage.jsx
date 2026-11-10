@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { Container } from "@/components/layout/Container";
+import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button, buttonClassName } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -211,12 +212,14 @@ function ApprovedReceipt({ payment, kind, session }) {
  * @param {{ onRestoreCart: (items: { productId: string, quantity: number }[]) => Promise<void> }} props
  */
 export function PaymentResultPage({ onRestoreCart }) {
+  const { state: navigationState } = useLocation();
   const [params] = useSearchParams();
   const reference = params.get("reference") ?? lastPaymentReference();
   const { status, payment, message, timedOut } = usePaymentStatus(reference);
   const session = reference ? loadPaymentSession(reference) : null;
   const kind = paymentKindOf(payment?.reference ?? reference) ?? session?.kind ?? null;
   const outcome = status === "ready" ? outcomeOf(payment) : null;
+  const wompiCallback = navigationState?.wompiCallback;
   let content;
   if (status === "loading") {
     content = (
@@ -288,7 +291,16 @@ export function PaymentResultPage({ onRestoreCart }) {
 
   return (
     <div className={styles.page}>
-      <Container className={styles.inner}>{content}</Container>
+      <Container className={styles.inner}>
+        {wompiCallback?.hasTransaction ? (
+          <Alert tone="info">
+            Diagnóstico del checkout: Wompi llamó al callback y devolvió una transacción
+            {wompiCallback.transactionStatus ? ` con estado «${wompiCallback.transactionStatus}»` : " sin estado"}.
+            El resultado definitivo se consulta con el servidor.
+          </Alert>
+        ) : null}
+        {content}
+      </Container>
     </div>
   );
 }
