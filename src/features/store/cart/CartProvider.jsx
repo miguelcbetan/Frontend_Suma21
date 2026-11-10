@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { describeError, salesService } from "@/core/api";
+import { ApiError, describeError, salesService } from "@/core/api";
 
 import { CartContext } from "./cartContext.js";
 
@@ -89,7 +89,7 @@ export function CartProvider({ ownerId, children }) {
       .getPendingStatus()
       .then((payload) => {
         if (typeof payload?.hasPendingSale !== "boolean") {
-          throw new Error("El servidor respondió de forma inesperada al consultar los pagos pendientes.");
+          throw new ApiError("El servidor respondió de forma inesperada al consultar los pagos pendientes.");
         }
         applyLock(payload.hasPendingSale);
         return payload.hasPendingSale;

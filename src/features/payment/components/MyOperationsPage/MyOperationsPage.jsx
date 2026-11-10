@@ -10,9 +10,9 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { describeError, paymentsService, salesService } from "@/core/api";
+import { ApiError, describeError, paymentsService, salesService } from "@/core/api";
 import { cx } from "@/core/utils/cx";
-import { paymentReturnUrl } from "@/core/utils/wompiWidget";
+import { checkoutUrlWithReturn, isWompiCheckoutUrl, reserveCheckoutTab } from "@/core/utils/wompiWidget";
 
 import { formatCop, formatDateTime } from "../PaymentResultPage/format.js";
 
@@ -35,22 +35,9 @@ const KIND = {
 /** Lista de `GET /payments/my-transactions`; rechaza respuestas con otra forma. */
 async function fetchTransactions() {
   const payload = await paymentsService.listMine();
-  if (!Array.isArray(payload)) throw new Error("El servidor respondió de forma inesperada al consultar tus operaciones.");
+  if (!Array.isArray(payload)) throw new ApiError("El servidor respondió de forma inesperada al consultar tus operaciones.");
   return payload;
 }
-
-/**
- * Enlace de pago del backend tal cual, más la dirección de regreso a SUMA21
- * (`redirect-url`, que no forma parte de la firma de integridad de Wompi).
- */
-function checkoutWithReturn(checkoutUrl, reference) {
-  if (/[?&]redirect-url=/.test(checkoutUrl)) return checkoutUrl;
-  const back = reference ? `${paymentReturnUrl()}?reference=${encodeURIComponent(reference)}` : paymentReturnUrl();
-  const separator = checkoutUrl.includes("?") ? "&" : "?";
-  return `${checkoutUrl}${separator}redirect-url=${encodeURIComponent(back)}`;
-}
-
-const isWompiUrl = (value) => typeof value === "string" && /^https:\/\/[^/]*wompi\.co\//.test(value);
 
 function ListSkeleton() {
   return (
@@ -184,17 +171,19 @@ export function MyOperationsPage({ onOperationsChange }) {
     };
   }, [reloadKey, applyList]);
 
-  // Si el navegador vuelve desde Wompi con «Atrás», la página puede restaurarse congelada.
+  // El pago se hace en otra pestaña: al volver a esta, si había pendientes, se recarga la lista.
+  const hasPending = data.items.some((item) => item.status === "PENDING");
   useEffect(() => {
-    const reset = (event) => {
-      if (event.persisted) {
-        setActive(null);
-        setReloadKey((key) => key + 1);
-      }
+    if (!hasPending) return undefined;
+    const check = () => {
+      if (document.visibilityState !== "visible") return;
+      fetchTransactions()
+        .then(applyList)
+        .catch(() => {});
     };
-    window.addEventListener("pageshow", reset);
-    return () => window.removeEventListener("pageshow", reset);
-  }, []);
+    document.addEventListener("visibilitychange", check);
+    return () => document.removeEventListener("visibilitychange", check);
+  }, [hasPending, applyList]);
 
   const busy = active !== null || confirm.pending;
 
@@ -218,6 +207,8 @@ export function MyOperationsPage({ onOperationsChange }) {
 
   async function continuePayment(transaction) {
     if (busy) return;
+    // La pestaña se abre en el mismo clic para que el navegador no la bloquee.
+    const tab = reserveCheckoutTab();
     setActive({ id: transaction.id, type: "pay" });
     setNotice(null);
     try {
@@ -226,6 +217,7 @@ export function MyOperationsPage({ onOperationsChange }) {
       applyList(items);
       const current = items.find((item) => String(item.id) === String(transaction.id));
       if (!current || current.status !== "PENDING") {
+        tab.close();
         setNotice({
           tone: "info",
           text: "Esta operación ya no está pendiente de pago. Actualizamos la lista con su estado actual.",
@@ -233,7 +225,8 @@ export function MyOperationsPage({ onOperationsChange }) {
         setActive(null);
         return;
       }
-      if (!isWompiUrl(current.checkoutUrl)) {
+      if (!isWompiCheckoutUrl(current.checkoutUrl)) {
+        tab.close();
         setNotice({
           tone: "error",
           text: "El servidor no entregó un enlace de pago válido para esta operación. Intenta de nuevo en unos minutos.",
@@ -241,8 +234,18 @@ export function MyOperationsPage({ onOperationsChange }) {
         setActive(null);
         return;
       }
-      window.location.assign(checkoutWithReturn(current.checkoutUrl, current.reference));
+      const url = checkoutUrlWithReturn(current.checkoutUrl, current.reference);
+      if (tab.go(url)) {
+        setNotice({
+          tone: "info",
+          text: "Abrimos el pago de Wompi en otra pestaña. Cuando termines, vuelve aquí para ver el estado actualizado.",
+        });
+      } else {
+        setNotice({ tone: "info", text: "Tu navegador bloqueó la pestaña de pago.", url });
+      }
+      setActive(null);
     } catch (error) {
+      tab.close();
       setNotice({ tone: "error", text: `No pudimos abrir el pago: ${describeError(error).message}` });
       setActive(null);
     }
@@ -319,7 +322,19 @@ export function MyOperationsPage({ onOperationsChange }) {
         }
       />
 
-      {notice ? <Alert tone={notice.tone}>{notice.text}</Alert> : null}
+      {notice ? (
+        <Alert tone={notice.tone}>
+          {notice.text}
+          {notice.url ? (
+            <>
+              {" "}
+              <a href={notice.url} target="_blank" rel="noopener noreferrer">
+                Abrir el pago en Wompi
+              </a>
+            </>
+          ) : null}
+        </Alert>
+      ) : null}
 
       {data.status === "loading" ? (
         <>

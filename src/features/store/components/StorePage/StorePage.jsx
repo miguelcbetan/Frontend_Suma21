@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { Section } from "@/components/layout/Section";
@@ -8,9 +8,9 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { describeError, productsService, salesService, toList } from "@/core/api";
+import { ApiError, describeError, paymentsService, productsService, salesService, toList } from "@/core/api";
 import { savePaymentSession } from "@/core/utils/paymentSession";
-import { PAYMENT_RESULT_PATH, openWompiCheckout } from "@/core/utils/wompiWidget";
+import { checkoutUrlWithReturn, isWompiCheckoutUrl, reserveCheckoutTab } from "@/core/utils/wompiWidget";
 
 import { useCart } from "../../cart/useCart.js";
 import { CartSummary } from "../CartSummary";
@@ -59,7 +59,7 @@ function CatalogSkeleton() {
 
 /**
  * Tienda: catálogo público, carrito local y checkout autenticado. Al iniciar el
- * pago sincroniza el carrito local con el backend para reservar stock y abrir Wompi.
+ * pago sincroniza el carrito con el backend, reserva stock y abre Wompi en otra pestaña.
  * @param {{ session?: { authenticated: boolean, userId: string | null } }} props
  */
 export function StorePage({ session = { authenticated: false, userId: null } }) {
@@ -70,7 +70,6 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
   const [query, setQuery] = useState("");
   const [checkout, setCheckout] = useState({ status: "idle", message: "" });
   const [reloadKey, setReloadKey] = useState(0);
-  const checkoutFinished = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,6 +93,17 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
   useEffect(() => {
     refreshPendingStatus();
   }, [refreshPendingStatus]);
+
+  // Al volver a esta pestaña (p. ej. tras pagar en la de Wompi) se revisa si el carrito sigue bloqueado.
+  const { locked: cartLocked } = cart;
+  useEffect(() => {
+    if (!cartLocked) return undefined;
+    const check = () => {
+      if (document.visibilityState === "visible") refreshPendingStatus();
+    };
+    document.addEventListener("visibilitychange", check);
+    return () => document.removeEventListener("visibilitychange", check);
+  }, [cartLocked, refreshPendingStatus]);
 
   // El enlace «Carrito» de la cabecera apunta a `#carrito`.
   useEffect(() => {
@@ -132,19 +142,25 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
   }
 
   /**
-   * Requiere sesión, espera la sincronización del carrito y solicita el checkout a Wompi.
+   * Requiere sesión, espera la sincronización del carrito y crea el checkout
+   * (`POST /sales/checkout`). El enlace de pago se toma de
+   * `GET /payments/my-transactions` (el mismo que usa «Continuar con el pago»)
+   * y se abre en una pestaña aparte; esta pestaña sigue en la tienda.
    */
   async function pay() {
     if (!session.authenticated) {
       navigate("/login", { state: { from: "/apoyanos-tienda#carrito" } });
       return;
     }
+    if (busy) return;
+    // La pestaña se abre en el mismo clic para que el navegador no la bloquee.
+    const tab = reserveCheckoutTab();
     setCheckout({ status: "creating", message: "" });
-    checkoutFinished.current = false;
     try {
       await cart.flush();
       const result = await salesService.checkout();
-      const { reference } = result.checkout;
+      const reference = result?.checkout?.reference;
+      if (!reference) throw new ApiError("El servidor no devolvió la referencia del pago.");
       savePaymentSession({
         reference,
         kind: "sale",
@@ -154,48 +170,24 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
       });
       cart.refresh();
       cart.refreshPendingStatus();
-      const mode = await openWompiCheckout(result.checkout, {
-        onFinished: (transaction) => {
-          if (checkoutFinished.current) return;
-          checkoutFinished.current = true;
-          if (transaction) {
-            navigate(`${PAYMENT_RESULT_PATH}?reference=${encodeURIComponent(reference)}`, {
-              state: {
-                wompiCallback: {
-                  hasTransaction: true,
-                  transactionStatus: transaction.status ?? null,
-                },
-              },
-            });
-            return;
-          }
 
-          setCheckout({
-            status: "cancelling",
-            message: "Wompi respondió al cierre del checkout sin una transacción. Intentando cancelar la compra…",
-          });
-          salesService
-            .cancelCheckout()
-            .then(async () => {
-              await Promise.all([cart.refresh(), cart.refreshPendingStatus()]);
-              setCheckout({ status: "cancelled", message: "El checkout se canceló y se liberó la reserva de stock." });
-            })
-            .catch((error) => {
-              cart.refreshPendingStatus();
-              setCheckout({
-                status: "error",
-                message: `Wompi respondió al cierre sin una transacción, pero no se pudo cancelar en el servidor: ${describeError(error).message}`,
-              });
-            });
-        },
-      });
-      if (mode === "widget" && !checkoutFinished.current) {
-        setCheckout({
-          status: "waiting",
-          message: `Completa el pago en la ventana de Wompi (referencia ${reference}). Si Wompi avisa que cerraste el checkout, intentaremos cancelar la compra.`,
-        });
+      const transactions = await paymentsService.listMine();
+      const transaction = Array.isArray(transactions)
+        ? transactions.find((item) => item.reference === reference)
+        : null;
+      if (!transaction || transaction.status !== "PENDING" || !isWompiCheckoutUrl(transaction.checkoutUrl)) {
+        throw new ApiError(
+          "Tu compra quedó registrada, pero no recibimos el enlace de pago. Continúa el pago desde Mis operaciones.",
+        );
+      }
+      const url = checkoutUrlWithReturn(transaction.checkoutUrl, reference);
+      if (tab.go(url)) {
+        setCheckout({ status: "idle", message: "" });
+      } else {
+        setCheckout({ status: "blocked", message: "", url });
       }
     } catch (error) {
+      tab.close();
       if (error?.code === "PENDING_CHECKOUT_CONFLICT") {
         // El backend confirma que hay un pago pendiente: se activa el bloqueo.
         cart.refreshPendingStatus();
@@ -326,9 +318,14 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
             <Alert tone="error">Quita del carrito los productos que ya no están disponibles para poder pagar.</Alert>
           ) : null}
           {checkout.status === "error" ? <Alert tone="error">{checkout.message}</Alert> : null}
-          {checkout.status === "cancelled" ? <Alert tone="success">{checkout.message}</Alert> : null}
-          {checkout.status === "cancelling" ? <Alert tone="info">{checkout.message}</Alert> : null}
-          {checkout.status === "waiting" ? <Alert tone="info">{checkout.message}</Alert> : null}
+          {checkout.status === "blocked" ? (
+            <Alert tone="info">
+              Tu navegador bloqueó la pestaña de pago.{" "}
+              <a href={checkout.url} target="_blank" rel="noopener noreferrer">
+                Abrir el pago en Wompi
+              </a>
+            </Alert>
+          ) : null}
           <CartSummary
             lines={lines}
             total={total}

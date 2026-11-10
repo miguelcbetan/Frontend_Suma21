@@ -142,3 +142,62 @@ export async function openWompiCheckout(checkout, { onFinished } = {}) {
     return "redirect";
   }
 }
+/* -------------------------------------------------------------------------- */
+/* Pago en una pestaña aparte con el enlace (`checkoutUrl`) que guarda el backend */
+/* -------------------------------------------------------------------------- */
+
+/** `true` si es un enlace HTTPS de Wompi (p. ej. `https://checkout.wompi.co/p/?…`). */
+export function isWompiCheckoutUrl(value) {
+  return typeof value === "string" && /^https:\/\/[^/]*wompi\.co\//.test(value);
+}
+
+/**
+ * Enlace de pago del backend tal cual, más la dirección de regreso a SUMA21
+ * (`redirect-url`, que no forma parte de la firma de integridad de Wompi).
+ * @param {string} checkoutUrl
+ * @param {string | null} [reference]
+ */
+export function checkoutUrlWithReturn(checkoutUrl, reference) {
+  if (/[?&]redirect-url=/.test(checkoutUrl)) return checkoutUrl;
+  const back = reference ? `${paymentReturnUrl()}?reference=${encodeURIComponent(reference)}` : paymentReturnUrl();
+  const separator = checkoutUrl.includes("?") ? "&" : "?";
+  return `${checkoutUrl}${separator}redirect-url=${encodeURIComponent(back)}`;
+}
+
+/**
+ * Abre una pestaña nueva en el mismo clic del usuario (antes de cualquier
+ * `await`, para que el navegador no la bloquee) y la deja esperando el enlace
+ * de pago. Si el navegador bloquea la ventana, `blocked` es `true`.
+ * @returns {{ blocked: boolean, go: (url: string) => boolean, close: () => void }}
+ */
+export function reserveCheckoutTab() {
+  let tab = null;
+  try {
+    tab = window.open("", "_blank");
+  } catch {
+    tab = null;
+  }
+  if (tab) {
+    try {
+      tab.opener = null;
+      tab.document.title = "Abriendo Wompi…";
+      tab.document.body.style.cssText =
+        "margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui,sans-serif;color:#1f2a29";
+      tab.document.body.textContent = "Preparando tu pago con Wompi…";
+    } catch {
+      // Solo es un texto de espera; si no se puede escribir, la pestaña sigue sirviendo.
+    }
+  }
+  return {
+    blocked: !tab,
+    /** Lleva la pestaña al enlace; `false` si no existe o el usuario ya la cerró. */
+    go(url) {
+      if (!tab || tab.closed) return false;
+      tab.location.replace(url);
+      return true;
+    },
+    close() {
+      if (tab && !tab.closed) tab.close();
+    },
+  };
+}
