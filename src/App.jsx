@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useEffect } from "react";
 import { BrowserRouter, Link, Route, Routes, useLocation } from "react-router-dom";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -84,7 +84,7 @@ function NotFound() {
 function Layout() {
   const { pathname } = useLocation();
   const { status, user } = useAuth();
-  const { refresh: refreshCart } = useCart();
+  const cart = useCart();
 
   const navItems = navItemsFor(status, user);
   const items = navItems.map((item) => ({ ...item, current: item.href === pathname }));
@@ -94,8 +94,12 @@ function Layout() {
     userId: user ? (user.id ?? user.email) : null,
     name: user?.username ?? "",
   };
+  const restoreCart = async (saleItems) => {
+    for (const { productId, quantity } of saleItems) {
+      await cart.setQuantity(productId, (cart.items[String(productId)] ?? 0) + quantity);
+    }
+  };
 
-  const handleCartChanged = useCallback(() => refreshCart(), [refreshCart]);
   usePageTitle(pathname);
 
   const header = (
@@ -201,7 +205,7 @@ function Layout() {
           path="/payment-result"
           element={
             <RequireRole>
-              <PaymentResultPage onSaleApproved={handleCartChanged} onCartChanged={handleCartChanged} />
+              <PaymentResultPage onRestoreCart={restoreCart} />
             </RequireRole>
           }
         />
@@ -236,19 +240,13 @@ function Layout() {
   );
 }
 
-/** El carrito pertenece al usuario con sesión: se recarga al iniciar o cerrar sesión. */
-function CartScope({ children }) {
-  const { user } = useAuth();
-  return <CartProvider ownerId={user ? (user.id ?? user.email) : null}>{children}</CartProvider>;
-}
-
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <CartScope>
+        <CartProvider>
           <Layout />
-        </CartScope>
+        </CartProvider>
       </AuthProvider>
     </BrowserRouter>
   );

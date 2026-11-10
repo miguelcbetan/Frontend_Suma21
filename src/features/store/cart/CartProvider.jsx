@@ -1,132 +1,61 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-import { describeError, salesService } from "@/core/api";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { CartContext } from "./cartContext.js";
 
 const clamp = (quantity, max) => (max == null ? quantity : Math.min(quantity, Math.max(0, max)));
+const STORAGE_KEY = "suma21.cart.v1";
 
-/** `{ [productId]: cantidad }` a partir del carrito del servidor (o `null`). */
-function itemsOf(cart) {
-  return Object.fromEntries((cart?.items ?? []).map((item) => [String(item.productId), Number(item.quantity)]));
+function readItems() {
+  const stored = window.localStorage.getItem(STORAGE_KEY);
+  if (!stored) return {};
+  const parsed = JSON.parse(stored);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("El formato del carrito guardado no es válido.");
+  }
+  for (const [id, quantity] of Object.entries(parsed)) {
+    if (!id || !Number.isInteger(quantity) || quantity <= 0) {
+      throw new Error("El formato del carrito guardado no es válido.");
+    }
+  }
+  return parsed;
 }
 
-const EMPTY = { status: "idle", error: "", cart: null, items: {}, pending: 0 };
-
 /**
- * Carrito persistido en el backend: es la venta `DRAFT` del usuario del token
- * (`GET/POST/DELETE /api/v1/sales/cart…`). Sobrevive a recargas, cierres de
- * sesión y cambios de navegador.
- *
- * Los cambios se muestran al instante y se envían en una cola serializada
- * (cada llamada fija la cantidad absoluta, así que el orden importa). Cuando la
- * cola se vacía, el estado del servidor reemplaza al local; si una llamada
- * falla, se recarga el carrito del servidor y se informa el error.
- * @param {{ ownerId: string | null, children: import("react").ReactNode }} props
+ * El carrito se conserva en este navegador para visitantes y usuarios con sesión.
+ * El backend solo recibe las cantidades cuando la persona autenticada inicia el pago.
+ * @param {{ children: import("react").ReactNode }} props
  */
-export function CartProvider({ ownerId, children }) {
-  const [state, setState] = useState(() => ({ ...EMPTY, ownerId, status: ownerId ? "loading" : "idle" }));
-  const [reloadKey, setReloadKey] = useState(0);
-  const itemsRef = useRef({});
-  const ownerRef = useRef(ownerId);
-  const queueRef = useRef(Promise.resolve());
-  const pendingRef = useRef(0);
+export function CartProvider({ children }) {
+  const [state, setState] = useState(() => {
+    try {
+      return { status: "ready", error: "", items: readItems() };
+    } catch {
+      return { status: "error", error: "No pudimos leer el carrito guardado en este navegador.", items: {} };
+    }
+  });
+  const itemsRef = useRef(state.items);
 
-  // Al cambiar de usuario (login, logout) se descarta el carrito anterior.
-  if (state.ownerId !== ownerId) {
-    setState({ ...EMPTY, ownerId, status: ownerId ? "loading" : "idle" });
-  }
-
-  useEffect(() => {
-    ownerRef.current = ownerId;
-    itemsRef.current = {};
-    pendingRef.current = 0;
-    queueRef.current = Promise.resolve();
-  }, [ownerId]);
-
-  /** Aplica una respuesta del servidor si sigue siendo el mismo usuario. */
-  const applyServer = useCallback((owner, cart, error = "") => {
-    if (ownerRef.current !== owner) return;
-    if (pendingRef.current === 0) itemsRef.current = itemsOf(cart);
-    setState((current) => ({
-      ...current,
-      status: "ready",
-      error,
-      cart,
-      ...(pendingRef.current === 0 ? { items: itemsOf(cart) } : {}),
-      pending: pendingRef.current,
-    }));
-  }, []);
-
-  // Carga inicial (y «Reintentar») del carrito del usuario.
-  useEffect(() => {
-    if (!ownerId) return undefined;
-    let cancelled = false;
-    salesService
-      .getCart()
-      .then((cart) => {
-        if (!cancelled) applyServer(ownerId, cart);
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setState((current) => ({ ...current, status: "error", error: describeError(error).message }));
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [ownerId, reloadKey, applyServer]);
-
-  /** Encola una llamada al servidor; devuelve la promesa de toda la cola. */
-  const enqueue = useCallback(
-    (call) => {
-      const owner = ownerRef.current;
-      pendingRef.current += 1;
-      setState((current) => ({ ...current, pending: pendingRef.current }));
-      // Tras un cambio de usuario el contador se reinicia: solo descuenta quien sigue vigente.
-      const settle = () => {
-        if (ownerRef.current === owner) pendingRef.current = Math.max(0, pendingRef.current - 1);
-      };
-      queueRef.current = queueRef.current.then(async () => {
-        try {
-          const cart = await call();
-          settle();
-          applyServer(owner, cart);
-        } catch (error) {
-          settle();
-          const message = describeError(error).message;
-          try {
-            applyServer(owner, await salesService.getCart(), message);
-          } catch {
-            if (ownerRef.current === owner) {
-              setState((current) => ({ ...current, error: message, pending: pendingRef.current }));
-            }
-          }
-        }
-      });
-      return queueRef.current;
-    },
-    [applyServer],
-  );
-
-  /** Fija la cantidad de un producto (0 lo quita) y la sincroniza con el servidor. */
+  /** Fija la cantidad de un producto (0 lo quita) y la guarda localmente. */
   const setQuantity = useCallback(
     (id, quantity, max) => {
-      if (!ownerRef.current) return Promise.resolve();
       const key = String(id);
       const current = itemsRef.current[key] ?? 0;
       const next = clamp(Math.max(0, Math.trunc(quantity) || 0), max);
-      if (next === current) return queueRef.current;
+      if (next === current) return Promise.resolve();
 
       const items = { ...itemsRef.current };
       if (next > 0) items[key] = next;
       else delete items[key];
       itemsRef.current = items;
-      setState((state) => ({ ...state, items, error: "" }));
-
-      return enqueue(() => (next > 0 ? salesService.setCartItem(key, next) : salesService.removeCartItem(key)));
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+        setState({ status: "ready", error: "", items });
+      } catch {
+        setState({ status: "error", error: "No pudimos guardar el carrito en este navegador.", items });
+      }
+      return Promise.resolve();
     },
-    [enqueue],
+    [],
   );
 
   const add = useCallback(
@@ -139,15 +68,24 @@ export function CartProvider({ ownerId, children }) {
   );
   const remove = useCallback((id) => setQuantity(id, 0), [setQuantity]);
 
-  /** Espera a que se envíen todos los cambios pendientes. */
-  const flush = useCallback(() => queueRef.current, []);
-
-  /** Vuelve a leer el carrito del servidor (p. ej. después de un checkout). */
-  const refresh = useCallback(() => enqueue(() => salesService.getCart()), [enqueue]);
+  const clear = useCallback(() => {
+    itemsRef.current = {};
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+      setState({ status: "ready", error: "", items: {} });
+    } catch {
+      setState({ status: "error", error: "No pudimos limpiar el carrito guardado en este navegador.", items: {} });
+    }
+  }, []);
 
   const retry = useCallback(() => {
-    setState((current) => ({ ...current, status: "loading", error: "" }));
-    setReloadKey((key) => key + 1);
+    try {
+      const items = readItems();
+      itemsRef.current = items;
+      setState({ status: "ready", error: "", items });
+    } catch {
+      setState({ status: "error", error: "No pudimos leer el carrito guardado en este navegador.", items: {} });
+    }
   }, []);
 
   const value = useMemo(() => {
@@ -156,20 +94,15 @@ export function CartProvider({ ownerId, children }) {
       status: state.status,
       error: state.error,
       items: state.items,
-      serverItems: state.cart?.items ?? [],
-      serverTotal: state.cart ? Number(state.cart.totalPrice) : 0,
-      syncing: state.pending > 0,
       count,
-      enabled: Boolean(state.ownerId),
       add,
       decrement,
       setQuantity,
       remove,
-      flush,
-      refresh,
+      clear,
       retry,
     };
-  }, [state, add, decrement, setQuantity, remove, flush, refresh, retry]);
+  }, [state, add, decrement, setQuantity, remove, clear, retry]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

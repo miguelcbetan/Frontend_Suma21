@@ -32,13 +32,13 @@ function productBody(data) {
 const normalizeProduct = withId("product_id");
 
 /**
- * `/api/v1/products`. Listar y consultar exige sesión (cualquier rol); crear,
- * editar y eliminar exigen ADMIN.
+ * `/api/v1/products`. Listar y consultar es público; crear, editar y eliminar
+ * exigen ADMIN.
  * Cuerpo: `name`, `description?`, `unit_price`, `stock_qty` (entero ≥ 1), `image?` (archivo).
  */
 export const productsService = {
-  list: () => request("/products").then(normalizeProduct),
-  get: (id) => request(`/products/${segment(id)}`).then(normalizeProduct),
+  list: () => request("/products", { auth: false }).then(normalizeProduct),
+  get: (id) => request(`/products/${segment(id)}`, { auth: false }).then(normalizeProduct),
   create: (data) => request("/products", { method: "POST", body: productBody(data) }).then(normalizeProduct),
   update: (id, data) =>
     request(`/products/${segment(id)}`, { method: "PATCH", body: productBody(data) }).then(normalizeProduct),

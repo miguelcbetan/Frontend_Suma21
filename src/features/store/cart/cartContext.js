@@ -2,20 +2,15 @@ import { createContext } from "react";
 
 /**
  * @typedef {{
- *   status: "idle" | "loading" | "ready" | "error",
+ *   status: "ready" | "error",
  *   error: string,
  *   items: Record<string, number>,
- *   serverItems: { productId: string, quantity: number, unitPrice: number, subtotal: number }[],
- *   serverTotal: number,
- *   syncing: boolean,
  *   count: number,
- *   enabled: boolean,
  *   add: (id: string, max?: number) => Promise<void>,
  *   decrement: (id: string) => Promise<void>,
  *   setQuantity: (id: string, quantity: number, max?: number) => Promise<void>,
  *   remove: (id: string) => Promise<void>,
- *   flush: () => Promise<void>,
- *   refresh: () => Promise<void>,
+ *   clear: () => void,
  *   retry: () => void,
  * }} CartValue
  */
