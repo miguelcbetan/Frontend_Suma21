@@ -51,16 +51,24 @@ export function paymentReturnUrl() {
 
 /**
  * Abre el pago de Wompi con los datos que devolvió el backend.
- * - Widget: `onFinished` recibe la transacción cuando Wompi cierra el flujo.
- * - Si el widget no carga, se usa el Web Checkout (`paymentUrl`) con
- *   `redirect-url` hacia `/payment-result` (ese parámetro no forma parte de la firma).
+ * 
  * @param {import("../api/services/resources.js").WompiCheckout} checkout
  * @param {{
  *   onFinished?: (transaction: { id?: string, status?: string } | null) => void,
  * }} [options]
+ * 
  * @returns {Promise<"widget" | "redirect">}
  */
 export async function openWompiCheckout(checkout, { onFinished } = {}) {
+  let observer = null;
+
+  const cleanupObserver = () => {
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+  };
+
   try {
     const WidgetCheckout = await loadWidget();
     const widget = new WidgetCheckout({
@@ -72,9 +80,61 @@ export async function openWompiCheckout(checkout, { onFinished } = {}) {
       redirectUrl: paymentReturnUrl(),
       ...(checkout.customerEmail ? { customerData: { email: checkout.customerEmail } } : {}),
     });
-    widget.open((result) => onFinished?.(result?.transaction ?? null));
+
+    let finishedCalled = false;
+
+    const safeOnFinished = (result) => {
+      if (finishedCalled) return;
+      finishedCalled = true;
+      cleanupObserver();
+      onFinished?.(result);
+    };
+
+    let targetIframe = null;
+
+    // Monitor de DOM enfocado únicamente en la eliminación del iframe de Wompi
+    observer = new MutationObserver((mutations) => {
+      if (finishedCalled) return;
+
+      for (const mutation of mutations) {
+        // 1. Detectar cuando se añade el iframe de Wompi
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            if (node.tagName === "IFRAME" && node.src.includes("wompi")) {
+              targetIframe = node;
+            } else {
+              const nestedIframe = node.querySelector?.('iframe[src*="wompi"]');
+              if (nestedIframe) targetIframe = nestedIframe;
+            }
+          }
+        });
+
+        // 2. Detectar si ESE iframe específico fue removido
+        mutation.removedNodes.forEach((node) => {
+          const isTargetRemoved = node === targetIframe || node.contains?.(targetIframe);
+          if (targetIframe && isTargetRemoved) {
+            // Espera a verificar si Wompi respondió onFinished con una transacción legítima
+            setTimeout(() => {
+              if (!finishedCalled) {
+                safeOnFinished(null);
+              }
+            }, 600);
+          }
+        });
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    widget.open((result) => {
+      safeOnFinished(result?.transaction ?? null);
+    });
+
     return "widget";
-  } catch {
+  } catch (error) {
+    // Si falla el widget y cae al fallback de redirección, cancelamos el observer inmediatamente
+    cleanupObserver();
+
     const separator = checkout.paymentUrl.includes("?") ? "&" : "?";
     window.location.assign(
       `${checkout.paymentUrl}${separator}redirect-url=${encodeURIComponent(paymentReturnUrl())}`,
