@@ -72,17 +72,9 @@ export async function openWompiCheckout(checkout, { onFinished } = {}) {
       redirectUrl: paymentReturnUrl(),
       ...(checkout.customerEmail ? { customerData: { email: checkout.customerEmail } } : {}),
     });
-    widget.open((result) => {
-      const transaction = result?.transaction ?? null;
-      console.info("[SUMA21][Wompi] Widget callback received.", {
-        hasTransaction: Boolean(transaction),
-        transactionStatus: transaction?.status ?? null,
-      });
-      onFinished?.(transaction);
-    });
+    widget.open((result) => onFinished?.(result?.transaction ?? null));
     return "widget";
   } catch {
-    console.warn("[SUMA21][Wompi] Widget unavailable; using external Web Checkout. Closing it cannot trigger frontend cancellation.");
     const separator = checkout.paymentUrl.includes("?") ? "&" : "?";
     window.location.assign(
       `${checkout.paymentUrl}${separator}redirect-url=${encodeURIComponent(paymentReturnUrl())}`,
