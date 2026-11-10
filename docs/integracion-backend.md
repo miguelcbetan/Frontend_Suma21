@@ -27,7 +27,7 @@ Todo se centraliza en `src/core/api/config.js`. El frontend no usa claves de Wom
 | Tienda / admin | `GET /products`, `GET /products/:id` | La tienda los consulta sin token; el backend debe permitir acceso público para mostrar el catálogo a visitantes. |
 | Admin · Productos | `POST /products`, `PATCH /products/:id`, `DELETE /products/:id` | ADMIN. JSON o `multipart/form-data` con `image`. `stock_qty` ≥ 1. |
 | Admin · Aumentar stock de producto | `GET /products/:id` y luego `PATCH /products/:id {stock_qty: actual + n}` | No hay ajuste atómico para productos (ver pendientes). |
-| Donar en especie | `GET /inventory/needed` | Público. Campo real: `is_needed`. |
+| Donar en especie (catálogo público) | `GET /inventory/needed` | Público. Campo real: `is_needed`; la página permite coordinar la entrega, no registra donaciones. |
 | Admin · Inventario | `GET/POST /inventory`, `PATCH/DELETE /inventory/:id` | ADMIN. Alta `{name, description?, stock ≥ 1, is_needed}`. Edición `{name?, description?, is_needed?}`. DELETE responde 409 si hay stock. |
 | Admin · Ajustar stock de inventario | `PATCH /inventory/:id/stock {operation: increase\|decrease, quantity}` | Atómico. |
 | Tienda · Carrito | `GET /sales/cart` → venta `DRAFT` o `null` | El carrito es la venta `DRAFT` del usuario del token. No toca el stock. |
@@ -36,7 +36,7 @@ Todo se centraliza en `src/core/api/config.js`. El frontend no usa claves de Wom
 | Tienda · Pagar | `POST /sales/checkout` (sin cuerpo) → `{sale, checkout}` | **Compras = SALES.** Reserva stock y pasa la venta a `PENDING`. Si falla, repone el stock y vuelve a `DRAFT`. `POST /sales` ya no existe. |
 | Tienda · Cancelar checkout | `POST /sales/checkout/cancel` (sin cuerpo) | Se llama si el usuario cierra el widget de Wompi antes de completar el flujo; requiere autenticación y cancela el checkout activo. |
 | Donar ahora | `POST /donations/monetary {amount}` → `{donationId, checkout}` | **Donaciones = DONATION.** Máximo 2 decimales. |
-| Donar en especie | `POST /donations/inkind {donation_date, notes?, items: [{inventory_item_id, quantity}]}` | Solo artículos existentes. |
+| Admin · Registrar donación en especie | `POST /donations/inkind {donation_date, notes?, items: [{inventory_item_id, quantity, estimated_unit_value?}]}` | Solo ADMIN. Usa artículos de inventario existentes; el donante se toma del token. |
 | Resultado del pago / Mis operaciones | `GET /payments/:reference` | Estados: `PENDING`, `APPROVED`, `DECLINED`, `VOIDED`, `ERROR`. |
 | Admin · Ventas registradas | `GET /sales` | Todas las ventas con su estado (`DRAFT`, `PENDING`, `APPROVED`, `DECLINED`). |
 

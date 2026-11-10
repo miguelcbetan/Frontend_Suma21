@@ -148,7 +148,8 @@ export const donationsService = {
   createMonetary: ({ amount }) => request("/donations/monetary", { method: "POST", body: { amount } }),
 
   /**
-   * Donación en especie del usuario del token sobre artículos de inventario existentes.
+   * Donación en especie registrada por ADMIN sobre artículos de inventario existentes.
+   * El donante se obtiene del usuario autenticado en el token; no se envía en el cuerpo.
    * @param {{
    *   donation_date: string, notes?: string,
    *   items: { inventory_item_id: string, quantity: number, estimated_unit_value?: number }[],
