@@ -55,7 +55,9 @@ export function paymentReturnUrl() {
  * - Si el widget no carga, se usa el Web Checkout (`paymentUrl`) con
  *   `redirect-url` hacia `/payment-result` (ese parámetro no forma parte de la firma).
  * @param {import("../api/services/resources.js").WompiCheckout} checkout
- * @param {{ onFinished?: (transaction: { id?: string, status?: string } | null) => void }} [options]
+ * @param {{
+ *   onFinished?: (transaction: { id?: string, status?: string } | null) => void,
+ * }} [options]
  * @returns {Promise<"widget" | "redirect">}
  */
 export async function openWompiCheckout(checkout, { onFinished } = {}) {
@@ -70,9 +72,17 @@ export async function openWompiCheckout(checkout, { onFinished } = {}) {
       redirectUrl: paymentReturnUrl(),
       ...(checkout.customerEmail ? { customerData: { email: checkout.customerEmail } } : {}),
     });
-    widget.open((result) => onFinished?.(result?.transaction ?? null));
+    widget.open((result) => {
+      const transaction = result?.transaction ?? null;
+      console.info("[SUMA21][Wompi] Widget callback received.", {
+        hasTransaction: Boolean(transaction),
+        transactionStatus: transaction?.status ?? null,
+      });
+      onFinished?.(transaction);
+    });
     return "widget";
   } catch {
+    console.warn("[SUMA21][Wompi] Widget unavailable; using external Web Checkout. Closing it cannot trigger frontend cancellation.");
     const separator = checkout.paymentUrl.includes("?") ? "&" : "?";
     window.location.assign(
       `${checkout.paymentUrl}${separator}redirect-url=${encodeURIComponent(paymentReturnUrl())}`,
