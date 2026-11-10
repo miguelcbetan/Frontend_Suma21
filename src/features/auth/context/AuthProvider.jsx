@@ -9,14 +9,14 @@ import {
   setUnauthorizedHandler,
 } from "@/core/api";
 
-import { REGISTER_ROLE, hasAllowedRole, pickToken, pickUser } from "../session.js";
+import { hasAllowedRole, pickToken, pickUser } from "../session.js";
 
 import { AuthContext } from "./authContext.js";
 
 const NO_ACCESS_MESSAGE =
   "Tu cuenta no tiene acceso a este portal. Solo se admiten cuentas de administración y de clientes (DONANTE).";
 
-/** Mantiene la sesión: restaura el token guardado y expone login, registro y logout. */
+/** Mantiene la sesión: restaura el token guardado y expone login y logout. */
 export function AuthProvider({ children }) {
   const [state, setState] = useState(() => ({
     status: getToken() ? "loading" : "anonymous",
@@ -90,15 +90,7 @@ export function AuthProvider({ children }) {
     [],
   );
 
-  const register = useCallback(
-    async ({ username, email, clave }) => {
-      await authService.register({ username, email, clave, rol: REGISTER_ROLE });
-      return login({ email, clave });
-    },
-    [login],
-  );
-
-  const value = useMemo(() => ({ ...state, login, register, logout }), [state, login, register, logout]);
+  const value = useMemo(() => ({ ...state, login, logout }), [state, login, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -1,32 +1,14 @@
-import { useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import muralSrc from "@/assets/images/mural.jpeg";
 import { Container } from "@/components/layout/Container";
 import { Icon } from "@/components/ui/Icon";
-import { cx } from "@/core/utils/cx";
 
 import { useAuth } from "../../context/useAuth.js";
 import { isAdmin } from "../../session.js";
 import { LoginForm } from "../LoginForm";
-import { RegisterForm } from "../RegisterForm";
 
 import styles from "./AuthPage.module.css";
-
-const TABS = [
-  {
-    id: "login",
-    label: "Iniciar sesión",
-    title: "Hola de nuevo",
-    subtitle: "Ingresa con el correo y la contraseña de tu cuenta.",
-  },
-  {
-    id: "register",
-    label: "Crear cuenta",
-    title: "Crea tu cuenta",
-    subtitle: "Regístrate para comprar en la tienda y hacer donaciones.",
-  },
-];
 
 /** Lo que la cuenta permite hacer hoy en la plataforma. */
 const BENEFITS = [
@@ -41,13 +23,11 @@ function destinationFor(user, from) {
   return isAdmin(user) ? "/admin" : "/apoyanos-tienda";
 }
 
-/** Página `/login`: inicio de sesión y registro de donantes. */
+/** Página `/login`: inicio de sesión. El registro de usuarios lo gestiona otro equipo. */
 export function AuthPage() {
   const { status, user } = useAuth();
   const navigate = useNavigate();
   const from = useLocation().state?.from;
-  const [tab, setTab] = useState("login");
-  const active = TABS.find(({ id }) => id === tab);
 
   if (status === "authenticated") return <Navigate to={destinationFor(user, from)} replace />;
 
@@ -77,42 +57,12 @@ export function AuthPage() {
         </aside>
 
         <div className={styles.formSide}>
-          <div role="tablist" aria-label="Acceso" className={styles.tabs}>
-            {TABS.map(({ id, label }) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                id={`auth-tab-${id}`}
-                aria-selected={tab === id}
-                aria-controls="auth-panel"
-                className={cx(styles.tab, tab === id && styles.selected)}
-                onClick={() => setTab(id)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <div role="tabpanel" id="auth-panel" aria-labelledby={`auth-tab-${tab}`} className={styles.panel}>
+          <div className={styles.panel}>
             <div className={styles.heading}>
-              <h1 className={styles.title}>{active.title}</h1>
-              <p className={styles.subtitle}>{active.subtitle}</p>
+              <h1 className={styles.title}>Hola de nuevo</h1>
+              <p className={styles.subtitle}>Ingresa con el correo y la contraseña de tu cuenta.</p>
             </div>
-            {tab === "login" ? (
-              <LoginForm onSuccess={handleSuccess} />
-            ) : (
-              <RegisterForm onSuccess={handleSuccess} />
-            )}
-            <p className={styles.switch}>
-              {tab === "login" ? "¿Aún no tienes cuenta?" : "¿Ya tienes una cuenta?"}{" "}
-              <button
-                type="button"
-                className={styles.switchButton}
-                onClick={() => setTab(tab === "login" ? "register" : "login")}
-              >
-                {tab === "login" ? "Crea una aquí" : "Inicia sesión"}
-              </button>
-            </p>
+            <LoginForm onSuccess={handleSuccess} />
           </div>
         </div>
       </div>

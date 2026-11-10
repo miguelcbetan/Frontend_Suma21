@@ -14,9 +14,9 @@ Todo se centraliza en `src/core/api/config.js`. El frontend no usa claves de Wom
 
 ## Autenticación y roles
 
-- Login, registro y perfil se hacen contra el servicio de auth. El token se guarda en `localStorage` y se envía como `Authorization: Bearer` **a ambos servicios**. El backend de datos lo valida contra `SECURITY_MS_URL`.
+- Login y perfil se hacen contra el servicio de auth. El alta de usuarios la gestiona otro equipo y no está disponible en este frontend. El token se guarda en `localStorage` y se envía como `Authorization: Bearer` **a ambos servicios**. El backend de datos lo valida contra `SECURITY_MS_URL`.
 - El backend de datos solo distingue `ADMIN` (`requireRole(["ADMIN"])`). Cualquier otro usuario autenticado puede comprar y donar.
-- En el frontend, `ADMIN` ve el panel `/admin`. `DONANTE` (o `CUSTOMER`, si el servicio de auth lo incorpora) es la experiencia de cliente: tienda, carrito, donaciones y «Mis operaciones». El registro público crea cuentas `DONANTE`.
+- En el frontend, `ADMIN` ve el panel `/admin`. `DONANTE` (o `CUSTOMER`, si el servicio de auth lo incorpora) es la experiencia de cliente: tienda, carrito, donaciones y «Mis operaciones». Las cuentas las crea el equipo responsable del servicio de auth.
 - El comprador o donante **no se envía**: el backend lo toma del token (`req.user.id` y `req.user.email`).
 
 ## Endpoints consumidos
@@ -37,9 +37,7 @@ Todo se centraliza en `src/core/api/config.js`. El frontend no usa claves de Wom
 | Donar ahora | `POST /donations/monetary {amount}` → `{donationId, checkout}` | **Donaciones = DONATION.** Máximo 2 decimales. |
 | Donar en especie | `POST /donations/inkind {donation_date, notes?, items: [{inventory_item_id, quantity}]}` | Solo artículos existentes. |
 | Resultado del pago / Mis operaciones | `GET /payments/:reference` | Estados: `PENDING`, `APPROVED`, `DECLINED`, `VOIDED`, `ERROR`. |
-| Admin · Ingresos | `GET /transactions/sales`, `GET /transactions/donations` `?from&to&page&limit` | Paginado (`limit` ≤ 100). Solo aprobadas. |
 | Admin · Ventas registradas | `GET /sales` | Todas las ventas con su estado (`DRAFT`, `PENDING`, `APPROVED`, `DECLINED`). |
-| Admin · Usuarios | `POST /auth/usuarios` | Servicio de auth, ADMIN. |
 
 No se usa `POST /payments/checkout`: firma montos y referencias arbitrarias sin autenticación y no registra la venta ni la donación.
 

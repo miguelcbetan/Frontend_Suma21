@@ -26,7 +26,7 @@ export function ProfilePage() {
   const initial = (user.username ?? "?").trim().charAt(0).toUpperCase() || "?";
 
   const shortcuts = admin
-    ? [{ to: "/admin", icon: "chart", title: "Panel de administración", text: "Productos, inventario, ingresos y usuarios." }]
+    ? [{ to: "/admin", icon: "chart", title: "Panel de administración", text: "Productos, inventario y ventas registradas." }]
     : [
         { to: "/mis-operaciones", icon: "receipt", title: "Mis operaciones", text: "Estado de tus compras y donaciones." },
         { to: "/apoyanos-tienda", icon: "bag", title: "Tienda", text: "Productos disponibles y tu carrito." },
