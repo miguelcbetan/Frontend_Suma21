@@ -23,11 +23,13 @@ export function Hero({ donateButton }) {
   return (
     <section className={styles.hero} aria-labelledby="hero-title">
       <Container className={styles.inner}>
-        <div className={styles.content}>
+        <div className={styles.intro}>
           <Badge tone="green">Asociación de Interés Social Comunitario · ASISCO</Badge>
           <h1 id="hero-title" className={styles.title}>
             Súmate a la inclusión de jóvenes con <span className={styles.highlight}>síndrome de Down</span>
           </h1>
+        </div>
+        <div className={styles.content}>
           {/* PENDIENTE DE CONTENIDO: confirmar la frase oficial de propósito de SUMA21. */}
           <p className={styles.lead}>
             SUMA21 es la plataforma de ASISCO para donar, comprar en la tienda solidaria y aportar los artículos

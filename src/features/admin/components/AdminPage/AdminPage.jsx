@@ -29,9 +29,11 @@ const OVERVIEW = {
 
 const IN_KIND_DONATION = {
   id: "inkind-donation",
-  label: "Registrar donación en especie",
-  icon: "heart",
-  description: "Registra los artículos recibidos. La administradora se identifica automáticamente desde su sesión.",
+  label: "Donación en especie",
+  title: "Registrar donación en especie",
+  icon: "package",
+  description:
+    "Registra los artículos que la fundación recibió. Se suman al stock del inventario y quedan registrados con tu usuario.",
 };
 
 const NAV = [OVERVIEW, ...SECTIONS, IN_KIND_DONATION];
@@ -109,7 +111,7 @@ export function AdminPage() {
 
         <div role="tabpanel" id="admin-panel" aria-labelledby={`admin-tab-${activeId}`} className={styles.content}>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>{section.label}</h2>
+            <h2 className={styles.sectionTitle}>{section.title ?? section.label}</h2>
             {section.description ? <p className={styles.sectionDescription}>{section.description}</p> : null}
           </div>
           {panel}

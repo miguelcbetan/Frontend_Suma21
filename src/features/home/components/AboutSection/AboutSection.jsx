@@ -1,6 +1,7 @@
-import muralSrc from "@/assets/images/mural.jpeg";
 import { Container } from "@/components/layout/Container";
 import { Badge } from "@/components/ui/Badge";
+import { Icon } from "@/components/ui/Icon";
+import { Logo } from "@/components/ui/Logo";
 
 import styles from "./AboutSection.module.css";
 
@@ -24,7 +25,7 @@ export function AboutSection() {
         <div className={styles.text}>
           <Badge tone="green">Quiénes somos</Badge>
           <h2 id="about-title" className={styles.title}>
-            ASISCO: <span className={styles.motto}>¡No somos Down, somos UP!</span>
+            ASISCO y <span className={styles.highlight}>SUMA21</span>
           </h2>
           <p>
             La Asociación de Interés Social Comunitario ASISCO es una entidad sin ánimo de lucro de Manizales,
@@ -34,15 +35,23 @@ export function AboutSection() {
             SUMA21 es su plataforma digital: reúne en un solo lugar las donaciones, la tienda solidaria y las
             donaciones en especie que sostienen sus programas.
           </p>
-          <ul className={styles.programs} aria-label="Programas de ASISCO">
+        </div>
+
+        <aside className={styles.card} aria-label="Programas de ASISCO">
+          <Logo size="md" className={styles.logo} />
+          <p className={styles.motto}>¡No somos Down, somos UP!</p>
+          <p className={styles.cardTitle}>Programas que apoyas</p>
+          <ul className={styles.programs}>
             {PROGRAMS.map((program) => (
-              <li key={program}>{program}</li>
+              <li key={program}>
+                <span className={styles.check}>
+                  <Icon name="check" size={14} />
+                </span>
+                {program}
+              </li>
             ))}
           </ul>
-        </div>
-        <figure className={styles.media}>
-          <img src={muralSrc} alt="" width={2383} height={900} loading="lazy" />
-        </figure>
+        </aside>
       </Container>
     </section>
   );

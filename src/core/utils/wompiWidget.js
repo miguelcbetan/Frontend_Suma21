@@ -131,7 +131,7 @@ export async function openWompiCheckout(checkout, { onFinished } = {}) {
     });
 
     return "widget";
-  } catch (error) {
+  } catch {
     // Si falla el widget y cae al fallback de redirección, cancelamos el observer inmediatamente
     cleanupObserver();
 

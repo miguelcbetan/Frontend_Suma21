@@ -134,8 +134,12 @@
 
   .tab {
     width: 100%;
+    min-width: 0;
     border-color: transparent;
     background: transparent;
+    line-height: var(--line-height-snug);
+    text-align: left;
+    white-space: normal;
   }
 
   .selected,
