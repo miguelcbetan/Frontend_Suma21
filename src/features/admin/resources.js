@@ -1,15 +1,7 @@
-import {
-  authService,
-  inventoryService,
-  productsService,
-  salesService,
-  transactionsService,
-} from "@/core/api";
+import { inventoryService, productsService, salesService } from "@/core/api";
 import { formatCurrency } from "@/core/utils/currency";
 import { formatDateTimeShort } from "@/core/utils/date";
 import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, validateImageFile } from "@/core/utils/imageFile";
-
-const ROLE_OPTIONS = ["ADMIN", "DONANTE", "ESTUDIANTE", "ACUDIENTE", "TALLERISTA"];
 
 const SALE_STATUS_LABELS = {
   DRAFT: "Carrito (sin pagar)",
@@ -20,8 +12,6 @@ const SALE_STATUS_LABELS = {
 const SALE_STATUS_TONES = { DRAFT: "neutral", PENDING: "orange", APPROVED: "green", DECLINED: "danger" };
 
 const money = (value) => (value == null || value === "" ? "—" : formatCurrency(Number(value)));
-const centsToMoney = (cents) => money(Number(cents) / 100);
-
 const imageField = {
   name: "image",
   label: "Imagen del producto",
@@ -32,8 +22,8 @@ const imageField = {
 };
 
 /**
- * Secciones del panel, una por grupo de endpoints de `/api/v1` (y el alta de
- * usuarios del servicio de autenticación). Cada operación usa un endpoint real.
+ * Secciones del panel, una por grupo de endpoints de `/api/v1`.
+ * Cada operación usa un endpoint real.
  *
  * Campo: `{ name, label, type, required?, hint?, min?, step?, options?,
  * defaultValue?, accept?, validate?, full? }`. Tipos: text, email, password,
@@ -157,27 +147,6 @@ export const SECTIONS = [
     },
   },
   {
-    id: "sales-report",
-    label: "Ingresos por ventas",
-    icon: "coins",
-    singular: "venta",
-    description: "Ventas de la tienda cuyo pago aprobó Wompi. Filtra por fechas para ver los ingresos de un periodo.",
-    report: transactionsService.sales,
-    columns: [
-      { key: "completed_at", label: "Fecha", format: (record) => formatDateTimeShort(record.completed_at) },
-      { key: "reference", label: "Referencia" },
-      { key: "sale_id", label: "Venta" },
-      {
-        key: "items",
-        label: "Productos",
-        format: (record) => (record.items ?? []).map((item) => `${item.quantity} × ${item.name}`).join(", "),
-      },
-      { key: "amount_in_cents", label: "Monto", format: (record) => centsToMoney(record.amount_in_cents) },
-      { key: "payment_method", label: "Medio de pago" },
-    ],
-    amountKey: "amount_in_cents",
-  },
-  {
     id: "sales",
     label: "Ventas registradas",
     icon: "receipt",
@@ -201,46 +170,6 @@ export const SECTIONS = [
         type: "status",
         tones: SALE_STATUS_TONES,
         format: (record) => SALE_STATUS_LABELS[record.status] ?? record.status,
-      },
-    ],
-  },
-  {
-    id: "donations-report",
-    label: "Donaciones monetarias",
-    icon: "heart",
-    singular: "donación",
-    description:
-      "Donaciones monetarias cuyo pago aprobó Wompi. El listado de donaciones en especie aún no está disponible en el servidor.",
-    report: transactionsService.donations,
-    columns: [
-      { key: "completed_at", label: "Fecha", format: (record) => formatDateTimeShort(record.completed_at) },
-      { key: "reference", label: "Referencia" },
-      { key: "donation_id", label: "Donación" },
-      { key: "amount_in_cents", label: "Monto", format: (record) => centsToMoney(record.amount_in_cents) },
-      { key: "payment_method", label: "Medio de pago" },
-    ],
-    amountKey: "amount_in_cents",
-  },
-  {
-    id: "users",
-    label: "Usuarios",
-    icon: "users",
-    singular: "usuario",
-    description:
-      "Crea cuentas nuevas y asígnales un rol. Desde aquí solo se crean cuentas: el listado y la edición de usuarios aún no están disponibles.",
-    create: ({ roles, ...rest }) => authService.createUser({ ...rest, roles: [roles] }),
-    fields: [
-      { name: "username", label: "Nombre de usuario", type: "text", required: true },
-      { name: "email", label: "Correo electrónico", type: "email", required: true },
-      { name: "clave", label: "Contraseña", type: "password", required: true, hint: "Mínimo 12 caracteres." },
-      {
-        name: "roles",
-        label: "Rol",
-        type: "select",
-        required: true,
-        options: ROLE_OPTIONS.map((role) => ({ value: role, label: role })),
-        defaultValue: "DONANTE",
-        hint: "DONANTE es la cuenta de cliente (compras y donaciones); ADMIN accede a este panel.",
       },
     ],
   },

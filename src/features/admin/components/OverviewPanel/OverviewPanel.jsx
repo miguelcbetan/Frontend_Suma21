@@ -96,15 +96,6 @@ export function OverviewPanel({ onNavigate }) {
       value: pendingSales.length,
       detail: `${approvedSales.length} aprobadas de ${sales.data.length} registradas`,
     },
-    {
-      id: "sales-report",
-      icon: "coins",
-      tone: "green",
-      label: "Ventas aprobadas",
-      source: sales,
-      value: approvedSales.length,
-      detail: "Consulta montos e ingresos por fecha",
-    },
   ];
 
   return (

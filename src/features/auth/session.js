@@ -8,9 +8,6 @@ export const ADMIN_ROLE = "ADMIN";
  */
 export const CUSTOMER_ROLES = ["DONANTE", "CUSTOMER"];
 
-/** Rol con el que se registra una cuenta pública de cliente. */
-export const REGISTER_ROLE = "DONANTE";
-
 /** Roles que este portal acepta; el servicio de auth define otros (ESTUDIANTE, ACUDIENTE, TALLERISTA). */
 export const ALLOWED_ROLES = [ADMIN_ROLE, ...CUSTOMER_ROLES];
 
