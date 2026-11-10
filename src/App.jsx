@@ -81,6 +81,16 @@ function NotFound() {
   );
 }
 
+function CartScope({ children }) {
+  const { user } = useAuth();
+  const ownerId = user ? (user.id ?? user.email) : null;
+  return (
+    <CartProvider key={ownerId ?? "guest"} ownerId={ownerId}>
+      {children}
+    </CartProvider>
+  );
+}
+
 function Layout() {
   const { pathname } = useLocation();
   const { status, user } = useAuth();
@@ -98,6 +108,7 @@ function Layout() {
     for (const { productId, quantity } of saleItems) {
       await cart.setQuantity(productId, (cart.items[String(productId)] ?? 0) + quantity);
     }
+    await cart.flush();
   };
 
   usePageTitle(pathname);
@@ -244,9 +255,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <CartProvider>
+        <CartScope>
           <Layout />
-        </CartProvider>
+        </CartScope>
       </AuthProvider>
     </BrowserRouter>
   );

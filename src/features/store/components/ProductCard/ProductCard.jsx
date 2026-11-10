@@ -16,9 +16,10 @@ const LOW_STOCK = 5;
  *   },
  *   quantity: number,
  *   onAdd: (id: string) => void,
+ *   disabled?: boolean,
  * }} props
  */
-export function ProductCard({ product, quantity, onAdd }) {
+export function ProductCard({ product, quantity, onAdd, disabled = false }) {
   const { id, name, description, price, stock, imageUrl } = product;
   const soldOut = stock <= 0;
   const limitReached = quantity >= stock;
@@ -55,7 +56,7 @@ export function ProductCard({ product, quantity, onAdd }) {
             block
             variant={quantity > 0 ? "secondary" : "primary"}
             onClick={() => onAdd(id)}
-            disabled={soldOut || limitReached}
+            disabled={disabled || soldOut || limitReached}
             aria-label={`Agregar al carrito: ${name}`}
           >
             <Icon name={quantity > 0 ? "plus" : "cart"} size={18} />

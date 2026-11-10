@@ -120,7 +120,7 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
   }
 
   /**
-   * Requiere sesión, sincroniza el carrito local y solicita el checkout a Wompi.
+   * Requiere sesión, espera la sincronización del carrito y solicita el checkout a Wompi.
    */
   async function pay() {
     if (!session.authenticated) {
@@ -129,14 +129,7 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
     }
     setCheckout({ status: "creating", message: "" });
     try {
-      const serverCart = await salesService.getCart();
-      const localItems = new Map(Object.entries(cart.items));
-      for (const item of serverCart?.items ?? []) {
-        if (!localItems.has(String(item.productId))) await salesService.removeCartItem(item.productId);
-      }
-      for (const [productId, quantity] of localItems) {
-        await salesService.setCartItem(productId, quantity);
-      }
+      await cart.flush();
       const result = await salesService.checkout();
       const { reference } = result.checkout;
       savePaymentSession({
@@ -146,7 +139,7 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
         summary: lines.map(({ product, quantity }) => `${quantity} × ${product.name}`).join(", "),
         items: (result.sale?.items ?? []).map((item) => ({ productId: String(item.productId), quantity: item.quantity })),
       });
-      cart.clear();
+      cart.refresh();
       const mode = await openWompiCheckout(result.checkout, {
         onFinished: () => navigate(`${PAYMENT_RESULT_PATH}?reference=${encodeURIComponent(reference)}`),
       });
@@ -242,6 +235,7 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
                   product={product}
                   quantity={cart.items[product.id] ?? 0}
                   onAdd={(id) => cart.add(id, product.stock)}
+                  disabled={cart.status !== "ready"}
                 />
               ))}
             </div>
@@ -249,7 +243,7 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
         </div>
 
         <aside className={styles.aside} aria-label="Carrito de compras">
-          {cart.status === "error" ? (
+          {cart.error ? (
             <Alert tone="error">
               {cart.error}{" "}
               <Button variant="outline" size="sm" onClick={cart.retry}>
@@ -269,7 +263,8 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
             onRemove={cart.decrement}
             onDelete={cart.remove}
             onCheckout={pay}
-            checkoutDisabled={busy || cart.status !== "ready" || hasUnavailable}
+            controlsDisabled={cart.status !== "ready"}
+            checkoutDisabled={busy || cart.status !== "ready" || cart.syncing || hasUnavailable}
             checkoutLabel={
               busy
                 ? "Preparando el pago…"
@@ -277,7 +272,13 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
                   ? "Pagar con Wompi"
                   : "Inicia sesión para comprar"
             }
-            note="Tu carrito se guarda en este navegador. Inicia sesión cuando quieras completar la compra; el stock se reserva al pagar."
+            note={
+              cart.syncing
+                ? "Guardando cambios en tu cuenta…"
+                : cart.enabled
+                  ? "Tu carrito se guarda en tu cuenta. El stock se reserva al pagar."
+                  : "Tu carrito se guarda en este navegador. Inicia sesión cuando quieras completar la compra."
+            }
           />
         </aside>
       </div>
