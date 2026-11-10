@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { Section } from "@/components/layout/Section";
@@ -66,6 +66,7 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
   const [query, setQuery] = useState("");
   const [checkout, setCheckout] = useState({ status: "idle", message: "" });
   const [reloadKey, setReloadKey] = useState(0);
+  const checkoutFinished = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,6 +129,7 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
       return;
     }
     setCheckout({ status: "creating", message: "" });
+    checkoutFinished.current = false;
     try {
       await cart.flush();
       const result = await salesService.checkout();
@@ -141,12 +143,43 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
       });
       cart.refresh();
       const mode = await openWompiCheckout(result.checkout, {
-        onFinished: () => navigate(`${PAYMENT_RESULT_PATH}?reference=${encodeURIComponent(reference)}`),
+        onFinished: (transaction) => {
+          if (checkoutFinished.current) {
+            console.warn("[SUMA21][Sale checkout] Ignoring a repeated Wompi callback.");
+            return;
+          }
+          checkoutFinished.current = true;
+          if (transaction) {
+            console.info("[SUMA21][Sale checkout] Wompi returned a transaction; opening payment result.", {
+              transactionStatus: transaction.status ?? null,
+            });
+            navigate(`${PAYMENT_RESULT_PATH}?reference=${encodeURIComponent(reference)}`);
+            return;
+          }
+
+          console.info("[SUMA21][Sale checkout] Wompi callback had no transaction; treating it as a close and requesting cancellation.");
+          setCheckout({ status: "cancelling", message: "Cancelando la compra…" });
+          salesService
+            .cancelCheckout()
+            .then(async () => {
+              console.info("[SUMA21][Sale checkout] Cancellation endpoint succeeded.");
+              await cart.refresh();
+              setCheckout({ status: "cancelled", message: "El checkout se canceló y se liberó la reserva de stock." });
+            })
+            .catch((error) => {
+              console.error("[SUMA21][Sale checkout] Cancellation endpoint failed.", {
+                message: describeError(error).message,
+                status: error?.status ?? null,
+                code: error?.code ?? null,
+              });
+              setCheckout({ status: "error", message: describeError(error).message });
+            });
+        },
       });
-      if (mode === "widget") {
+      if (mode === "widget" && !checkoutFinished.current) {
         setCheckout({
           status: "waiting",
-          message: `Completa el pago en la ventana de Wompi (referencia ${reference}). Si la cerraste sin pagar, puedes consultar el estado en «Mis operaciones».`,
+          message: `Completa el pago en la ventana de Wompi (referencia ${reference}). Si cierras el checkout, se cancelará la compra.`,
         });
       }
     } catch (error) {
@@ -255,6 +288,8 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
             <Alert tone="error">Quita del carrito los productos que ya no están disponibles para poder pagar.</Alert>
           ) : null}
           {checkout.status === "error" ? <Alert tone="error">{checkout.message}</Alert> : null}
+          {checkout.status === "cancelled" ? <Alert tone="info">{checkout.message}</Alert> : null}
+          {checkout.status === "cancelling" ? <Alert tone="info">{checkout.message}</Alert> : null}
           {checkout.status === "waiting" ? <Alert tone="info">{checkout.message}</Alert> : null}
           <CartSummary
             lines={lines}

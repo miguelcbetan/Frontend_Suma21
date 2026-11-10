@@ -132,6 +132,9 @@ export const salesService = {
    */
   checkout: () => request("/sales/checkout", { method: "POST" }),
 
+  /** Cancela el checkout activo del usuario y libera la reserva de stock. */
+  cancelCheckout: () => request("/sales/checkout/cancel", { method: "POST" }),
+
   /** Todas las ventas con su estado (`DRAFT`, `PENDING`, `APPROVED`, `DECLINED`). */
   list: () => request("/sales"),
 };

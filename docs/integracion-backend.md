@@ -34,6 +34,7 @@ Todo se centraliza en `src/core/api/config.js`. El frontend no usa claves de Wom
 | Tienda · Agregar / cambiar cantidad | `POST /sales/cart/items {productId: "7", quantity: 2}` → carrito | Cantidad **absoluta** (reemplaza). `productId` como string. No valida ni reserva stock. |
 | Tienda · Quitar producto | `DELETE /sales/cart/items/:productId` → carrito o `null` | 404 si el producto no estaba en el carrito. |
 | Tienda · Pagar | `POST /sales/checkout` (sin cuerpo) → `{sale, checkout}` | **Compras = SALES.** Reserva stock y pasa la venta a `PENDING`. Si falla, repone el stock y vuelve a `DRAFT`. `POST /sales` ya no existe. |
+| Tienda · Cancelar checkout | `POST /sales/checkout/cancel` (sin cuerpo) | Se llama si el usuario cierra el widget de Wompi antes de completar el flujo; requiere autenticación y cancela el checkout activo. |
 | Donar ahora | `POST /donations/monetary {amount}` → `{donationId, checkout}` | **Donaciones = DONATION.** Máximo 2 decimales. |
 | Donar en especie | `POST /donations/inkind {donation_date, notes?, items: [{inventory_item_id, quantity}]}` | Solo artículos existentes. |
 | Resultado del pago / Mis operaciones | `GET /payments/:reference` | Estados: `PENDING`, `APPROVED`, `DECLINED`, `VOIDED`, `ERROR`. |
