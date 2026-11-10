@@ -1,0 +1,61 @@
+/*
+ * `[open]` sube la especificidad para ganar al ancho por defecto del Dialog
+ * centrado. El título queda fijo y solo se desplaza el cuerpo del formulario,
+ * así el botón ✕ siempre está visible.
+ */
+.dialog[open] {
+  display: flex;
+  width: min(100% - var(--space-5), 46rem);
+  max-height: calc(100% - var(--space-6));
+  overflow: hidden;
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-shadow: var(--shadow-lg);
+}
+
+.content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.header {
+  display: grid;
+  flex: none;
+  gap: var(--space-1);
+  padding: var(--space-5) calc(var(--space-5) + 3rem) var(--space-4) var(--space-5);
+  border-bottom: var(--border-width) solid var(--color-gray-200);
+}
+
+.title {
+  font-size: var(--font-size-xl);
+}
+
+.description {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-5);
+  overflow-y: auto;
+}
+
+@media (max-width: 47.99rem) {
+  .dialog[open] {
+    width: calc(100% - var(--space-4));
+    max-height: calc(100% - var(--space-4));
+  }
+
+  .header,
+  .body {
+    padding-inline: var(--space-4);
+  }
+
+  .header {
+    padding-right: calc(var(--space-4) + 3rem);
+  }
+}

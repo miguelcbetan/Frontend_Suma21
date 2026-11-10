@@ -78,16 +78,18 @@ export function RecordForm({ fields, initial, record, submitLabel, onSubmit, onC
           </div>
         ))}
       </div>
-      <p className={styles.legend}>Los campos con * son obligatorios.</p>
-      <div className={styles.actions}>
-        <Button type="submit" disabled={pending}>
-          {pending ? "Guardando…" : submitLabel}
-        </Button>
-        {onCancel ? (
-          <Button variant="ghost" onClick={onCancel} disabled={pending}>
-            Cancelar
+      <div className={styles.footer}>
+        <p className={styles.legend}>Los campos con * son obligatorios.</p>
+        <div className={styles.actions}>
+          {onCancel ? (
+            <Button variant="outline" onClick={onCancel} disabled={pending}>
+              Cancelar
+            </Button>
+          ) : null}
+          <Button type="submit" disabled={pending}>
+            {pending ? "Guardando…" : submitLabel}
           </Button>
-        ) : null}
+        </div>
       </div>
     </form>
   );

@@ -21,7 +21,9 @@
   background: var(--color-overlay-dark);
 }
 
+/* `margin: auto` centra el modal (el reset global pone margin: 0 en todo). */
 .centered {
+  margin: auto;
   width: min(100% - var(--space-5), 40rem);
   max-height: calc(100% - var(--space-5));
   border-radius: var(--radius-lg);

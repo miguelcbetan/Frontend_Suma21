@@ -69,10 +69,9 @@
 
 .actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
   gap: var(--space-1);
-  min-width: 12rem;
 }
 
 /* Móvil: cada fila como tarjeta */
@@ -143,6 +142,7 @@
   }
 
   .actions {
+    flex-wrap: wrap;
     justify-content: flex-start;
     min-width: 0;
     padding-top: var(--space-2);

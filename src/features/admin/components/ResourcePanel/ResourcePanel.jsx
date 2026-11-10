@@ -1,29 +1,29 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { Card, CardBody } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { describeError, toList } from "@/core/api";
-import { cx } from "@/core/utils/cx";
 
 import { changedFields, valuesFromRecord } from "../../formValues.js";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { DataTable } from "../DataTable";
+import { FormDialog } from "../FormDialog";
 import { RecordForm } from "../RecordForm";
 import { StockForm } from "../StockForm";
 
 import styles from "./ResourcePanel.module.css";
 
 const NO_DELETE = { record: null, pending: false, error: "" };
+const NO_NOTICE = { tone: "success", text: "" };
 
 /**
- * Panel de una sección: alta (o ajuste de stock de un registro existente),
- * tabla con búsqueda y, según el recurso, edición, acciones por fila y
- * eliminación con confirmación.
+ * Panel de una sección. La pantalla principal es el listado (tabla con
+ * búsqueda y acciones por fila); crear, editar y ajustar stock se hacen en
+ * una ventana emergente (`FormDialog`). Eliminar pide confirmación.
  * @param {{ section: (typeof import("../../resources.js").SECTIONS)[number] }} props
  */
 export function ResourcePanel({ section }) {
@@ -42,11 +42,11 @@ export function ResourcePanel({ section }) {
     rowActions = [],
     searchKeys = [],
   } = section;
+  const searchId = useId();
   const [state, setState] = useState({ status: list ? "loading" : "idle", records: [], error: "" });
-  const [mode, setMode] = useState("create");
-  const [editing, setEditing] = useState(null);
-  const [notice, setNotice] = useState({ tone: "success", text: "" });
-  const [formKey, setFormKey] = useState(0);
+  /** `null | { type: "create" } | { type: "edit", record } | { type: "stock", recordId? }` */
+  const [dialog, setDialog] = useState(null);
+  const [notice, setNotice] = useState(NO_NOTICE);
   const [query, setQuery] = useState("");
   const [deleting, setDeleting] = useState(NO_DELETE);
   const [busyRow, setBusyRow] = useState(null);
@@ -68,22 +68,36 @@ export function ResourcePanel({ section }) {
     return load();
   }
 
+  function openDialog(next) {
+    setNotice(NO_NOTICE);
+    setDialog(next);
+  }
+
+  const closeDialog = useCallback(() => setDialog(null), []);
+
   async function handleCreate(body) {
     await create(body);
+    setDialog(null);
     setNotice({ tone: "success", text: `Se registró ${singular} correctamente.` });
-    setFormKey((key) => key + 1);
     if (list) await load();
   }
 
   async function handleUpdate(body) {
-    const changes = changedFields(body, editing);
+    const { record } = dialog;
+    const changes = changedFields(body, record);
     if (Object.keys(changes).length === 0) {
       setNotice({ tone: "info", text: "No hay cambios que guardar." });
     } else {
-      await update(editing.id, changes);
-      setNotice({ tone: "success", text: `Se actualizó ${singular} #${editing.id}.` });
+      await update(record.id, changes);
+      setNotice({ tone: "success", text: `Se actualizó ${singular} #${record.id}.` });
     }
-    setEditing(null);
+    setDialog(null);
+    await load();
+  }
+
+  async function handleStockDone(message) {
+    setDialog(null);
+    setNotice({ tone: "success", text: message });
     await load();
   }
 
@@ -113,11 +127,6 @@ export function ResourcePanel({ section }) {
     }
   }
 
-  async function handleStockDone(message) {
-    setNotice({ tone: "success", text: message });
-    await load();
-  }
-
   const term = query.trim().toLowerCase();
   const visible =
     term && searchKeys.length > 0
@@ -127,104 +136,112 @@ export function ResourcePanel({ section }) {
           ),
         )
       : state.records;
-  const hasActions = Boolean(update || remove || rowActions.length > 0);
+  const hasActions = Boolean(update || remove || stockFlow || rowActions.length > 0);
+  const stockLabel = stockFlow?.allowDecrease ? "Ajustar stock" : "Aumentar stock";
+  const canAdjustStock = Boolean(stockFlow) && state.status === "ready" && state.records.length > 0;
 
-  function startEdit(record) {
-    setNotice({ tone: "success", text: "" });
-    setEditing(record);
-    document.getElementById(`admin-form-${section.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  let dialogContent = null;
+  if (dialog?.type === "create") {
+    dialogContent = (
+      <FormDialog title={`Nuevo ${singular}`} description="Completa los datos y registra." onClose={closeDialog}>
+        <RecordForm fields={fields} submitLabel={`Registrar ${singular}`} onSubmit={handleCreate} onCancel={closeDialog} />
+      </FormDialog>
+    );
+  } else if (dialog?.type === "edit") {
+    dialogContent = (
+      <FormDialog title={`Editar ${singular} #${dialog.record.id}`} description={dialog.record.name} onClose={closeDialog}>
+        <RecordForm
+          fields={editFields}
+          record={dialog.record}
+          initial={valuesFromRecord(editFields, dialog.record)}
+          submitLabel="Guardar cambios"
+          onSubmit={handleUpdate}
+          onCancel={closeDialog}
+        />
+      </FormDialog>
+    );
+  } else if (dialog?.type === "stock" && stockFlow) {
+    dialogContent = (
+      <FormDialog
+        title={stockLabel}
+        description={`Suma${stockFlow.allowDecrease ? " o descuenta" : ""} unidades de un ${singular} existente sin crear uno nuevo.`}
+        onClose={closeDialog}
+      >
+        <StockForm
+          records={state.records}
+          singular={singular}
+          flow={stockFlow}
+          initialId={dialog.recordId}
+          onDone={handleStockDone}
+        />
+      </FormDialog>
+    );
   }
 
   return (
     <div className={styles.panel}>
+      <div className={styles.toolbar}>
+        <h3 className={styles.heading}>
+          Listado{" "}
+          {list && state.status === "ready" ? (
+            <span className={styles.count}>
+              ({state.records.length} {state.records.length === 1 ? "registro" : "registros"})
+            </span>
+          ) : null}
+        </h3>
+        <div className={styles.toolbarActions}>
+          {stockFlow ? (
+            <Button variant="outline" onClick={() => openDialog({ type: "stock" })} disabled={!canAdjustStock}>
+              <Icon name="package" size={18} />
+              {stockLabel}
+            </Button>
+          ) : null}
+          {create ? (
+            <Button onClick={() => openDialog({ type: "create" })}>
+              <Icon name="plus" size={18} />
+              Nuevo {singular}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
       {notice.text ? (
         <Alert tone={notice.tone} className={styles.notice}>
           <span>{notice.text}</span>
-          <button type="button" className={styles.dismiss} onClick={() => setNotice({ tone: "success", text: "" })}>
+          <button type="button" className={styles.dismiss} onClick={() => setNotice(NO_NOTICE)}>
             Cerrar aviso
           </button>
         </Alert>
       ) : null}
 
-      {create || editing ? (
-        <Card id={`admin-form-${section.id}`}>
-          <CardHeader className={styles.formHeader}>
-            <h3 className={styles.heading}>
-              {editing
-                ? `Editar ${singular} #${editing.id}`
-                : mode === "stock"
-                  ? `${stockFlow?.allowDecrease ? "Ajustar" : "Aumentar"} stock de un ${singular} existente`
-                  : `Registrar ${singular} nuevo`}
-            </h3>
-            {stockFlow && !editing ? (
-              <div className={styles.modes} role="radiogroup" aria-label="¿Qué quieres hacer?">
-                {[
-                  { value: "create", text: "Registrar nuevo" },
-                  { value: "stock", text: stockFlow.allowDecrease ? "Ajustar stock existente" : "Aumentar stock existente" },
-                ].map((option) => (
-                  <label key={option.value} className={cx(styles.mode, mode === option.value && styles.modeSelected)}>
-                    <input
-                      type="radio"
-                      name={`mode-${section.id}`}
-                      className="sr-only"
-                      value={option.value}
-                      checked={mode === option.value}
-                      onChange={() => setMode(option.value)}
-                    />
-                    {option.text}
-                  </label>
-                ))}
-              </div>
-            ) : null}
-          </CardHeader>
-          <CardBody>
-            {editing ? (
-              <RecordForm
-                key={`edit-${editing.id}`}
-                fields={editFields}
-                record={editing}
-                initial={valuesFromRecord(editFields, editing)}
-                submitLabel="Guardar cambios"
-                onSubmit={handleUpdate}
-                onCancel={() => setEditing(null)}
-              />
-            ) : mode === "stock" && stockFlow ? (
-              state.status === "ready" ? (
-                <StockForm records={state.records} singular={singular} flow={stockFlow} onDone={handleStockDone} />
-              ) : state.status === "error" ? (
-                <Alert tone="error">No se pudieron cargar los registros existentes: {state.error}</Alert>
-              ) : (
-                <p role="status">Cargando registros…</p>
-              )
-            ) : (
-              <RecordForm key={formKey} fields={fields} submitLabel={`Registrar ${singular}`} onSubmit={handleCreate} />
-            )}
-          </CardBody>
-        </Card>
-      ) : null}
-
       {list ? (
         <Card>
-          <CardHeader className={styles.listHeader}>
-            <h3 className={styles.heading}>
-              {label} <span className={styles.count}>({state.records.length})</span>
-            </h3>
-            <div className={styles.listTools}>
-              {searchKeys.length > 0 && state.records.length > 0 ? (
-                <Field
-                  label="Buscar"
+          <div className={styles.filters}>
+            {searchKeys.length > 0 ? (
+              <div className={styles.search}>
+                <label htmlFor={searchId} className="sr-only">
+                  Buscar {label.toLowerCase()}
+                </label>
+                <Icon name="search" size={18} className={styles.searchIcon} />
+                <input
+                  id={searchId}
                   type="search"
+                  className={styles.searchInput}
+                  placeholder="Buscar por nombre, descripción o ID…"
                   value={query}
+                  disabled={state.records.length === 0}
                   onChange={(event) => setQuery(event.target.value)}
-                  className={styles.search}
                 />
-              ) : null}
-              <Button variant="outline" size="sm" onClick={reload} disabled={state.status === "loading"}>
-                <Icon name="refresh" size={16} />
-                Actualizar
-              </Button>
-            </div>
-          </CardHeader>
+              </div>
+            ) : (
+              <span />
+            )}
+            <Button variant="ghost" size="sm" onClick={reload} disabled={state.status === "loading"}>
+              <Icon name="refresh" size={16} />
+              Actualizar
+            </Button>
+          </div>
+
           <CardBody className={styles.listBody}>
             {state.status === "loading" ? (
               <>
@@ -257,7 +274,15 @@ export function ResourcePanel({ section }) {
                 compact
                 icon={section.icon ?? "info"}
                 title="Aún no hay registros"
-                description={create ? `Usa el formulario de arriba para registrar el primer ${singular}.` : undefined}
+                description={create ? `Registra el primer ${singular} para verlo en este listado.` : undefined}
+                actions={
+                  create ? (
+                    <Button size="sm" onClick={() => openDialog({ type: "create" })}>
+                      <Icon name="plus" size={16} />
+                      Nuevo {singular}
+                    </Button>
+                  ) : null
+                }
               />
             ) : null}
             {state.status === "ready" && state.records.length > 0 && visible.length === 0 ? (
@@ -281,8 +306,24 @@ export function ResourcePanel({ section }) {
                   hasActions
                     ? (record) => (
                         <>
+                          {stockFlow ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openDialog({ type: "stock", recordId: String(record.id) })}
+                              aria-label={`${stockLabel}: ${record.name ?? `#${record.id}`}`}
+                            >
+                              <Icon name="package" size={16} />
+                              Stock
+                            </Button>
+                          ) : null}
                           {update ? (
-                            <Button variant="outline" size="sm" onClick={() => startEdit(record)}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openDialog({ type: "edit", record })}
+                              aria-label={`Editar: ${record.name ?? `#${record.id}`}`}
+                            >
                               <Icon name="pencil" size={16} />
                               Editar
                             </Button>
@@ -303,6 +344,7 @@ export function ResourcePanel({ section }) {
                               variant="danger"
                               size="sm"
                               onClick={() => setDeleting({ record, pending: false, error: "" })}
+                              aria-label={`Eliminar: ${record.name ?? `#${record.id}`}`}
                             >
                               <Icon name="trash" size={16} />
                               Eliminar
@@ -317,6 +359,8 @@ export function ResourcePanel({ section }) {
           </CardBody>
         </Card>
       ) : null}
+
+      {dialogContent}
 
       {remove ? (
         <ConfirmDialog

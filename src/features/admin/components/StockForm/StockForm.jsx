@@ -22,10 +22,11 @@ import styles from "./StockForm.module.css";
  *     apply: (record: any, operation: "increase" | "decrease", quantity: number) => Promise<any>,
  *   },
  *   onDone: (message: string) => Promise<void> | void,
+ *   initialId?: string,
  * }} props
  */
-export function StockForm({ records, singular, flow, onDone }) {
-  const [selectedId, setSelectedId] = useState("");
+export function StockForm({ records, singular, flow, onDone, initialId = "" }) {
+  const [selectedId, setSelectedId] = useState(initialId);
   const [operation, setOperation] = useState("increase");
   const [quantity, setQuantity] = useState("1");
   const [state, setState] = useState({ pending: false, error: "", fieldError: "" });
@@ -117,7 +118,7 @@ export function StockForm({ records, singular, flow, onDone }) {
         />
       </div>
 
-      <div>
+      <div className={styles.footer}>
         <Button type="submit" disabled={state.pending || !selected}>
           {state.pending ? "Guardando…" : operation === "increase" ? "Aumentar stock" : "Disminuir stock"}
         </Button>
