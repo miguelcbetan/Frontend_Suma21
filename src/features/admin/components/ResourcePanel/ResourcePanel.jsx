@@ -7,6 +7,8 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { Switch } from "@/components/ui/Switch";
+import { useToast } from "@/components/ui/Toast";
 import { describeError, toList } from "@/core/api";
 
 import { changedFields, valuesFromRecord } from "../../formValues.js";
@@ -18,7 +20,8 @@ import { StockForm } from "../StockForm";
 import styles from "./ResourcePanel.module.css";
 
 const NO_DELETE = { record: null, pending: false, error: "" };
-const NO_NOTICE = { tone: "success", text: "" };
+/** Solo errores: las confirmaciones salen como notificación emergente (`useToast`). */
+const NO_NOTICE = { tone: "error", text: "" };
 
 /**
  * Panel de una sección. La pantalla principal es el listado (tabla con
@@ -50,6 +53,8 @@ export function ResourcePanel({ section }) {
   const [query, setQuery] = useState("");
   const [deleting, setDeleting] = useState(NO_DELETE);
   const [busyRow, setBusyRow] = useState(null);
+  const [toggling, setToggling] = useState(null);
+  const toast = useToast();
 
   const load = useCallback(
     () =>
@@ -78,7 +83,7 @@ export function ResourcePanel({ section }) {
   async function handleCreate(body) {
     await create(body);
     setDialog(null);
-    setNotice({ tone: "success", text: `Se registró ${singular} correctamente.` });
+    toast.success(`Se registró ${singular} correctamente.`);
     if (list) await load();
   }
 
@@ -86,10 +91,10 @@ export function ResourcePanel({ section }) {
     const { record } = dialog;
     const changes = changedFields(body, record);
     if (Object.keys(changes).length === 0) {
-      setNotice({ tone: "info", text: "No hay cambios que guardar." });
+      toast.info("No hay cambios que guardar.");
     } else {
       await update(record.id, changes);
-      setNotice({ tone: "success", text: `Se actualizó ${singular} #${record.id}.` });
+      toast.success(`Se actualizó ${singular} #${record.id}.`);
     }
     setDialog(null);
     await load();
@@ -97,7 +102,7 @@ export function ResourcePanel({ section }) {
 
   async function handleStockDone(message) {
     setDialog(null);
-    setNotice({ tone: "success", text: message });
+    toast.success(message);
     await load();
   }
 
@@ -107,7 +112,7 @@ export function ResourcePanel({ section }) {
     try {
       await remove(record.id);
       setDeleting(NO_DELETE);
-      setNotice({ tone: "success", text: `Se eliminó ${singular} #${record.id} («${record.name ?? ""}»).` });
+      toast.success(`Se eliminó ${singular} #${record.id} («${record.name ?? ""}»).`);
       await load();
     } catch (error) {
       setDeleting((current) => ({ ...current, pending: false, error: describeError(error).message }));
@@ -118,7 +123,7 @@ export function ResourcePanel({ section }) {
     setBusyRow(record.id);
     try {
       await action.run(record);
-      setNotice({ tone: "success", text: action.notice(record) });
+      toast.success(action.notice(record));
       await load();
     } catch (error) {
       setNotice({ tone: "error", text: describeError(error).message });
@@ -126,6 +131,32 @@ export function ResourcePanel({ section }) {
       setBusyRow(null);
     }
   }
+
+  /** Columna con interruptor (`type: "toggle"`): un solo envío por fila a la vez. */
+  async function handleToggle(column, record) {
+    if (toggling !== null) return;
+    setToggling(record.id);
+    setNotice(NO_NOTICE);
+    try {
+      await column.toggle.run(record);
+      toast.success(column.toggle.notice(record));
+      await load();
+    } catch (error) {
+      setNotice({ tone: "error", text: describeError(error).message });
+    } finally {
+      setToggling(null);
+    }
+  }
+
+  const renderToggle = (column, record) => (
+    <Switch
+      checked={Boolean(record[column.key])}
+      label={column.toggle.label ? column.toggle.label(record) : column.label}
+      busy={toggling === record.id}
+      disabled={toggling !== null}
+      onChange={() => handleToggle(column, record)}
+    />
+  );
 
   const term = query.trim().toLowerCase();
   const visible =
@@ -302,6 +333,7 @@ export function ResourcePanel({ section }) {
                 caption={label}
                 columns={columns}
                 records={visible}
+                renderToggle={renderToggle}
                 actions={
                   hasActions
                     ? (record) => (

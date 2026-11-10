@@ -33,7 +33,8 @@ const imageField = {
  * `fields` el alta (`editFields` si la edición admite otros campos);
  * `update`/`remove` activan editar y eliminar (con confirmación);
  * `stockFlow` añade la opción «aumentar stock de un registro existente»;
- * `rowActions` agrega acciones por fila. Una columna puede traer `format(record)`.
+ * `rowActions` agrega acciones por fila. Una columna puede traer `format(record)`,
+ * o `type: "toggle"` con `toggle: { label, run, notice }` para cambiarla con un interruptor.
  *
  * Sección de reporte (`report`): tabla paginada en el servidor con filtros de fecha.
  */
@@ -98,7 +99,19 @@ export const SECTIONS = [
       { key: "name", label: "Nombre" },
       { key: "description", label: "Descripción" },
       { key: "stock", label: "Stock" },
-      { key: "is_needed", label: "Solicitado", type: "flag", trueLabel: "Solicitado", falseLabel: "No" },
+      {
+        key: "is_needed",
+        label: "Solicitado",
+        type: "toggle",
+        toggle: {
+          label: (record) => `Solicitado por la fundación: ${record.name}`,
+          run: (record) => inventoryService.update(record.id, { is_needed: !record.is_needed }),
+          notice: (record) =>
+            record.is_needed
+              ? `«${record.name}» ya no aparece en la lista de donaciones.`
+              : `«${record.name}» ahora aparece en la lista de donaciones.`,
+        },
+      },
     ],
     fields: [
       { name: "name", label: "Nombre", type: "text", required: true },
@@ -127,16 +140,6 @@ export const SECTIONS = [
         label: "Solicitado por la fundación (se muestra en donaciones en especie)",
         type: "checkbox",
         full: true,
-      },
-    ],
-    rowActions: [
-      {
-        label: (record) => (record.is_needed ? "Dejar de solicitar" : "Marcar solicitado"),
-        run: (record) => inventoryService.update(record.id, { is_needed: !record.is_needed }),
-        notice: (record) =>
-          record.is_needed
-            ? `«${record.name}» ya no aparece en la lista de donaciones.`
-            : `«${record.name}» ahora aparece en la lista de donaciones.`,
       },
     ],
     stockFlow: {

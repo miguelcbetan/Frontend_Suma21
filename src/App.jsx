@@ -8,6 +8,7 @@ import { SiteHeader } from "@/components/layout/SiteHeader";
 import { buttonClassName } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Logo } from "@/components/ui/Logo";
+import { ToastProvider } from "@/components/ui/Toast";
 import { TextSizeToggle } from "@/features/accessibility";
 import { AdminPage } from "@/features/admin";
 import { AuthPage, AuthProvider, ProfilePage, RequireRole, UserMenu, isAdmin, useAuth } from "@/features/auth";
@@ -258,11 +259,13 @@ function Layout() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <CartScope>
-          <Layout />
-        </CartScope>
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <CartScope>
+            <Layout />
+          </CartScope>
+        </AuthProvider>
+      </ToastProvider>
     </BrowserRouter>
   );
 }

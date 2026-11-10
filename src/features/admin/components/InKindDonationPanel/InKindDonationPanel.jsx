@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useToast } from "@/components/ui/Toast";
 import { describeError, donationsService, inventoryService, toList } from "@/core/api";
 import { todayISO } from "@/core/utils/date";
 
@@ -44,7 +45,7 @@ export function InKindDonationPanel() {
   const [lines, setLines] = useState([createLine(0)]);
   const [errors, setErrors] = useState({ date: "", lines: [] });
   const [formError, setFormError] = useState("");
-  const [success, setSuccess] = useState("");
+  const toast = useToast();
   const [pending, setPending] = useState(false);
 
   const loadInventory = useCallback(
@@ -62,7 +63,6 @@ export function InKindDonationPanel() {
 
   function clearMessages() {
     setFormError("");
-    setSuccess("");
   }
 
   function updateLine(index, key, value) {
@@ -118,7 +118,7 @@ export function InKindDonationPanel() {
         })),
       });
       resetForm();
-      setSuccess("La donación en especie se registró correctamente y el stock del inventario se actualizó.");
+      toast.success("La donación en especie se registró correctamente y el stock del inventario se actualizó.");
       loadInventory();
     } catch (error) {
       setFormError(describeError(error).message);
@@ -136,7 +136,6 @@ export function InKindDonationPanel() {
   return (
     <Card>
       <CardBody className={styles.body}>
-        {success ? <Alert tone="success">{success}</Alert> : null}
         {formError ? <Alert tone="error">{formError}</Alert> : null}
 
         {inventory.status === "loading" ? (
@@ -207,7 +206,6 @@ export function InKindDonationPanel() {
                   hint="Opcional. Por ejemplo: quién entregó la donación o el estado de los artículos."
                   onChange={(event) => {
                     setNotes(event.target.value);
-                    setSuccess("");
                   }}
                 />
               </div>

@@ -70,8 +70,14 @@
 .actions {
   display: flex;
   flex-wrap: nowrap;
+  align-items: center;
   justify-content: flex-end;
   gap: var(--space-1);
+}
+
+/* Los botones de acción nunca se parten en varias líneas ni estiran la fila. */
+.actions > * {
+  white-space: nowrap;
 }
 
 /* Móvil: cada fila como tarjeta */

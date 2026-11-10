@@ -2,7 +2,8 @@ import { Badge } from "@/components/ui/Badge";
 
 import styles from "./DataTable.module.css";
 
-function renderCell(column, record) {
+function renderCell(column, record, renderToggle) {
+  if (column.type === "toggle" && renderToggle) return renderToggle(column, record);
   if (column.type === "image") {
     const url = record[column.key];
     return url ? <img src={url} alt="" className={styles.thumb} loading="lazy" /> : <span className={styles.muted}>—</span>;
@@ -33,9 +34,10 @@ function renderCell(column, record) {
  *   records: any[],
  *   rowKey?: (record: any) => string,
  *   actions?: (record: any) => import("react").ReactNode,
- * }} props
+ *   renderToggle?: (column: any, record: any) => import("react").ReactNode,
+ * }} props `renderToggle` dibuja las columnas `type: "toggle"`.
  */
-export function DataTable({ caption, columns, records, rowKey = (record) => String(record.id), actions }) {
+export function DataTable({ caption, columns, records, rowKey = (record) => String(record.id), actions, renderToggle }) {
   return (
     // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- región desplazable accesible por teclado
     <div className={styles.scroll} tabIndex={0} role="region" aria-label={caption}>
@@ -60,7 +62,7 @@ export function DataTable({ caption, columns, records, rowKey = (record) => Stri
             <tr key={rowKey(record)}>
               {columns.map((column) => (
                 <td key={column.key} data-label={column.label} className={column.key === "id" ? styles.idCell : undefined}>
-                  {renderCell(column, record)}
+                  {renderCell(column, record, renderToggle)}
                 </td>
               ))}
               {actions ? (

@@ -10,6 +10,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useToast } from "@/components/ui/Toast";
 import { ApiError, describeError, paymentsService, salesService } from "@/core/api";
 import { cx } from "@/core/utils/cx";
 import { checkoutUrlWithReturn, isWompiCheckoutUrl, reserveCheckoutTab } from "@/core/utils/wompiWidget";
@@ -147,6 +148,7 @@ export function MyOperationsPage({ onOperationsChange }) {
   const [notice, setNotice] = useState(null);
   const [confirm, setConfirm] = useState({ transaction: null, pending: false, error: "" });
   const notifyRef = useRef(onOperationsChange);
+  const toast = useToast();
 
   useEffect(() => {
     notifyRef.current = onOperationsChange;
@@ -218,10 +220,7 @@ export function MyOperationsPage({ onOperationsChange }) {
       const current = items.find((item) => String(item.id) === String(transaction.id));
       if (!current || current.status !== "PENDING") {
         tab.close();
-        setNotice({
-          tone: "info",
-          text: "Esta operación ya no está pendiente de pago. Actualizamos la lista con su estado actual.",
-        });
+        toast.info("Esta operación ya no está pendiente de pago. Actualizamos la lista con su estado actual.");
         setActive(null);
         return;
       }
@@ -236,10 +235,7 @@ export function MyOperationsPage({ onOperationsChange }) {
       }
       const url = checkoutUrlWithReturn(current.checkoutUrl, current.reference);
       if (tab.go(url)) {
-        setNotice({
-          tone: "info",
-          text: "Abrimos el pago de Wompi en otra pestaña. Cuando termines, vuelve aquí para ver el estado actualizado.",
-        });
+        toast.info("Abrimos el pago de Wompi en otra pestaña. Cuando termines, vuelve aquí para ver el estado actualizado.");
       } else {
         setNotice({ tone: "info", text: "Tu navegador bloqueó la pestaña de pago.", url });
       }
@@ -270,20 +266,18 @@ export function MyOperationsPage({ onOperationsChange }) {
     try {
       await salesService.cancelCheckout();
       setConfirm({ transaction: null, pending: false, error: "" });
-      setNotice({
-        tone: "success",
-        text: "Cancelaste la compra. Los productos volvieron a tu carrito y ya puedes seguir comprando.",
-      });
+      toast.success("Cancelaste la compra. Los productos volvieron a tu carrito y ya puedes seguir comprando.");
     } catch (error) {
       if (error?.code === "NO_PENDING_CHECKOUT" || error?.code === "SALE_CHECKOUT_CONFLICT") {
         setConfirm({ transaction: null, pending: false, error: "" });
-        setNotice({
-          tone: error.code === "NO_PENDING_CHECKOUT" ? "info" : "error",
-          text:
-            error.code === "NO_PENDING_CHECKOUT"
-              ? "Esta compra ya no tenía un pago pendiente por cancelar. Revisa su estado actualizado."
-              : "No se pudo cancelar: el pago ya fue aprobado o cambió de estado. Revisa su estado actualizado.",
-        });
+        if (error.code === "NO_PENDING_CHECKOUT") {
+          toast.info("Esta compra ya no tenía un pago pendiente por cancelar. Revisa su estado actualizado.");
+        } else {
+          setNotice({
+            tone: "error",
+            text: "No se pudo cancelar: el pago ya fue aprobado o cambió de estado. Revisa su estado actualizado.",
+          });
+        }
       } else {
         setConfirm({ transaction, pending: false, error: describeError(error).message });
       }
