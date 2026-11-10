@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { Container } from "@/components/layout/Container";
@@ -7,7 +7,7 @@ import { Button, buttonClassName } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { describeError, salesService } from "@/core/api";
+import { describeError } from "@/core/api";
 import { lastPaymentReference, loadPaymentSession, paymentKindOf } from "@/core/utils/paymentSession";
 
 import { CertificateDocument } from "../CertificateDocument";
@@ -68,22 +68,16 @@ function PaymentStatusMessage({ tone, title, children, reference, action, extraA
 
 /**
  * Tras un pago rechazado la venta queda DECLINED y sus productos no vuelven al
- * carrito: este botón los agrega de nuevo (`POST /sales/cart/items`), sumando
- * a lo que ya hubiera en el carrito, y lleva a la tienda.
+ * carrito: este botón los suma al carrito local y lleva a la tienda.
  */
-function RestoreCartButton({ items, onCartChanged }) {
+function RestoreCartButton({ items, onRestore }) {
   const navigate = useNavigate();
   const [state, setState] = useState({ pending: false, error: "" });
 
   async function restore() {
     setState({ pending: true, error: "" });
     try {
-      const cart = await salesService.getCart();
-      const current = new Map((cart?.items ?? []).map((item) => [String(item.productId), Number(item.quantity)]));
-      for (const { productId, quantity } of items) {
-        await salesService.setCartItem(productId, (current.get(String(productId)) ?? 0) + quantity);
-      }
-      await onCartChanged?.();
+      await onRestore(items);
       navigate("/apoyanos-tienda#carrito");
     } catch (error) {
       setState({ pending: false, error: describeError(error).message });
@@ -214,25 +208,15 @@ function ApprovedReceipt({ payment, kind, session }) {
  * Página `/payment-result`: estado del pago (`GET /api/v1/payments/:reference`).
  * Toma la referencia de `?reference=` o del último pago iniciado en este
  * navegador. Solo se da por aprobado lo que el backend confirma.
- * @param {{
- *   onSaleApproved?: (reference: string) => void,
- *   onCartChanged?: () => Promise<void> | void,
- * }} props
+ * @param {{ onRestoreCart: (items: { productId: string, quantity: number }[]) => Promise<void> }} props
  */
-export function PaymentResultPage({ onSaleApproved, onCartChanged }) {
+export function PaymentResultPage({ onRestoreCart }) {
   const [params] = useSearchParams();
   const reference = params.get("reference") ?? lastPaymentReference();
   const { status, payment, message, timedOut } = usePaymentStatus(reference);
   const session = reference ? loadPaymentSession(reference) : null;
   const kind = paymentKindOf(payment?.reference ?? reference) ?? session?.kind ?? null;
   const outcome = status === "ready" ? outcomeOf(payment) : null;
-  const approvedSale = outcome === "approved" && kind === "sale" ? payment.reference : null;
-
-  // Una compra aprobada: se vuelve a leer el carrito del servidor (ya no contiene esa venta).
-  useEffect(() => {
-    if (approvedSale) onSaleApproved?.(approvedSale);
-  }, [approvedSale, onSaleApproved]);
-
   let content;
   if (status === "loading") {
     content = (
@@ -279,7 +263,7 @@ export function PaymentResultPage({ onSaleApproved, onCartChanged }) {
         }
         extraAction={
           kind === "sale" && session?.items?.length ? (
-            <RestoreCartButton items={session.items} onCartChanged={onCartChanged} />
+            <RestoreCartButton items={session.items} onRestore={onRestoreCart} />
           ) : null
         }
       >

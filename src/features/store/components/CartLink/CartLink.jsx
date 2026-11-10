@@ -6,8 +6,7 @@ import styles from "./CartLink.module.css";
 
 /** Acceso al carrito en la cabecera con el número de unidades. */
 export function CartLink() {
-  const { enabled, count } = useCart();
-  if (!enabled) return null;
+  const { count } = useCart();
 
   return (
     <Link

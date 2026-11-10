@@ -2,14 +2,12 @@ import { createContext } from "react";
 
 /**
  * @typedef {{
- *   status: "idle" | "loading" | "ready" | "error",
+ *   status: "loading" | "ready" | "error",
  *   error: string,
  *   items: Record<string, number>,
- *   serverItems: { productId: string, quantity: number, unitPrice: number, subtotal: number }[],
- *   serverTotal: number,
  *   syncing: boolean,
- *   count: number,
  *   enabled: boolean,
+ *   count: number,
  *   add: (id: string, max?: number) => Promise<void>,
  *   decrement: (id: string) => Promise<void>,
  *   setQuantity: (id: string, quantity: number, max?: number) => Promise<void>,

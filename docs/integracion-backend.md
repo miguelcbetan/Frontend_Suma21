@@ -24,7 +24,7 @@ Todo se centraliza en `src/core/api/config.js`. El frontend no usa claves de Wom
 | Pantalla | Método y ruta | Notas |
 |---|---|---|
 | Panel admin (estado) | `GET /health` | Sin prefijo `/api/v1`. |
-| Tienda / admin | `GET /products`, `GET /products/:id` | Exige token (cualquier rol). |
+| Tienda / admin | `GET /products`, `GET /products/:id` | La tienda los consulta sin token; el backend debe permitir acceso público para mostrar el catálogo a visitantes. |
 | Admin · Productos | `POST /products`, `PATCH /products/:id`, `DELETE /products/:id` | ADMIN. JSON o `multipart/form-data` con `image`. `stock_qty` ≥ 1. |
 | Admin · Aumentar stock de producto | `GET /products/:id` y luego `PATCH /products/:id {stock_qty: actual + n}` | No hay ajuste atómico para productos (ver pendientes). |
 | Donar en especie | `GET /inventory/needed` | Público. Campo real: `is_needed`. |
@@ -54,12 +54,12 @@ No se usa `POST /payments/checkout`: firma montos y referencias arbitrarias sin 
 
 ## Carrito
 
-El carrito se guarda en la base de datos como la venta `DRAFT` del usuario. `src/features/store/cart/CartProvider.jsx` lo carga al iniciar sesión, así que sobrevive a recargas, cierres de sesión y cambios de dispositivo.
+Con sesión iniciada, el carrito se guarda en la base de datos como la venta `DRAFT` del usuario. `src/features/store/cart/CartProvider.jsx` lo carga al iniciar sesión y sincroniza cada cambio, por lo que sobrevive a recargas, cierres de sesión y cambios de dispositivo. Sin sesión, se conserva en `localStorage` (`suma21.cart.v1`); al iniciar sesión, sus cantidades se incorporan al carrito de la cuenta y se elimina la copia local.
 
-- Cada cambio se muestra al instante y se envía en una **cola serializada**: cada llamada fija la cantidad absoluta, así que el orden importa. Cuando la cola se vacía, manda la respuesta del servidor; si una llamada falla, se recarga el carrito del servidor y se muestra el error.
-- El total que se muestra es `totalPrice` del servidor, calculado con los precios vigentes.
+- Cada cambio autenticado se muestra al instante y se envía en una **cola serializada**: cada llamada fija la cantidad absoluta, así que el orden importa. Si falla, se muestra el error y se puede reintentar la carga del carrito.
+- Al combinar el carrito local al iniciar sesión, para un producto presente en ambos se conserva la cantidad mayor, evitando duplicar productos si la migración debe reintentarse.
+- El total se estima con los precios del catálogo; el servidor valida los precios y el stock al pagar.
 - Un producto eliminado del catálogo que siga en el carrito aparece como «no disponible» y bloquea el pago hasta quitarlo. El stock se valida al pagar.
-- El carrito que antes se guardaba en el navegador (`localStorage`, `suma21.cart.*`) ya no se usa ni se migra.
 
 ## Pendientes para el equipo backend / auth
 

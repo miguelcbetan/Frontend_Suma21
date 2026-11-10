@@ -4,115 +4,154 @@ import { describeError, salesService } from "@/core/api";
 
 import { CartContext } from "./cartContext.js";
 
+const STORAGE_KEY = "suma21.cart.v1";
 const clamp = (quantity, max) => (max == null ? quantity : Math.min(quantity, Math.max(0, max)));
 
-/** `{ [productId]: cantidad }` a partir del carrito del servidor (o `null`). */
+function readItems() {
+  const stored = window.localStorage.getItem(STORAGE_KEY);
+  if (!stored) return {};
+  const parsed = JSON.parse(stored);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("El formato del carrito guardado no es válido.");
+  }
+  for (const [id, quantity] of Object.entries(parsed)) {
+    if (!id || !Number.isInteger(quantity) || quantity <= 0) {
+      throw new Error("El formato del carrito guardado no es válido.");
+    }
+  }
+  return parsed;
+}
+
 function itemsOf(cart) {
   return Object.fromEntries((cart?.items ?? []).map((item) => [String(item.productId), Number(item.quantity)]));
 }
 
-const EMPTY = { status: "idle", error: "", cart: null, items: {}, pending: 0 };
+function guestState() {
+  try {
+    return { status: "ready", error: "", items: readItems(), cart: null, pending: 0 };
+  } catch {
+    return {
+      status: "error",
+      error: "No pudimos leer el carrito guardado en este navegador.",
+      items: {},
+      cart: null,
+      pending: 0,
+    };
+  }
+}
 
 /**
- * Carrito persistido en el backend: es la venta `DRAFT` del usuario del token
- * (`GET/POST/DELETE /api/v1/sales/cart…`). Sobrevive a recargas, cierres de
- * sesión y cambios de navegador.
- *
- * Los cambios se muestran al instante y se envían en una cola serializada
- * (cada llamada fija la cantidad absoluta, así que el orden importa). Cuando la
- * cola se vacía, el estado del servidor reemplaza al local; si una llamada
- * falla, se recarga el carrito del servidor y se informa el error.
+ * Guarda el carrito del visitante en localStorage y el de la persona autenticada
+ * en el backend. Al iniciar sesión, incorpora los productos locales al carrito
+ * de la cuenta antes de dejar de usar el almacenamiento local.
  * @param {{ ownerId: string | null, children: import("react").ReactNode }} props
  */
 export function CartProvider({ ownerId, children }) {
-  const [state, setState] = useState(() => ({ ...EMPTY, ownerId, status: ownerId ? "loading" : "idle" }));
+  const [state, setState] = useState(() =>
+    ownerId
+      ? { status: "loading", error: "", items: {}, cart: null, pending: 0 }
+      : guestState(),
+  );
   const [reloadKey, setReloadKey] = useState(0);
-  const itemsRef = useRef({});
-  const ownerRef = useRef(ownerId);
+  const itemsRef = useRef(state.items);
   const queueRef = useRef(Promise.resolve());
   const pendingRef = useRef(0);
+  const errorRef = useRef("");
 
-  // Al cambiar de usuario (login, logout) se descarta el carrito anterior.
-  if (state.ownerId !== ownerId) {
-    setState({ ...EMPTY, ownerId, status: ownerId ? "loading" : "idle" });
-  }
-
-  useEffect(() => {
-    ownerRef.current = ownerId;
-    itemsRef.current = {};
-    pendingRef.current = 0;
-    queueRef.current = Promise.resolve();
-  }, [ownerId]);
-
-  /** Aplica una respuesta del servidor si sigue siendo el mismo usuario. */
-  const applyServer = useCallback((owner, cart, error = "") => {
-    if (ownerRef.current !== owner) return;
-    if (pendingRef.current === 0) itemsRef.current = itemsOf(cart);
-    setState((current) => ({
-      ...current,
-      status: "ready",
-      error,
-      cart,
-      ...(pendingRef.current === 0 ? { items: itemsOf(cart) } : {}),
-      pending: pendingRef.current,
-    }));
-  }, []);
-
-  // Carga inicial (y «Reintentar») del carrito del usuario.
   useEffect(() => {
     if (!ownerId) return undefined;
     let cancelled = false;
-    salesService
-      .getCart()
-      .then((cart) => {
-        if (!cancelled) applyServer(ownerId, cart);
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setState((current) => ({ ...current, status: "error", error: describeError(error).message }));
+
+    async function loadCart() {
+      let guestItems = {};
+      let migrationError = "";
+      let guestItemsLoaded = true;
+      try {
+        guestItems = readItems();
+      } catch (error) {
+        guestItemsLoaded = false;
+        migrationError = describeError(error).message;
+      }
+
+      try {
+        let cart = await salesService.getCart();
+        const accountItems = itemsOf(cart);
+
+        for (const [productId, quantity] of Object.entries(guestItems)) {
+          if (quantity > (accountItems[productId] ?? 0)) {
+            cart = await salesService.setCartItem(productId, quantity);
+          }
         }
-      });
+
+        if (guestItemsLoaded) {
+          try {
+            window.localStorage.removeItem(STORAGE_KEY);
+          } catch (error) {
+            migrationError = describeError(error).message;
+          }
+        }
+        if (cancelled) return;
+        const items = itemsOf(cart);
+        itemsRef.current = items;
+        errorRef.current = "";
+        setState({ status: "ready", error: migrationError, items, cart, pending: 0 });
+      } catch (error) {
+        if (cancelled) return;
+        const message = describeError(error).message;
+        errorRef.current = message;
+        setState((current) => ({ ...current, status: "error", error: message }));
+      }
+    }
+
+    loadCart();
     return () => {
       cancelled = true;
     };
-  }, [ownerId, reloadKey, applyServer]);
+  }, [ownerId, reloadKey]);
 
-  /** Encola una llamada al servidor; devuelve la promesa de toda la cola. */
   const enqueue = useCallback(
     (call) => {
-      const owner = ownerRef.current;
       pendingRef.current += 1;
       setState((current) => ({ ...current, pending: pendingRef.current }));
-      // Tras un cambio de usuario el contador se reinicia: solo descuenta quien sigue vigente.
-      const settle = () => {
-        if (ownerRef.current === owner) pendingRef.current = Math.max(0, pendingRef.current - 1);
-      };
+
       queueRef.current = queueRef.current.then(async () => {
+        if (errorRef.current) {
+          pendingRef.current = Math.max(0, pendingRef.current - 1);
+          setState((current) => ({ ...current, pending: pendingRef.current }));
+          return;
+        }
         try {
           const cart = await call();
-          settle();
-          applyServer(owner, cart);
-        } catch (error) {
-          settle();
-          const message = describeError(error).message;
-          try {
-            applyServer(owner, await salesService.getCart(), message);
-          } catch {
-            if (ownerRef.current === owner) {
-              setState((current) => ({ ...current, error: message, pending: pendingRef.current }));
-            }
+          pendingRef.current = Math.max(0, pendingRef.current - 1);
+          errorRef.current = "";
+          if (pendingRef.current === 0) {
+            const items = itemsOf(cart);
+            itemsRef.current = items;
+            setState({ status: "ready", error: "", items, cart, pending: 0 });
+          } else {
+            setState((current) => ({ ...current, cart, pending: pendingRef.current }));
           }
+        } catch (error) {
+          pendingRef.current = Math.max(0, pendingRef.current - 1);
+          const message = describeError(error).message;
+          errorRef.current = message;
+          setState((current) => ({
+            ...current,
+            status: "error",
+            error: message,
+            pending: pendingRef.current,
+          }));
         }
       });
+
       return queueRef.current;
     },
-    [applyServer],
+    [],
   );
 
-  /** Fija la cantidad de un producto (0 lo quita) y la sincroniza con el servidor. */
   const setQuantity = useCallback(
     (id, quantity, max) => {
-      if (!ownerRef.current) return Promise.resolve();
+      if (state.status !== "ready") return Promise.resolve();
       const key = String(id);
       const current = itemsRef.current[key] ?? 0;
       const next = clamp(Math.max(0, Math.trunc(quantity) || 0), max);
@@ -122,11 +161,26 @@ export function CartProvider({ ownerId, children }) {
       if (next > 0) items[key] = next;
       else delete items[key];
       itemsRef.current = items;
-      setState((state) => ({ ...state, items, error: "" }));
+      setState((currentState) => ({ ...currentState, items, error: "" }));
+      errorRef.current = "";
 
-      return enqueue(() => (next > 0 ? salesService.setCartItem(key, next) : salesService.removeCartItem(key)));
+      if (ownerId) {
+        return enqueue(() =>
+          next > 0 ? salesService.setCartItem(key, next) : salesService.removeCartItem(key),
+        );
+      }
+
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+        return Promise.resolve();
+      } catch {
+        const message = "No pudimos guardar el carrito en este navegador.";
+        errorRef.current = message;
+        setState((currentState) => ({ ...currentState, status: "error", error: message }));
+        return Promise.resolve();
+      }
     },
-    [enqueue],
+    [enqueue, ownerId, state.status],
   );
 
   const add = useCallback(
@@ -139,16 +193,33 @@ export function CartProvider({ ownerId, children }) {
   );
   const remove = useCallback((id) => setQuantity(id, 0), [setQuantity]);
 
-  /** Espera a que se envíen todos los cambios pendientes. */
-  const flush = useCallback(() => queueRef.current, []);
+  const flush = useCallback(async () => {
+    await queueRef.current;
+    if (errorRef.current) throw new Error(errorRef.current);
+  }, []);
 
-  /** Vuelve a leer el carrito del servidor (p. ej. después de un checkout). */
-  const refresh = useCallback(() => enqueue(() => salesService.getCart()), [enqueue]);
+  const refresh = useCallback(() => {
+    if (!ownerId) return Promise.resolve();
+    return enqueue(() => salesService.getCart());
+  }, [enqueue, ownerId]);
 
   const retry = useCallback(() => {
+    errorRef.current = "";
+    if (!ownerId) {
+      try {
+        const items = readItems();
+        itemsRef.current = items;
+        setState({ status: "ready", error: "", items, cart: null, pending: 0 });
+      } catch {
+        const message = "No pudimos leer el carrito guardado en este navegador.";
+        errorRef.current = message;
+        setState((current) => ({ ...current, status: "error", error: message }));
+      }
+      return;
+    }
     setState((current) => ({ ...current, status: "loading", error: "" }));
     setReloadKey((key) => key + 1);
-  }, []);
+  }, [ownerId]);
 
   const value = useMemo(() => {
     const count = Object.values(state.items).reduce((sum, quantity) => sum + quantity, 0);
@@ -156,11 +227,9 @@ export function CartProvider({ ownerId, children }) {
       status: state.status,
       error: state.error,
       items: state.items,
-      serverItems: state.cart?.items ?? [],
-      serverTotal: state.cart ? Number(state.cart.totalPrice) : 0,
       syncing: state.pending > 0,
+      enabled: Boolean(ownerId),
       count,
-      enabled: Boolean(state.ownerId),
       add,
       decrement,
       setQuantity,
@@ -169,7 +238,7 @@ export function CartProvider({ ownerId, children }) {
       refresh,
       retry,
     };
-  }, [state, add, decrement, setQuantity, remove, flush, refresh, retry]);
+  }, [state, ownerId, add, decrement, setQuantity, remove, flush, refresh, retry]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

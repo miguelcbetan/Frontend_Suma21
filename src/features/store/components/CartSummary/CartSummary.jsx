@@ -15,6 +15,7 @@ import styles from "./CartSummary.module.css";
  *   onCheckout: () => void,
  *   checkoutDisabled?: boolean,
  *   checkoutLabel?: string,
+ *   controlsDisabled?: boolean,
  *   note?: import("react").ReactNode,
  * }} props
  */
@@ -27,6 +28,7 @@ export function CartSummary({
   onCheckout,
   checkoutDisabled = false,
   checkoutLabel = "Pagar con Wompi",
+  controlsDisabled = false,
   note,
 }) {
   const units = lines.reduce((sum, { quantity }) => sum + quantity, 0);
@@ -62,7 +64,12 @@ export function CartSummary({
                     {quantity} × {formatCurrency(product.price)}
                   </p>
                   {onDelete ? (
-                    <button type="button" className={styles.delete} onClick={() => onDelete(product.id)}>
+                    <button
+                      type="button"
+                      className={styles.delete}
+                      onClick={() => onDelete(product.id)}
+                      disabled={controlsDisabled}
+                    >
                       Quitar del carrito
                     </button>
                   ) : null}
@@ -73,6 +80,7 @@ export function CartSummary({
                     <button
                       type="button"
                       onClick={() => onRemove(product.id)}
+                      disabled={controlsDisabled}
                       aria-label={`Quitar una unidad: ${product.name}`}
                     >
                       −
@@ -81,7 +89,7 @@ export function CartSummary({
                     <button
                       type="button"
                       onClick={() => onAdd(product.id)}
-                      disabled={quantity >= product.stock}
+                      disabled={controlsDisabled || quantity >= product.stock}
                       aria-label={`Agregar una unidad: ${product.name}`}
                     >
                       +
