@@ -7,6 +7,7 @@ import { healthService } from "@/core/api";
 import { cx } from "@/core/utils/cx";
 
 import { SECTIONS } from "../../resources.js";
+import { InKindDonationPanel } from "../InKindDonationPanel";
 import { OverviewPanel } from "../OverviewPanel";
 import { ReportPanel } from "../ReportPanel";
 import { ResourcePanel } from "../ResourcePanel";
@@ -26,7 +27,14 @@ const OVERVIEW = {
   description: "Estado general de la tienda, el inventario y las ventas. Selecciona un indicador para ver el detalle.",
 };
 
-const NAV = [OVERVIEW, ...SECTIONS];
+const IN_KIND_DONATION = {
+  id: "inkind-donation",
+  label: "Registrar donación en especie",
+  icon: "heart",
+  description: "Registra los artículos recibidos. La administradora se identifica automáticamente desde su sesión.",
+};
+
+const NAV = [OVERVIEW, ...SECTIONS, IN_KIND_DONATION];
 
 /** Indicador de `GET /health`: confirma que el backend alcanza la base de datos. */
 function ServerStatus() {
@@ -64,6 +72,7 @@ export function AdminPage() {
 
   let panel;
   if (section.id === OVERVIEW.id) panel = <OverviewPanel onNavigate={navigate} />;
+  else if (section.id === IN_KIND_DONATION.id) panel = <InKindDonationPanel />;
   else if (section.report) panel = <ReportPanel key={section.id} section={section} />;
   else panel = <ResourcePanel key={section.id} section={section} />;
 
