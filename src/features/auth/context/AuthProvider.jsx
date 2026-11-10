@@ -16,7 +16,7 @@ import { AuthContext } from "./authContext.js";
 const NO_ACCESS_MESSAGE =
   "Tu cuenta no tiene acceso a este portal. Solo se admiten cuentas de administración y de clientes (DONANTE).";
 
-/** Mantiene la sesión: restaura el token guardado y expone login y logout. */
+/** Mantiene la sesión: restaura el token guardado y expone login, registro y logout. */
 export function AuthProvider({ children }) {
   const [state, setState] = useState(() => ({
     status: getToken() ? "loading" : "anonymous",
@@ -90,7 +90,16 @@ export function AuthProvider({ children }) {
     [],
   );
 
-  const value = useMemo(() => ({ ...state, login, logout }), [state, login, logout]);
+  /** Crea la cuenta (rol DONANTE) e inicia sesión con las mismas credenciales. */
+  const register = useCallback(
+    async ({ username, email, clave }) => {
+      await authService.register({ username, email, clave });
+      return login({ email, clave });
+    },
+    [login],
+  );
+
+  const value = useMemo(() => ({ ...state, login, register, logout }), [state, login, register, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -110,6 +110,10 @@ function Layout() {
     }
     await cart.flush();
   };
+  // Tras pagar, cancelar o consultar operaciones se revisa con el backend el bloqueo del carrito.
+  const syncPendingStatus = () => {
+    cart.refreshPendingStatus();
+  };
 
   usePageTitle(pathname);
 
@@ -216,7 +220,7 @@ function Layout() {
           path="/payment-result"
           element={
             <RequireRole>
-              <PaymentResultPage onRestoreCart={restoreCart} />
+              <PaymentResultPage onRestoreCart={restoreCart} onStatusChange={syncPendingStatus} />
             </RequireRole>
           }
         />
@@ -224,7 +228,7 @@ function Layout() {
           path="/mis-operaciones"
           element={
             <RequireRole>
-              <MyOperationsPage userId={session.userId} />
+              <MyOperationsPage onOperationsChange={syncPendingStatus} />
             </RequireRole>
           }
         />

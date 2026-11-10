@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { Section } from "@/components/layout/Section";
 import { Alert } from "@/components/ui/Alert";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClassName } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
@@ -22,6 +22,10 @@ import styles from "./StorePage.module.css";
  * PENDIENTE DE CONTENIDO: la sección «Lo que logras con tu compra» se ocultó
  * hasta contar con cifras reales de impacto de la tienda.
  */
+
+const OPERATIONS_PATH = "/mis-operaciones";
+const LOCKED_MESSAGE =
+  "Tienes un pago pendiente. Para seguir comprando, complétalo o cancélalo desde Mis operaciones.";
 
 const STORE_TITLE = "Tienda SUMA21";
 const STORE_DESCRIPTION = "Cada compra apoya los programas de formación y autonomía de la asociación.";
@@ -85,6 +89,12 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
     };
   }, [reloadKey]);
 
+  // Al entrar a la tienda se confirma con el backend si hay un pago pendiente.
+  const { refreshPendingStatus } = cart;
+  useEffect(() => {
+    refreshPendingStatus();
+  }, [refreshPendingStatus]);
+
   // El enlace «Carrito» de la cabecera apunta a `#carrito`.
   useEffect(() => {
     if (hash === "#carrito" && catalog.status !== "loading") {
@@ -114,6 +124,7 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
     ? products.filter(({ name, description }) => `${name} ${description}`.toLowerCase().includes(term))
     : products;
   const busy = checkout.status === "creating";
+  const locked = session.authenticated && cart.locked;
 
   function retry() {
     setCatalog({ status: "loading", products: [], error: "" });
@@ -142,6 +153,7 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
         items: (result.sale?.items ?? []).map((item) => ({ productId: String(item.productId), quantity: item.quantity })),
       });
       cart.refresh();
+      cart.refreshPendingStatus();
       const mode = await openWompiCheckout(result.checkout, {
         onFinished: (transaction) => {
           if (checkoutFinished.current) return;
@@ -165,10 +177,11 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
           salesService
             .cancelCheckout()
             .then(async () => {
-              await cart.refresh();
+              await Promise.all([cart.refresh(), cart.refreshPendingStatus()]);
               setCheckout({ status: "cancelled", message: "El checkout se canceló y se liberó la reserva de stock." });
             })
             .catch((error) => {
+              cart.refreshPendingStatus();
               setCheckout({
                 status: "error",
                 message: `Wompi respondió al cierre sin una transacción, pero no se pudo cancelar en el servidor: ${describeError(error).message}`,
@@ -183,6 +196,12 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
         });
       }
     } catch (error) {
+      if (error?.code === "PENDING_CHECKOUT_CONFLICT") {
+        // El backend confirma que hay un pago pendiente: se activa el bloqueo.
+        cart.refreshPendingStatus();
+        setCheckout({ status: "idle", message: "" });
+        return;
+      }
       setCheckout({ status: "error", message: describeError(error).message });
     }
   }
@@ -195,6 +214,24 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
       headingLevel={1}
       align="start"
     >
+      {locked ? (
+        <div className={styles.lockNotice} role="status">
+          <span className={styles.lockIcon}>
+            <Icon name="clock" size={22} />
+          </span>
+          <div className={styles.lockText}>
+            <p className={styles.lockTitle}>Tienes un pago pendiente</p>
+            <p>
+              Para seguir agregando productos, primero completa o cancela ese pago desde Mis operaciones. Cuando lo
+              resuelvas, tu carrito volverá a funcionar con normalidad.
+            </p>
+          </div>
+          <Link to={OPERATIONS_PATH} className={buttonClassName({ size: "sm" })}>
+            Ir a Mis operaciones
+          </Link>
+        </div>
+      ) : null}
+
       <div className={styles.layout}>
         <div className={styles.catalog}>
           {products.length > 0 ? (
@@ -268,7 +305,8 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
                   product={product}
                   quantity={cart.items[product.id] ?? 0}
                   onAdd={(id) => cart.add(id, product.stock)}
-                  disabled={cart.status !== "ready"}
+                  disabled={cart.status !== "ready" || locked}
+                  disabledLabel={locked ? "Pago pendiente" : undefined}
                 />
               ))}
             </div>
@@ -298,17 +336,21 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
             onRemove={cart.decrement}
             onDelete={cart.remove}
             onCheckout={pay}
-            controlsDisabled={cart.status !== "ready"}
-            checkoutDisabled={busy || cart.status !== "ready" || cart.syncing || hasUnavailable}
+            controlsDisabled={cart.status !== "ready" || locked}
+            checkoutDisabled={busy || locked || cart.status !== "ready" || cart.syncing || hasUnavailable}
             checkoutLabel={
-              busy
+              locked
+                ? "Pago pendiente"
+                : busy
                 ? "Preparando el pago…"
                 : session.authenticated
                   ? "Pagar con Wompi"
                   : "Inicia sesión para comprar"
             }
             note={
-              cart.syncing
+              locked
+                ? LOCKED_MESSAGE
+                : cart.syncing
                 ? "Guardando cambios en tu cuenta…"
                 : cart.enabled
                   ? "Tu carrito se guarda en tu cuenta. El stock se reserva al pagar."

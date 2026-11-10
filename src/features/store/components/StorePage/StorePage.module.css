@@ -4,6 +4,57 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* Aviso de carrito bloqueado por un pago pendiente */
+.lockNotice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-6);
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-orange-50);
+  border: var(--border-width) solid var(--color-orange-200);
+  border-left: 4px solid var(--color-orange-500);
+  border-radius: var(--radius-md);
+}
+
+.lockIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--color-orange-100);
+  color: var(--color-orange-700);
+}
+
+.lockText {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--color-text);
+}
+
+.lockTitle {
+  font-weight: var(--font-weight-black);
+}
+
+.lockNotice > a {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+@media (min-width: 48rem) {
+  .lockNotice {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .lockNotice > a {
+    grid-column: auto;
+  }
+}
+
 .catalog {
   display: grid;
   gap: var(--space-5);

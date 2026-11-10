@@ -132,8 +132,22 @@ export const salesService = {
    */
   checkout: () => request("/sales/checkout", { method: "POST" }),
 
-  /** Cancela el checkout activo del usuario y libera la reserva de stock. */
+  /**
+   * Cancela la compra `PENDING` del usuario del token (sin cuerpo): la
+   * transacción pasa a `DECLINED`, se repone el stock y la venta vuelve a `DRAFT`.
+   * 400 `NO_PENDING_CHECKOUT` si no hay nada que cancelar; 409
+   * `SALE_CHECKOUT_CONFLICT` si el pago ya fue aprobado o cambió de estado.
+   * @returns {Promise<Sale>} El carrito `DRAFT` restaurado.
+   */
   cancelCheckout: () => request("/sales/checkout/cancel", { method: "POST" }),
+
+  /**
+   * Indica si el usuario tiene una compra pendiente de pago. Mientras sea
+   * `true`, el backend rechaza cambios al carrito y nuevos checkouts con 409
+   * `PENDING_CHECKOUT_CONFLICT`.
+   * @returns {Promise<{ hasPendingSale: boolean }>}
+   */
+  getPendingStatus: () => request("/sales/pending-status"),
 
   /** Todas las ventas con su estado (`DRAFT`, `PENDING`, `APPROVED`, `DECLINED`). */
   list: () => request("/sales"),
@@ -185,7 +199,25 @@ export const paymentsService = {
    * }>}
    */
   getStatus: (reference, { signal } = {}) => request(`/payments/${segment(reference)}`, { signal }),
+
+  /**
+   * Compras y donaciones del usuario del token, de la más reciente a la más
+   * antigua. `checkoutUrl` solo llega en las `PENDING`: es el enlace de Wompi
+   * para continuar el pago.
+   * @returns {Promise<UserTransaction[]>}
+   */
+  listMine: () => request("/payments/my-transactions"),
 };
+
+/**
+ * @typedef {{
+ *   id: string, reference: string | null, type: "SALE" | "DONATION",
+ *   amountInCents: number, currency: "COP",
+ *   status: "PENDING" | "APPROVED" | "DECLINED" | "VOIDED" | "ERROR",
+ *   checkoutUrl: string | null, createdAt: string,
+ *   details: { saleId: string, items: { productId: string, name: string, quantity: number }[] } | { donationId: string },
+ * }} UserTransaction
+ */
 
 export const healthService = {
   check: () => request("/health", { base: "root", auth: false }),

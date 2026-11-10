@@ -13,17 +13,18 @@ import styles from "./ConfirmDialog.module.css";
  *   title: string,
  *   children: import("react").ReactNode,
  *   confirmLabel?: string,
+ *   cancelLabel?: string,
  *   pending?: boolean,
  *   error?: string,
  *   onConfirm: () => void,
  *   onCancel: () => void,
  * }} props
  */
-export function ConfirmDialog({ open, title, children, confirmLabel = "Eliminar", pending = false, error, onConfirm, onCancel }) {
+export function ConfirmDialog({ open, title, children, confirmLabel = "Eliminar", cancelLabel = "Cancelar", pending = false, error, onConfirm, onCancel }) {
   const titleId = useId();
 
   return (
-    <Dialog open={open} onClose={onCancel} labelledBy={titleId} closeLabel="Cancelar" className={styles.dialog}>
+    <Dialog open={open} onClose={onCancel} labelledBy={titleId} closeLabel={cancelLabel} className={styles.dialog}>
       <div className={styles.content}>
         <h2 id={titleId} className={styles.title}>
           {title}
@@ -32,7 +33,7 @@ export function ConfirmDialog({ open, title, children, confirmLabel = "Eliminar"
         {error ? <Alert tone="error">{error}</Alert> : null}
         <div className={styles.actions}>
           <Button variant="outline" onClick={onCancel} disabled={pending}>
-            Cancelar
+            {cancelLabel}
           </Button>
           <Button variant="dangerSolid" onClick={onConfirm} disabled={pending}>
             {pending ? "Procesando…" : confirmLabel}

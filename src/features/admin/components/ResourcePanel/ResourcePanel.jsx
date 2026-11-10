@@ -3,13 +3,13 @@ import { useCallback, useEffect, useId, useState } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody } from "@/components/ui/Card";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { describeError, toList } from "@/core/api";
 
 import { changedFields, valuesFromRecord } from "../../formValues.js";
-import { ConfirmDialog } from "../ConfirmDialog";
 import { DataTable } from "../DataTable";
 import { FormDialog } from "../FormDialog";
 import { RecordForm } from "../RecordForm";

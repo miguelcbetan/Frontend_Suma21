@@ -5,6 +5,8 @@ import { describeError, salesService } from "@/core/api";
 import { CartContext } from "./cartContext.js";
 
 const STORAGE_KEY = "suma21.cart.v1";
+/** Código con el que el backend rechaza cambios al carrito mientras hay un pago pendiente. */
+const PENDING_CHECKOUT_CONFLICT = "PENDING_CHECKOUT_CONFLICT";
 const clamp = (quantity, max) => (max == null ? quantity : Math.min(quantity, Math.max(0, max)));
 
 function readItems() {
@@ -44,6 +46,11 @@ function guestState() {
  * Guarda el carrito del visitante en localStorage y el de la persona autenticada
  * en el backend. Al iniciar sesión, incorpora los productos locales al carrito
  * de la cuenta antes de dejar de usar el almacenamiento local.
+ *
+ * También expone el bloqueo por pago pendiente (`GET /sales/pending-status`):
+ * mientras el backend indique `hasPendingSale: true`, no se envían cambios al
+ * carrito. Se consulta al montar (inicio de sesión o recarga con sesión) y
+ * cuando la app llama a `refreshPendingStatus` (tienda, pagos, Mis operaciones).
  * @param {{ ownerId: string | null, children: import("react").ReactNode }} props
  */
 export function CartProvider({ ownerId, children }) {
@@ -53,10 +60,56 @@ export function CartProvider({ ownerId, children }) {
       : guestState(),
   );
   const [reloadKey, setReloadKey] = useState(0);
+  const [lock, setLock] = useState(() => ({ status: ownerId ? "checking" : "ready", blocked: false, error: "" }));
+  const blockedRef = useRef(false);
+  const lockRequestRef = useRef(null);
   const itemsRef = useRef(state.items);
   const queueRef = useRef(Promise.resolve());
   const pendingRef = useRef(0);
   const errorRef = useRef("");
+
+  /** Aplica el estado de bloqueo; si cambia, recarga el carrito (al cancelar vuelven sus productos). */
+  const applyLock = useCallback((blocked) => {
+    const changed = blockedRef.current !== blocked;
+    blockedRef.current = blocked;
+    setLock({ status: "ready", blocked, error: "" });
+    if (changed) setReloadKey((key) => key + 1);
+  }, []);
+
+  /**
+   * Consulta al backend si hay un pago pendiente. Las llamadas simultáneas
+   * comparten la misma solicitud.
+   * @returns {Promise<boolean>} `true` si el carrito queda bloqueado.
+   */
+  const refreshPendingStatus = useCallback(() => {
+    if (!ownerId) return Promise.resolve(false);
+    if (lockRequestRef.current) return lockRequestRef.current;
+
+    const request = salesService
+      .getPendingStatus()
+      .then((payload) => {
+        if (typeof payload?.hasPendingSale !== "boolean") {
+          throw new Error("El servidor respondió de forma inesperada al consultar los pagos pendientes.");
+        }
+        applyLock(payload.hasPendingSale);
+        return payload.hasPendingSale;
+      })
+      .catch((error) => {
+        // Sin respuesta válida se conserva el último estado conocido; el backend
+        // igualmente rechaza los cambios con 409 si hay un pago pendiente.
+        setLock((current) => ({ ...current, status: "error", error: describeError(error).message }));
+        return blockedRef.current;
+      })
+      .finally(() => {
+        lockRequestRef.current = null;
+      });
+    lockRequestRef.current = request;
+    return request;
+  }, [ownerId, applyLock]);
+
+  useEffect(() => {
+    refreshPendingStatus();
+  }, [refreshPendingStatus]);
 
   useEffect(() => {
     if (!ownerId) return undefined;
@@ -133,6 +186,13 @@ export function CartProvider({ ownerId, children }) {
           }
         } catch (error) {
           pendingRef.current = Math.max(0, pendingRef.current - 1);
+          if (error?.code === PENDING_CHECKOUT_CONFLICT) {
+            // El backend bloqueó el cambio: se activa el bloqueo y se recarga el carrito real.
+            errorRef.current = "";
+            setState((current) => ({ ...current, pending: pendingRef.current }));
+            applyLock(true);
+            return;
+          }
           const message = describeError(error).message;
           errorRef.current = message;
           setState((current) => ({
@@ -146,12 +206,12 @@ export function CartProvider({ ownerId, children }) {
 
       return queueRef.current;
     },
-    [],
+    [applyLock],
   );
 
   const setQuantity = useCallback(
     (id, quantity, max) => {
-      if (state.status !== "ready") return Promise.resolve();
+      if (state.status !== "ready" || blockedRef.current) return Promise.resolve();
       const key = String(id);
       const current = itemsRef.current[key] ?? 0;
       const next = clamp(Math.max(0, Math.trunc(quantity) || 0), max);
@@ -229,6 +289,10 @@ export function CartProvider({ ownerId, children }) {
       items: state.items,
       syncing: state.pending > 0,
       enabled: Boolean(ownerId),
+      locked: lock.blocked,
+      lockStatus: lock.status,
+      lockError: lock.error,
+      refreshPendingStatus,
       count,
       add,
       decrement,
@@ -238,7 +302,7 @@ export function CartProvider({ ownerId, children }) {
       refresh,
       retry,
     };
-  }, [state, ownerId, add, decrement, setQuantity, remove, flush, refresh, retry]);
+  }, [state, lock, ownerId, add, decrement, setQuantity, remove, flush, refresh, retry, refreshPendingStatus]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

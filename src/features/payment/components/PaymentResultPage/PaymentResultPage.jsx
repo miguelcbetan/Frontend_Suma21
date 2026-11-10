@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { Container } from "@/components/layout/Container";
@@ -209,9 +209,13 @@ function ApprovedReceipt({ payment, kind, session }) {
  * Página `/payment-result`: estado del pago (`GET /api/v1/payments/:reference`).
  * Toma la referencia de `?reference=` o del último pago iniciado en este
  * navegador. Solo se da por aprobado lo que el backend confirma.
- * @param {{ onRestoreCart: (items: { productId: string, quantity: number }[]) => Promise<void> }} props
+ * @param {{
+ *   onRestoreCart: (items: { productId: string, quantity: number }[]) => Promise<void>,
+ *   onStatusChange?: () => void,
+ * }} props `onStatusChange` avisa cada vez que el backend confirma un estado,
+ *   para revisar el bloqueo del carrito por pagos pendientes.
  */
-export function PaymentResultPage({ onRestoreCart }) {
+export function PaymentResultPage({ onRestoreCart, onStatusChange }) {
   const { state: navigationState } = useLocation();
   const [params] = useSearchParams();
   const reference = params.get("reference") ?? lastPaymentReference();
@@ -220,6 +224,14 @@ export function PaymentResultPage({ onRestoreCart }) {
   const kind = paymentKindOf(payment?.reference ?? reference) ?? session?.kind ?? null;
   const outcome = status === "ready" ? outcomeOf(payment) : null;
   const wompiCallback = navigationState?.wompiCallback;
+  const statusChangeRef = useRef(onStatusChange);
+  useEffect(() => {
+    statusChangeRef.current = onStatusChange;
+  });
+  const confirmedStatus = status === "ready" ? payment?.status : null;
+  useEffect(() => {
+    if (confirmedStatus) statusChangeRef.current?.();
+  }, [confirmedStatus]);
   let content;
   if (status === "loading") {
     content = (

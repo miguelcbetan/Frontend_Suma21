@@ -4,6 +4,42 @@
   padding-block: var(--space-7);
 }
 
+.section {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.sectionHead {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xl);
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding-inline: var(--space-2);
+  border-radius: 999px;
+  background: var(--color-orange-500);
+  color: var(--color-on-dark);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-black);
+}
+
+.sectionText {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
 .list {
   display: grid;
   gap: var(--space-3);
@@ -23,6 +59,12 @@
   box-shadow: var(--shadow-sm);
 }
 
+.pendingRow {
+  background: var(--color-orange-50);
+  border-color: var(--color-orange-200);
+  border-left: 4px solid var(--color-orange-500);
+}
+
 .kindIcon {
   display: inline-flex;
   align-items: center;
@@ -30,6 +72,11 @@
   width: 2.75rem;
   height: 2.75rem;
   border-radius: var(--radius-md);
+  background: var(--color-green-100);
+  color: var(--color-green-700);
+}
+
+.kindIconPending {
   background: var(--color-orange-100);
   color: var(--color-orange-700);
 }
@@ -51,9 +98,20 @@
   font-size: var(--font-size-lg);
 }
 
-.summary {
-  color: var(--color-text-muted);
+.items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  color: var(--color-text);
   font-size: var(--font-size-sm);
+  list-style: none;
+}
+
+.qty {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-bold);
 }
 
 .details {
@@ -90,6 +148,13 @@
 .amount {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-black);
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 @media (min-width: 48rem) {
@@ -102,5 +167,9 @@
     flex-direction: column;
     grid-column: auto;
     align-items: flex-end;
+  }
+
+  .actions {
+    justify-content: flex-end;
   }
 }

@@ -6,6 +6,7 @@ import { createContext } from "react";
  *   status: "loading" | "authenticated" | "anonymous",
  *   user: AuthUser | null,
  *   login: (credentials: { email: string, clave: string }) => Promise<AuthUser>,
+ *   register: (data: { username: string, email: string, clave: string }) => Promise<AuthUser>,
  *   logout: () => void,
  * }} AuthValue
  */
