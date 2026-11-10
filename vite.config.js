@@ -1,18 +1,17 @@
 import { fileURLToPath } from "node:url";
 
+import basicSsl from "@vitejs/plugin-basic-ssl";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 /**
- * El CORS del backend de datos (Render) solo admite el origen exacto
- * `http://localhost:5173`: el servidor de desarrollo y `vite preview` se fijan
- * en ese puerto (`strictPort` falla en vez de saltar a 5174) y deben abrirse
- * como `localhost`, no como `127.0.0.1`.
+ * El backend de datos permite `http://localhost:5173`, mientras que auth
+ * requiere un origen HTTPS. Usa siempre `https://localhost:5173` en local.
  */
 const LOCAL_PORT = 5173;
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), basicSsl()],
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
