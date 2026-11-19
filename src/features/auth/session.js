@@ -33,7 +33,13 @@ function toRoleName(role) {
  * usuario anidado (`usuario` / `user`) o en la raíz. El backend de datos toma
  * el comprador o donante del token, así que el frontend ya no envía este ID:
  * solo se usa para asociar los pagos guardados en este navegador.
- * @returns {{ id: string | null, username: string, email: string, roles: string[] } | null}
+ *
+ * `requiresDocumentCompletion` solo llega en el login puente; el perfil del
+ * servicio de auth no lo trae, por eso se recuerda aparte (ver más abajo).
+ * @returns {{
+ *   id: string | null, username: string, email: string, roles: string[],
+ *   requiresDocumentCompletion: boolean,
+ * } | null}
  */
 export function pickUser(payload) {
   const raw = [payload?.usuario, payload?.user, payload?.data, payload].find(looksLikeUser);
@@ -48,7 +54,42 @@ export function pickUser(payload) {
     username: raw.username ?? raw.nombre ?? raw.email,
     email: raw.email ?? "",
     roles,
+    requiresDocumentCompletion: payload?.requiresDocumentCompletion === true,
   };
+}
+
+const DOCUMENT_PENDING_KEY = "suma21.requiresDocument";
+
+/**
+ * Recuerda en este navegador si la sesión aún debe completar el documento,
+ * para que el aviso siga apareciendo tras recargar (el perfil no lo informa).
+ * @param {boolean} pending
+ */
+export function storeDocumentPending(pending) {
+  try {
+    if (pending) localStorage.setItem(DOCUMENT_PENDING_KEY, "1");
+    else localStorage.removeItem(DOCUMENT_PENDING_KEY);
+  } catch {
+    // Almacenamiento no disponible: el aviso dura lo que la pestaña.
+  }
+}
+
+/** @returns {boolean} */
+export function readDocumentPending() {
+  try {
+    return localStorage.getItem(DOCUMENT_PENDING_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * El documento solo se exige a clientes: el panel de administración no compra
+ * ni dona a nombre propio.
+ * @param {{ roles: string[], requiresDocumentCompletion?: boolean } | null | undefined} user
+ */
+export function needsDocumentCompletion(user) {
+  return Boolean(user?.requiresDocumentCompletion) && !isAdmin(user);
 }
 
 /** @param {{ roles: string[] } | null | undefined} user */

@@ -6,19 +6,22 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 import { useAuth } from "../../context/useAuth.js";
-import { hasRole } from "../../session.js";
+import { hasRole, needsDocumentCompletion } from "../../session.js";
 
 import styles from "./RequireRole.module.css";
 
 /**
- * Protege una ruta: exige sesión y, si se indica, el rol requerido.
+ * Protege una ruta: exige sesión y, si se indica, el rol requerido. Mientras
+ * falte la verificación de documento no monta la página (el diálogo
+ * obligatorio la cubre), para que no consulte endpoints que el backend aún
+ * rechaza; al completarla, la página se monta y carga normalmente.
  * @param {{ requiredRole?: string, children: import("react").ReactNode }} props
  */
 export function RequireRole({ requiredRole, children }) {
   const { status, user, logout } = useAuth();
   const location = useLocation();
 
-  if (status === "loading") {
+  if (status === "loading" || (status === "authenticated" && needsDocumentCompletion(user))) {
     return (
       <Container className={styles.container}>
         <p role="status" className="sr-only">

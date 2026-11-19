@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { ApiError, describeError, paymentsService, productsService, salesService, toList } from "@/core/api";
+import { ApiError, describeError, productsService, salesService, toList } from "@/core/api";
 import { savePaymentSession } from "@/core/utils/paymentSession";
 import { checkoutUrlWithReturn, isWompiCheckoutUrl, reserveCheckoutTab } from "@/core/utils/wompiWidget";
 
@@ -23,9 +23,9 @@ import styles from "./StorePage.module.css";
  * hasta contar con cifras reales de impacto de la tienda.
  */
 
-const OPERATIONS_PATH = "/mis-operaciones";
+const OPERATIONS_PATH = "/mis-compras";
 const LOCKED_MESSAGE =
-  "Tienes un pago pendiente. Para seguir comprando, complétalo o cancélalo desde Mis operaciones.";
+  "Tienes un pago pendiente. Para seguir comprando, complétalo o cancélalo desde Mis compras.";
 
 const STORE_TITLE = "Tienda SUMA21";
 const STORE_DESCRIPTION = "Cada compra apoya los programas de formación y autonomía de la asociación.";
@@ -143,9 +143,8 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
 
   /**
    * Requiere sesión, espera la sincronización del carrito y crea el checkout
-   * (`POST /sales/checkout`). El enlace de pago se toma de
-   * `GET /payments/my-transactions` (el mismo que usa «Continuar con el pago»)
-   * y se abre en una pestaña aparte; esta pestaña sigue en la tienda.
+   * (`POST /sales/checkout`). El enlace de pago (`checkout.paymentUrl`) se abre
+   * en una pestaña aparte; esta pestaña sigue en la tienda.
    */
   async function pay() {
     if (!session.authenticated) {
@@ -171,16 +170,13 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
       cart.refresh();
       cart.refreshPendingStatus();
 
-      const transactions = await paymentsService.listMine();
-      const transaction = Array.isArray(transactions)
-        ? transactions.find((item) => item.reference === reference)
-        : null;
-      if (!transaction || transaction.status !== "PENDING" || !isWompiCheckoutUrl(transaction.checkoutUrl)) {
+      const paymentUrl = result?.checkout?.paymentUrl;
+      if (!isWompiCheckoutUrl(paymentUrl)) {
         throw new ApiError(
-          "Tu compra quedó registrada, pero no recibimos el enlace de pago. Continúa el pago desde Mis operaciones.",
+          "Tu compra quedó registrada, pero no recibimos el enlace de pago. Continúa el pago desde Mis compras.",
         );
       }
-      const url = checkoutUrlWithReturn(transaction.checkoutUrl, reference);
+      const url = checkoutUrlWithReturn(paymentUrl, reference);
       if (tab.go(url)) {
         setCheckout({ status: "idle", message: "" });
       } else {
@@ -214,12 +210,12 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
           <div className={styles.lockText}>
             <p className={styles.lockTitle}>Tienes un pago pendiente</p>
             <p>
-              Para seguir agregando productos, primero completa o cancela ese pago desde Mis operaciones. Cuando lo
+              Para seguir agregando productos, primero completa o cancela ese pago desde Mis compras. Cuando lo
               resuelvas, tu carrito volverá a funcionar con normalidad.
             </p>
           </div>
           <Link to={OPERATIONS_PATH} className={buttonClassName({ size: "sm" })}>
-            Ir a Mis operaciones
+            Ir a Mis compras
           </Link>
         </div>
       ) : null}

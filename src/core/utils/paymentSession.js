@@ -2,8 +2,8 @@ const PREFIX = "suma21.payment.";
 const LAST_KEY = `${PREFIX}last`;
 
 /**
- * Lo que el backend no devuelve al consultar un pago (los datos del donante
- * para el certificado y el resumen de lo comprado). Se guarda en este
+ * Lo que el backend no devuelve al consultar un pago (el ID de la donación
+ * para descargar su certificado y el resumen de lo comprado). Se guarda en este
  * navegador al crear el checkout, antes de abrir Wompi, para reconstruir el
  * recibo al volver. No es la fuente del estado del pago: ese siempre se
  * consulta al backend.
@@ -11,8 +11,8 @@ const LAST_KEY = `${PREFIX}last`;
  *   reference: string,
  *   kind: "donation" | "sale",
  *   personId?: string,
- *   donorName?: string,
- *   donorDocument?: string,
+ *   donationId?: string,
+ *   sponsorPlanId?: string,
  *   summary?: string,
  *   items?: { productId: string, quantity: number }[],
  *   createdAt: string,
@@ -89,4 +89,14 @@ export function paymentKindOf(reference) {
   if (reference.startsWith("SALE-")) return "sale";
   if (reference.startsWith("DON-")) return "donation";
   return null;
+}
+
+/**
+ * ID de la donación monetaria que codifica una referencia `DON-<id>`.
+ * @param {string | null | undefined} reference
+ * @returns {string | null}
+ */
+export function donationIdFromReference(reference) {
+  const match = /^DON-(\d+)$/.exec(reference ?? "");
+  return match ? match[1] : null;
 }

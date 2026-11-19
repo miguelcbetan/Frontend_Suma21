@@ -1,0 +1,198 @@
+.dialog {
+  background:
+    linear-gradient(rgb(0 0 0 / 0.72), rgb(0 0 0 / 0.82)),
+    url("../../../../assets/images/mural.jpeg") left center / cover no-repeat;
+  color: var(--color-on-dark);
+}
+
+.dialog :focus-visible {
+  outline-color: var(--color-primary);
+}
+
+.content {
+  display: grid;
+  align-items: center;
+  gap: var(--space-6);
+  min-height: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+  padding: var(--space-8) var(--container-gutter) var(--space-6);
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.eyebrow {
+  padding: var(--space-1) var(--space-3);
+  background: rgb(0 0 0 / 0.5);
+  border: var(--border-width) solid rgb(241 151 39 / 0.5);
+  border-radius: var(--radius-full);
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+.title {
+  font-size: clamp(1.75rem, 1.1rem + 2.6vw, 3rem);
+  line-height: 1.1;
+}
+
+.lead {
+  max-width: 34rem;
+  color: var(--color-on-dark-muted);
+  font-size: var(--font-size-lg);
+}
+
+.lead strong {
+  color: var(--color-on-dark);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  padding: var(--space-5);
+  background: var(--color-bg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-text);
+  text-align: left;
+}
+
+.form :focus-visible {
+  outline-color: var(--color-focus);
+}
+
+.formHeader {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.formTitle {
+  font-size: var(--font-size-xl);
+}
+
+.formHint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.benefits {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0;
+  color: var(--color-on-dark-muted);
+  list-style: none;
+}
+
+.benefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.benefits svg {
+  flex-shrink: 0;
+  margin-top: 0.15em;
+  color: var(--color-primary);
+}
+
+.frequency {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.frequencyGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.frequencyTile {
+  position: relative;
+  display: flex;
+}
+
+.frequencyInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.frequencyText {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg);
+  border: 2px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-bold);
+  text-align: center;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
+}
+
+.frequencyText small {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-regular);
+  font-size: var(--font-size-xs);
+}
+
+.frequencyTile:hover .frequencyText {
+  border-color: var(--color-orange-500);
+}
+
+.frequencyInput:checked + .frequencyText {
+  background: var(--color-orange-50);
+  border-color: var(--color-orange-500);
+  color: var(--color-brown-900);
+}
+
+.frequencyInput:focus-visible + .frequencyText {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.summary {
+  padding: var(--space-3);
+  background: var(--color-surface-brand);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+}
+
+@media (min-width: 64rem) {
+  .content {
+    grid-template-columns: 1.1fr minmax(0, 28rem);
+    gap: var(--space-8);
+  }
+
+  .form {
+    padding: var(--space-6);
+  }
+}

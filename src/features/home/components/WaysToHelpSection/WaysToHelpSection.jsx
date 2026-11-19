@@ -27,10 +27,10 @@ function useNeededCount() {
 }
 
 /**
- * Las tres formas reales de apoyar desde la plataforma.
- * @param {{ donateButton?: import("react").ReactNode }} props
+ * Las cuatro formas reales de apoyar desde la plataforma.
+ * @param {{ donateButton?: import("react").ReactNode, sponsorButton?: import("react").ReactNode }} props
  */
-export function WaysToHelpSection({ donateButton }) {
+export function WaysToHelpSection({ donateButton, sponsorButton }) {
   const neededCount = useNeededCount();
 
   const ways = [
@@ -41,6 +41,14 @@ export function WaysToHelpSection({ donateButton }) {
       description:
         "Elige un monto sugerido o escribe el tuyo y paga en línea con Wompi. Al aprobarse el pago puedes descargar tu certificado de donación.",
       action: donateButton,
+    },
+    {
+      icon: "users",
+      tone: "orange",
+      title: "Plan Padrino",
+      description:
+        "Comprométete con un aporte mensual, trimestral, semestral o anual durante un año. Das estabilidad a los programas y recibes un certificado por cada cuota pagada.",
+      action: sponsorButton,
     },
     {
       icon: "bag",
@@ -81,7 +89,7 @@ export function WaysToHelpSection({ donateButton }) {
       id="como-apoyar"
       eyebrow="Formas de apoyar"
       title="Elige cómo quieres sumar"
-      description="Tres maneras de aportar a los programas de ASISCO desde SUMA21."
+      description="Cuatro maneras de aportar a los programas de ASISCO desde SUMA21."
     >
       <ul className={styles.grid}>
         {ways.map(({ icon, tone, title, description, meta, action }) => (

@@ -17,9 +17,9 @@ const TRUST = [
 
 /**
  * Portada: propósito de SUMA21 y acciones principales.
- * @param {{ donateButton?: import("react").ReactNode }} props
+ * @param {{ donateButton?: import("react").ReactNode, sponsorButton?: import("react").ReactNode }} props
  */
-export function Hero({ donateButton }) {
+export function Hero({ donateButton, sponsorButton }) {
   return (
     <section className={styles.hero} aria-labelledby="hero-title">
       <Container className={styles.inner}>
@@ -32,8 +32,8 @@ export function Hero({ donateButton }) {
         <div className={styles.content}>
           {/* PENDIENTE DE CONTENIDO: confirmar la frase oficial de propósito de SUMA21. */}
           <p className={styles.lead}>
-            SUMA21 es la plataforma de ASISCO para donar, comprar en la tienda solidaria y aportar los artículos
-            que la fundación necesita. Tus aportes apoyan sus programas de formación laboral, arte, barismo
+            SUMA21 es la plataforma de ASISCO para donar, apadrinar con el Plan Padrino, comprar en la tienda
+            solidaria y aportar los artículos que la fundación necesita. Tus aportes apoyan sus programas de formación laboral, arte, barismo
             inclusivo y autonomía.
           </p>
           <div className={styles.actions}>
@@ -45,6 +45,7 @@ export function Hero({ donateButton }) {
             <Link to="/donaciones-en-especie" className={buttonClassName({ variant: "outline", size: "lg" })}>
               Donar en especie
             </Link>
+            {sponsorButton}
           </div>
           <ul className={styles.trust}>
             {TRUST.map(({ icon, text }) => (

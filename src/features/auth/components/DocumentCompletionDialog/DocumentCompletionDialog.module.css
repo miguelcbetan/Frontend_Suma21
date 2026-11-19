@@ -1,0 +1,26 @@
+.dialog {
+  padding: 0;
+}
+
+.content {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-7);
+}
+
+.content h2 {
+  margin: 0;
+  color: var(--color-brand-dark);
+  font-size: var(--font-size-xl);
+}
+
+.description {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.form {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}

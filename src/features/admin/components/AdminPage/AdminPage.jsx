@@ -11,6 +11,7 @@ import { InKindDonationPanel } from "../InKindDonationPanel";
 import { OverviewPanel } from "../OverviewPanel";
 import { ReportPanel } from "../ReportPanel";
 import { ResourcePanel } from "../ResourcePanel";
+import { SignaturesPanel } from "../SignaturesPanel";
 
 import styles from "./AdminPage.module.css";
 
@@ -33,10 +34,19 @@ const IN_KIND_DONATION = {
   title: "Registrar donación en especie",
   icon: "package",
   description:
-    "Registra los artículos que la fundación recibió. Se suman al stock del inventario y quedan registrados con tu usuario.",
+    "Registra los artículos que la fundación recibió y los datos del donante. Se suman al stock del inventario, se emite el certificado de donación y se envía al correo del donante.",
 };
 
-const NAV = [OVERVIEW, ...SECTIONS, IN_KIND_DONATION];
+const SIGNATURES = {
+  id: "signatures",
+  label: "Firmas de certificados",
+  title: "Firmas de los certificados",
+  icon: "pencil",
+  description:
+    "Sube o reemplaza las firmas del representante legal y del revisor fiscal que aparecen en los certificados de donación.",
+};
+
+const NAV = [OVERVIEW, ...SECTIONS, IN_KIND_DONATION, SIGNATURES];
 
 /** Indicador de `GET /health`: confirma que el backend alcanza la base de datos. */
 function ServerStatus() {
@@ -74,7 +84,8 @@ export function AdminPage() {
 
   let panel;
   if (section.id === OVERVIEW.id) panel = <OverviewPanel onNavigate={navigate} />;
-  else if (section.id === IN_KIND_DONATION.id) panel = <InKindDonationPanel />;
+  else if (section.id === IN_KIND_DONATION.id) panel = <InKindDonationPanel onNavigate={navigate} />;
+  else if (section.id === SIGNATURES.id) panel = <SignaturesPanel />;
   else if (section.report) panel = <ReportPanel key={section.id} section={section} />;
   else panel = <ResourcePanel key={section.id} section={section} />;
 

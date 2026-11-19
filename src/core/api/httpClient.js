@@ -41,7 +41,9 @@ async function readBody(response) {
  * Llamada JSON al backend. `base` elige el servicio (`api` por defecto, `root`
  * o `auth`). Con `auth: true` (por defecto) se adjunta el token `Bearer` si hay
  * sesión: el backend de datos lo valida contra el servicio de autenticación.
- * Lanza `ApiError` ante cualquier respuesta no exitosa.
+ * Lanza `ApiError` ante cualquier respuesta no exitosa. Con
+ * `responseType: "blob"` devuelve el cuerpo binario (p. ej. un PDF); los
+ * errores siguen llegando como JSON.
  *
  * Solo un 401 del servicio de autenticación cierra la sesión: el backend de
  * datos puede responder 401 transitorio si el servicio de seguridad está
@@ -50,11 +52,15 @@ async function readBody(response) {
  * @param {{
  *   method?: string, body?: unknown, auth?: boolean, base?: "api" | "root" | "auth",
  *   query?: Record<string, string | number | undefined | null>, signal?: AbortSignal,
+ *   responseType?: "json" | "blob",
  * }} [options]
  * @returns {Promise<any>}
  */
-export async function request(path, { method = "GET", body, auth = true, base = "api", query, signal } = {}) {
-  const headers = { Accept: "application/json" };
+export async function request(
+  path,
+  { method = "GET", body, auth = true, base = "api", query, signal, responseType = "json" } = {},
+) {
+  const headers = { Accept: responseType === "blob" ? "*/*" : "application/json" };
   // `FormData` (subida de archivos) lleva su propio Content-Type con el boundary.
   const isForm = typeof FormData !== "undefined" && body instanceof FormData;
   if (body !== undefined && !isForm) headers["Content-Type"] = "application/json";
@@ -83,6 +89,8 @@ export async function request(path, { method = "GET", body, auth = true, base = 
       "No se pudo conectar con el servidor. Si acaba de despertar, espera unos segundos e inténtalo otra vez.",
     );
   }
+
+  if (response.ok && responseType === "blob") return response.blob();
 
   const data = await readBody(response);
 

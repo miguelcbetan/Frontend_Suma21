@@ -132,9 +132,11 @@
 
 /* Escritorio: todo en una fila */
 @media (min-width: 75rem) {
-  .bar {
+  /* Un poco más ancha que el contenido para que el menú quepa en una fila. */
+  .header .bar {
     flex-wrap: nowrap;
-    gap: var(--space-4);
+    gap: var(--space-3);
+    max-width: 78rem;
   }
 
   .brand {
@@ -153,13 +155,15 @@
     align-items: center;
     justify-content: space-between;
     order: 0;
-    gap: var(--space-4);
+    gap: var(--space-3);
+    min-width: 0;
     max-height: none;
     padding: 0;
     overflow: visible;
   }
 
   .list {
+    flex: none;
     flex-direction: row;
     gap: var(--space-1);
   }
@@ -170,8 +174,9 @@
 
   .link {
     min-height: 2.5rem;
-    padding-inline: var(--space-3);
+    padding-inline: var(--space-2);
     font-size: var(--font-size-sm);
+    white-space: nowrap;
   }
 
   .link:hover {
@@ -180,18 +185,20 @@
 
   .link[aria-current="page"]::after {
     position: absolute;
-    right: var(--space-3);
+    right: var(--space-2);
     bottom: 0.2rem;
-    left: var(--space-3);
+    left: var(--space-2);
     height: 3px;
     border-radius: var(--radius-full);
     background: var(--color-orange-500);
     content: "";
   }
 
+  /* Si falta espacio, se recorta el nombre del usuario (con «…») y no el menú. */
   .actions {
     flex-wrap: nowrap;
     gap: var(--space-2);
+    min-width: 0;
     padding-top: 0;
     border-top: 0;
   }

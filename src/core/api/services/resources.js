@@ -151,6 +151,13 @@ export const salesService = {
 
   /** Todas las ventas con su estado (`DRAFT`, `PENDING`, `APPROVED`, `DECLINED`). */
   list: () => request("/sales"),
+
+  /**
+   * Compras del usuario del token («Mis compras»), sin carritos `DRAFT`. La
+   * `PENDING` va primero y es la única con `checkoutUrl` (para retomar el pago).
+   * @returns {Promise<MySale[]>}
+   */
+  listMine: () => request("/sales/me"),
 };
 
 export const donationsService = {
@@ -162,16 +169,131 @@ export const donationsService = {
   createMonetary: ({ amount }) => request("/donations/monetary", { method: "POST", body: { amount } }),
 
   /**
-   * Donación en especie registrada por ADMIN sobre artículos de inventario existentes.
-   * El donante se obtiene del usuario autenticado en el token; no se envía en el cuerpo.
+   * Cancela una donación monetaria `PENDING` del usuario del token: su
+   * transacción pasa a `DECLINED`. 403 si es de otra persona; 404 si no existe;
+   * 409 si ya no está pendiente (p. ej. ya se aprobó).
+   * @param {string} donationId
+   * @returns {Promise<{ message: string }>}
+   */
+  cancelMonetary: (donationId) => request(`/donations/${segment(donationId)}/cancel`, { method: "POST" }),
+
+  /**
+   * Donación en especie registrada por ADMIN sobre artículos de inventario
+   * existentes. El backend busca o crea al donante por su documento, suma el
+   * stock, emite el certificado y lo envía por correo. 409 si faltan las firmas
+   * oficiales; 404 si algún artículo no existe o está inactivo.
    * @param {{
    *   donation_date: string, notes?: string,
+   *   donor_name: string, donor_document_type: string, donor_document_number: string, donor_email: string,
    *   items: { inventory_item_id: string, quantity: number, estimated_unit_value?: number }[],
    * }} donation
-   * @returns {Promise<{ donationId: string }>}
+   * @returns {Promise<{ donationId: string, certificate_number: string, certificate_pdf_base64: string }>}
    */
   createInKind: (donation) => request("/donations/inkind", { method: "POST", body: donation }),
+
+  /**
+   * Sube o reemplaza las firmas oficiales de los certificados (solo ADMIN),
+   * en `multipart/form-data`. Se puede enviar una sola: solo se reemplaza la
+   * enviada. Imágenes PNG o JPEG. 400 si no llega ninguna o el formato no es válido.
+   * @param {{ legal_representative?: File | null, tax_auditor?: File | null }} files
+   * @returns {Promise<{ updated_roles: ("legal_representative" | "tax_auditor")[], message: string }>}
+   */
+  uploadSignatures: ({ legal_representative, tax_auditor }) => {
+    const form = new FormData();
+    if (legal_representative) form.append("legal_representative", legal_representative);
+    if (tax_auditor) form.append("tax_auditor", tax_auditor);
+    return request("/donations/signatures", { method: "POST", body: form });
+  },
+
+  /**
+   * Donaciones monetarias únicas del usuario del token, de la más reciente a
+   * la más antigua (excluye las cuotas del Plan Padrino).
+   * @returns {Promise<{
+   *   donation_id: string, status: "PENDING" | "APPROVED" | "DECLINED" | "VOIDED" | "ERROR",
+   *   amount: number, transaction_reference: string | null, checkout_url: string | null,
+   *   created_at: string, tax_year: number, certificate_issued: boolean,
+   *   certificate_number: string | null, can_download_certificate: boolean,
+   * }[]>}
+   */
+  listMyMonetary: () => request("/donations/monetary/me"),
+
+  /**
+   * Donaciones en especie asociadas al perfil del usuario del token (incluye
+   * las que registró un ADMIN antes de vincular la cuenta).
+   * @returns {Promise<{
+   *   inkind_id: string, donation_date: string, tax_year: number, notes: string | null,
+   *   total_estimated_amount: number, certificate_issued: boolean, certificate_number: string | null,
+   *   can_download_certificate: boolean,
+   *   items: { inventory_item_id: string, item_name: string, quantity: number, estimated_unit_value: number | null }[],
+   * }[]>}
+   */
+  listMyInKind: () => request("/donations/inkind/me"),
+
+  /**
+   * Certificado PDF oficial de una donación monetaria `APPROVED` (titular o
+   * ADMIN). El backend lo genera con los datos del perfil de donante. 409 si
+   * la donación no está aprobada o faltan las firmas oficiales.
+   * @param {string} donationId
+   * @returns {Promise<Blob>}
+   */
+  monetaryCertificate: (donationId) =>
+    request(`/donations/monetary/${segment(donationId)}/certificate`, { responseType: "blob" }),
+
+  /**
+   * Certificado PDF de una donación en especie (titular o ADMIN).
+   * @param {string} inkindId
+   * @returns {Promise<Blob>}
+   */
+  inKindCertificate: (inkindId) =>
+    request(`/donations/inkind/${segment(inkindId)}/certificate`, { responseType: "blob" }),
+
+  /**
+   * Crea la suscripción al Plan Padrino del usuario del token: queda `ACTIVE`
+   * durante 12 meses con su primera cuota `PENDING` (no trae checkout: la cuota
+   * se paga con `checkoutSponsorCycle`). 409 si ya tiene un plan `ACTIVE`.
+   * @param {{ amount: number, frequency: SponsorFrequency }} plan `amount` en pesos, por cuota.
+   * @returns {Promise<SponsorPlan>}
+   */
+  createSponsorPlan: ({ amount, frequency }) =>
+    request("/donations/sponsor-plans", { method: "POST", body: { amount, frequency } }),
+
+  /**
+   * Planes del usuario con sus cuotas. El backend recalcula al consultar
+   * (cuotas `OVERDUE`, cierre al cumplir el año).
+   * @returns {Promise<SponsorPlan[]>}
+   */
+  listSponsorPlans: () => request("/donations/sponsor-plans/me"),
+
+  /**
+   * Crea la donación `DON-*` y el checkout de Wompi para una cuota `PENDING`
+   * u `OVERDUE`. 409 si la cuota no está por pagar o ya tiene un checkout
+   * `PENDING` vigente; 403 si es de otra persona.
+   * @param {string} cycleId
+   * @returns {Promise<{ cycleId: string, donationId: string, checkout: WompiCheckout }>}
+   */
+  checkoutSponsorCycle: (cycleId) =>
+    request(`/donations/sponsor-plans/cycles/${segment(cycleId)}/checkout`, { method: "POST" }),
+
+  /**
+   * Cancela el plan `ACTIVE` y sus cuotas `PENDING`/`OVERDUE`. 409 si el plan
+   * ya no está activo.
+   * @param {string} planId
+   */
+  cancelSponsorPlan: (planId) => request(`/donations/sponsor-plans/${segment(planId)}/cancel`, { method: "POST" }),
 };
+
+/**
+ * @typedef {"MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "ANNUAL"} SponsorFrequency
+ * @typedef {{
+ *   cycleId: string, cycleNumber: number, dueDate: string, amount: number,
+ *   status: string, emailNotified: boolean, donationId: string | null,
+ *   paidAt: string | null, certificateIssued: boolean, certificateNumber: string | null,
+ * }} SponsorCycle
+ * @typedef {{
+ *   sponsorPlanId: string, donorId: string, amount: number, frequency: SponsorFrequency,
+ *   status: string, startDate: string, endDate: string, createdAt: string, cycles: SponsorCycle[],
+ * }} SponsorPlan
+ */
 
 /**
  * Reportes de ingresos aprobados, paginados.
@@ -199,24 +321,18 @@ export const paymentsService = {
    * }>}
    */
   getStatus: (reference, { signal } = {}) => request(`/payments/${segment(reference)}`, { signal }),
-
-  /**
-   * Compras y donaciones del usuario del token, de la más reciente a la más
-   * antigua. `checkoutUrl` solo llega en las `PENDING`: es el enlace de Wompi
-   * para continuar el pago.
-   * @returns {Promise<UserTransaction[]>}
-   */
-  listMine: () => request("/payments/my-transactions"),
 };
 
 /**
+ * Compra de `GET /sales/me`.
  * @typedef {{
- *   id: string, reference: string | null, type: "SALE" | "DONATION",
- *   amountInCents: number, currency: "COP",
- *   status: "PENDING" | "APPROVED" | "DECLINED" | "VOIDED" | "ERROR",
+ *   saleId: string, status: "PENDING" | "APPROVED" | "DECLINED",
+ *   paymentStatus: "PENDING" | "APPROVED" | "DECLINED" | "VOIDED" | "ERROR",
+ *   transactionReference: string | null, paymentMethod: string | null,
+ *   totalPrice: number, amountInCents: number, currency: "COP",
  *   checkoutUrl: string | null, createdAt: string,
- *   details: { saleId: string, items: { productId: string, name: string, quantity: number }[] } | { donationId: string },
- * }} UserTransaction
+ *   items: { productId: string, name: string, quantity: number, unitPrice: number, subtotal: number }[],
+ * }} MySale
  */
 
 export const healthService = {

@@ -28,7 +28,8 @@ export function ProfilePage() {
   const shortcuts = admin
     ? [{ to: "/admin", icon: "chart", title: "Panel de administración", text: "Productos, inventario y ventas registradas." }]
     : [
-        { to: "/mis-operaciones", icon: "receipt", title: "Mis operaciones", text: "Estado de tus compras y donaciones." },
+        { to: "/mis-compras", icon: "receipt", title: "Mis compras", text: "Estado de tus compras en la tienda." },
+        { to: "/mis-donaciones", icon: "heart", title: "Mis donaciones", text: "Donaciones, Plan Padrino y certificados." },
         { to: "/apoyanos-tienda", icon: "bag", title: "Tienda", text: "Productos disponibles y tu carrito." },
         { to: "/donaciones-en-especie", icon: "package", title: "Donar en especie", text: "Artículos que solicita la fundación." },
       ];

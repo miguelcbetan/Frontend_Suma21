@@ -11,13 +11,12 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
-import { ApiError, describeError, paymentsService, salesService } from "@/core/api";
+import { ApiError, describeError, salesService } from "@/core/api";
 import { cx } from "@/core/utils/cx";
 import { checkoutUrlWithReturn, isWompiCheckoutUrl, reserveCheckoutTab } from "@/core/utils/wompiWidget";
 
 import { formatCop, formatDateTime } from "../PaymentResultPage/format.js";
-
-import styles from "./MyOperationsPage.module.css";
+import styles from "../shared/rows.module.css";
 
 /** Estado del backend → etiqueta y tono de la insignia. */
 const STATUS = {
@@ -28,16 +27,28 @@ const STATUS = {
   VOIDED: { label: "Anulada", tone: "neutral" },
   ERROR: { label: "Error en el pago", tone: "danger" },
 };
-const KIND = {
-  SALE: { label: "Compra", icon: "bag" },
-  DONATION: { label: "Donación", icon: "heart" },
-};
+/**
+ * Compra de `GET /sales/me` con la forma que usan las tarjetas. El estado que
+ * se muestra es el del pago (`paymentStatus`), que distingue anulado y error.
+ * @param {import("@/core/api/services/resources.js").MySale} sale
+ */
+function toPurchase(sale) {
+  return {
+    id: String(sale.saleId),
+    reference: sale.transactionReference ?? null,
+    status: sale.paymentStatus ?? sale.status,
+    amountInCents: sale.amountInCents ?? Math.round(Number(sale.totalPrice ?? 0) * 100),
+    createdAt: sale.createdAt,
+    checkoutUrl: sale.checkoutUrl ?? null,
+    details: { items: Array.isArray(sale.items) ? sale.items : [] },
+  };
+}
 
-/** Lista de `GET /payments/my-transactions`; rechaza respuestas con otra forma. */
+/** Compras de la tienda solidaria (`GET /sales/me`); rechaza respuestas con otra forma. */
 async function fetchTransactions() {
-  const payload = await paymentsService.listMine();
-  if (!Array.isArray(payload)) throw new ApiError("El servidor respondió de forma inesperada al consultar tus operaciones.");
-  return payload;
+  const payload = await salesService.listMine();
+  if (!Array.isArray(payload)) throw new ApiError("El servidor respondió de forma inesperada al consultar tus compras.");
+  return payload.map(toPurchase);
 }
 
 function ListSkeleton() {
@@ -50,13 +61,9 @@ function ListSkeleton() {
   );
 }
 
-/**
- * Tarjeta de una operación. Las pendientes muestran «Continuar con el pago» y,
- * si son compras, «Cancelar transacción».
- */
-function OperationCard({ transaction, busy, activeAction, onPay, onCancel }) {
-  const { id, reference, type, amountInCents, status, createdAt, details } = transaction;
-  const kind = KIND[type] ?? { label: "Pago", icon: "receipt" };
+/** Tarjeta de una compra. Las pendientes muestran «Continuar con el pago» y «Cancelar compra». */
+function PurchaseCard({ transaction, busy, activeAction, onPay, onCancel }) {
+  const { id, reference, amountInCents, status, createdAt, details } = transaction;
   const badge = STATUS[status] ?? { label: status, tone: "neutral" };
   const pending = status === "PENDING";
   const items = Array.isArray(details?.items) ? details.items : [];
@@ -66,11 +73,11 @@ function OperationCard({ transaction, busy, activeAction, onPay, onCancel }) {
   return (
     <li className={cx(styles.row, pending && styles.pendingRow)}>
       <span className={cx(styles.kindIcon, pending && styles.kindIconPending)}>
-        <Icon name={kind.icon} size={20} />
+        <Icon name="bag" size={20} />
       </span>
       <div className={styles.main}>
         <div className={styles.titleRow}>
-          <h3 className={styles.kind}>{kind.label}</h3>
+          <h3 className={styles.kind}>Compra</h3>
           <Badge tone={badge.tone}>{badge.label}</Badge>
         </div>
         {items.length > 0 ? (
@@ -88,7 +95,7 @@ function OperationCard({ transaction, busy, activeAction, onPay, onCancel }) {
             <dd>{createdAt ? formatDateTime(createdAt) : "—"}</dd>
           </div>
           <div>
-            <dt>Operación</dt>
+            <dt>Compra</dt>
             <dd className={styles.mono}>#{id}</dd>
           </div>
           {reference ? (
@@ -113,11 +120,9 @@ function OperationCard({ transaction, busy, activeAction, onPay, onCancel }) {
                   {paying ? "Abriendo Wompi…" : "Continuar con el pago"}
                 </Button>
               ) : null}
-              {type === "SALE" ? (
-                <Button size="sm" variant="danger" onClick={() => onCancel(transaction)} disabled={busy}>
-                  {cancelling ? "Cancelando…" : "Cancelar transacción"}
-                </Button>
-              ) : null}
+              <Button size="sm" variant="danger" onClick={() => onCancel(transaction)} disabled={busy}>
+                {cancelling ? "Cancelando…" : "Cancelar compra"}
+              </Button>
             </>
           ) : reference ? (
             <Link
@@ -134,14 +139,14 @@ function OperationCard({ transaction, busy, activeAction, onPay, onCancel }) {
 }
 
 /**
- * Página `/mis-operaciones`: compras y donaciones del usuario
- * (`GET /api/v1/payments/my-transactions`). Las pendientes de pago van primero,
- * con acciones para continuar en Wompi o cancelar la compra
+ * Página `/mis-compras`: compras de la tienda solidaria del usuario
+ * (`GET /api/v1/sales/me`). Las pendientes de pago
+ * van primero, con acciones para continuar en Wompi o cancelarlas
  * (`POST /api/v1/sales/checkout/cancel`). El estado siempre lo da el backend.
  * @param {{ onOperationsChange?: () => void }} props Avisa a la app para
  *   revisar el bloqueo del carrito y recargarlo.
  */
-export function MyOperationsPage({ onOperationsChange }) {
+export function MyPurchasesPage({ onOperationsChange }) {
   const [data, setData] = useState({ status: "loading", items: [], error: "" });
   const [reloadKey, setReloadKey] = useState(0);
   const [active, setActive] = useState(null);
@@ -220,7 +225,7 @@ export function MyOperationsPage({ onOperationsChange }) {
       const current = items.find((item) => String(item.id) === String(transaction.id));
       if (!current || current.status !== "PENDING") {
         tab.close();
-        toast.info("Esta operación ya no está pendiente de pago. Actualizamos la lista con su estado actual.");
+        toast.info("Esta compra ya no está pendiente de pago. Actualizamos la lista con su estado actual.");
         setActive(null);
         return;
       }
@@ -228,7 +233,7 @@ export function MyOperationsPage({ onOperationsChange }) {
         tab.close();
         setNotice({
           tone: "error",
-          text: "El servidor no entregó un enlace de pago válido para esta operación. Intenta de nuevo en unos minutos.",
+          text: "El servidor no entregó un enlace de pago válido para esta compra. Intenta de nuevo en unos minutos.",
         });
         setActive(null);
         return;
@@ -290,7 +295,7 @@ export function MyOperationsPage({ onOperationsChange }) {
   const pending = data.items.filter((item) => item.status === "PENDING");
   const history = data.items.filter((item) => item.status !== "PENDING");
   const renderCard = (transaction) => (
-    <OperationCard
+    <PurchaseCard
       key={transaction.id}
       transaction={transaction}
       busy={busy}
@@ -304,8 +309,8 @@ export function MyOperationsPage({ onOperationsChange }) {
     <Container className={styles.page}>
       <PageHeader
         eyebrow="Tu cuenta"
-        title="Mis operaciones"
-        description="Tus compras y donaciones, con el estado que confirma el servidor."
+        title="Mis compras"
+        description="Tus compras de la tienda solidaria, con el estado que confirma el servidor. Tus donaciones están en «Mis donaciones»."
         actions={
           data.status !== "loading" ? (
             <Button variant="outline" onClick={refresh} disabled={busy}>
@@ -333,7 +338,7 @@ export function MyOperationsPage({ onOperationsChange }) {
       {data.status === "loading" ? (
         <>
           <p role="status" className="sr-only">
-            Cargando tus operaciones…
+            Cargando tus compras…
           </p>
           <ListSkeleton />
         </>
@@ -343,7 +348,7 @@ export function MyOperationsPage({ onOperationsChange }) {
         <EmptyState
           icon="alert"
           tone="danger"
-          title="No pudimos cargar tus operaciones"
+          title="No pudimos cargar tus compras"
           description={data.error}
           actions={
             <Button variant="outline" onClick={refresh}>
@@ -356,19 +361,14 @@ export function MyOperationsPage({ onOperationsChange }) {
 
       {data.status === "ready" && data.items.length === 0 ? (
         <EmptyState
-          icon="receipt"
+          icon="bag"
           tone="brand"
-          title="Aún no tienes operaciones"
-          description="Cuando compres en la tienda o hagas una donación monetaria, verás aquí su estado y su comprobante."
+          title="Aún no tienes compras"
+          description="Cuando compres en la tienda solidaria, verás aquí su estado y su comprobante."
           actions={
-            <>
-              <Link to="/apoyanos-tienda" className={buttonClassName()}>
-                Visitar la tienda
-              </Link>
-              <Link to="/" className={buttonClassName({ variant: "outline" })}>
-                Ir al inicio para donar
-              </Link>
-            </>
+            <Link to="/apoyanos-tienda" className={buttonClassName()}>
+              Visitar la tienda
+            </Link>
           }
         />
       ) : null}

@@ -24,6 +24,10 @@ function ListSkeleton() {
   );
 }
 
+/** Número de WhatsApp de la fundación (fijo mientras el backend no lo exponga). */
+const WHATSAPP_NUMBER = "3333333333";
+const WHATSAPP_DISPLAY = "333 333 3333";
+
 /** Invitación a coordinar la donación con la fundación por WhatsApp. */
 function ContactPanel() {
   return (
@@ -35,15 +39,15 @@ function ContactPanel() {
       <p className={styles.contactText}>
         Escríbenos por WhatsApp para coordinar contigo la entrega de tu donación.
       </p>
-      {/*
-        PENDIENTE: este botón aún no tiene acción porque el número de WhatsApp
-        no está disponible en el backend. Cuando exista, convertirlo en un enlace
-        `https://wa.me/<número>` (con `target="_blank"` y `rel="noopener noreferrer"`).
-      */}
-      <Button size="lg" block className={styles.contactButton}>
-        <Icon name="message" size={20} />
-        Contactar por WhatsApp
-      </Button>
+      <p className={styles.contactNumber}>
+        <Icon name="phone" size={22} />
+        <span>
+          <span className={styles.contactLabel}>WhatsApp</span>
+          <span className={styles.contactDigits} data-number={WHATSAPP_NUMBER}>
+            {WHATSAPP_DISPLAY}
+          </span>
+        </span>
+      </p>
     </div>
   );
 }

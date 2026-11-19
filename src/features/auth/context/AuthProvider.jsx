@@ -9,14 +9,17 @@ import {
   setUnauthorizedHandler,
 } from "@/core/api";
 
-import { hasAllowedRole, pickToken, pickUser } from "../session.js";
+import { hasAllowedRole, pickToken, pickUser, readDocumentPending, storeDocumentPending } from "../session.js";
 
 import { AuthContext } from "./authContext.js";
 
 const NO_ACCESS_MESSAGE =
   "Tu cuenta no tiene acceso a este portal. Solo se admiten cuentas de administración y de clientes (DONANTE).";
 
-/** Mantiene la sesión: restaura el token guardado y expone login, registro y logout. */
+/**
+ * Mantiene la sesión: restaura el token guardado y expone login, registro,
+ * logout y la verificación de documento que exige el backend a los donantes.
+ */
 export function AuthProvider({ children }) {
   const [state, setState] = useState(() => ({
     status: getToken() ? "loading" : "anonymous",
@@ -26,6 +29,7 @@ export function AuthProvider({ children }) {
   /** Descarta la sesión solo en este navegador. */
   const clearSession = useCallback(() => {
     clearToken();
+    storeDocumentPending(false);
     setState({ status: "anonymous", user: null });
   }, []);
 
@@ -47,8 +51,10 @@ export function AuthProvider({ children }) {
     authService
       .profile()
       .then((payload) => {
-        const user = pickUser(payload);
+        const profile = pickUser(payload);
         if (cancelled) return;
+        // El perfil no informa si falta el documento: se toma lo recordado en el login.
+        const user = profile && { ...profile, requiresDocumentCompletion: readDocumentPending() };
         if (hasAllowedRole(user)) {
           setState({ status: "authenticated", user });
         } else {
@@ -80,6 +86,7 @@ export function AuthProvider({ children }) {
       try {
         const user = pickUser(payload) ?? pickUser(await authService.profile());
         if (!hasAllowedRole(user)) throw new ApiError(NO_ACCESS_MESSAGE, { status: 403 });
+        storeDocumentPending(user.requiresDocumentCompletion);
         setState({ status: "authenticated", user });
         return user;
       } catch (error) {
@@ -99,7 +106,32 @@ export function AuthProvider({ children }) {
     [login],
   );
 
-  const value = useMemo(() => ({ ...state, login, register, logout }), [state, login, register, logout]);
+  /**
+   * Registra el documento del usuario del token. El token y la sesión no
+   * cambian: solo se marca la verificación como completa. Si el backend indica
+   * que la cuenta ya tenía perfil (p. ej. se completó en otro navegador), se
+   * trata igual que un éxito.
+   */
+  const completeDocument = useCallback(async ({ fullName, documentType, documentNumber }) => {
+    try {
+      await authService.completeDocument({
+        full_name: fullName,
+        document_type: documentType,
+        document_number: documentNumber,
+      });
+    } catch (error) {
+      if (!(error instanceof ApiError && error.code === "DONOR_PROFILE_ALREADY_LINKED")) throw error;
+    }
+    storeDocumentPending(false);
+    setState((current) =>
+      current.user ? { ...current, user: { ...current.user, requiresDocumentCompletion: false } } : current,
+    );
+  }, []);
+
+  const value = useMemo(
+    () => ({ ...state, login, register, logout, completeDocument }),
+    [state, login, register, logout, completeDocument],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

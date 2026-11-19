@@ -11,8 +11,6 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { describeError } from "@/core/api";
 import { lastPaymentReference, loadPaymentSession, paymentKindOf } from "@/core/utils/paymentSession";
 
-import { CertificateDocument } from "../CertificateDocument";
-
 import { STATUS_LABELS, formatCop, formatDateTime, outcomeOf } from "./format.js";
 import styles from "./PaymentResultPage.module.css";
 import { usePaymentStatus } from "./usePaymentStatus.js";
@@ -26,8 +24,17 @@ import { usePaymentStatus } from "./usePaymentStatus.js";
 
 const TONE_ICON = { error: "alert", info: "clock" };
 
+/** Sección de la cuenta donde se gestiona el pago: «Mis compras» o «Mis donaciones». */
+function accountLinkFor(kind, session) {
+  if (kind === "sale") return { to: "/mis-compras", label: "Mis compras" };
+  return {
+    to: `/mis-donaciones${session?.sponsorPlanId ? "?tipo=plan-padrino" : ""}`,
+    label: "Mis donaciones",
+  };
+}
+
 /** Mensaje para los pagos que todavía no tienen recibo. */
-function PaymentStatusMessage({ tone, title, children, reference, action, extraAction, onRefresh }) {
+function PaymentStatusMessage({ tone, title, children, reference, action, extraAction, onRefresh, accountLink }) {
   return (
     <EmptyState
       icon={TONE_ICON[tone] ?? "info"}
@@ -55,9 +62,11 @@ function PaymentStatusMessage({ tone, title, children, reference, action, extraA
               {action.label}
             </Link>
           ) : null}
-          <Link to="/mis-operaciones" className={buttonClassName({ variant: "outline" })}>
-            Mis operaciones
-          </Link>
+          {accountLink ? (
+            <Link to={accountLink.to} className={buttonClassName({ variant: "outline" })}>
+              {accountLink.label}
+            </Link>
+          ) : null}
           <Link to="/" className={buttonClassName({ variant: "ghost" })}>
             Ir al inicio
           </Link>
@@ -100,18 +109,18 @@ function RestoreCartButton({ items, onRestore }) {
   );
 }
 
+/** Los certificados se descargan en «Mis donaciones», en la pestaña que corresponde. */
 function ApprovedReceipt({ payment, kind, session }) {
-  const [showCertificate, setShowCertificate] = useState(false);
   const isDonation = kind === "donation";
-  // El backend no guarda el documento del donante: viene de lo que escribió al donar en este navegador.
-  const donor =
-    isDonation && session?.donorName && session?.donorDocument
-      ? { name: session.donorName, document_number: session.donorDocument }
-      : null;
+  const accountLink = accountLinkFor(kind, session);
 
   const amount = payment.amount_in_cents / 100;
   const paidAt = payment.created_at;
-  const modality = isDonation ? "Donación monetaria" : "Compra en la tienda SUMA21";
+  const modality = session?.sponsorPlanId
+    ? "Cuota del Plan Padrino"
+    : isDonation
+      ? "Donación monetaria"
+      : "Compra en la tienda SUMA21";
 
   return (
     <>
@@ -173,34 +182,20 @@ function ApprovedReceipt({ payment, kind, session }) {
         </dl>
         <footer className={styles.receiptActions}>
           {isDonation ? (
-            <Button disabled={!donor} onClick={() => setShowCertificate(true)}>
+            <Link to={accountLink.to} className={buttonClassName()}>
               <Icon name="receipt" size={18} />
-              Ver certificado de donación
-            </Button>
-          ) : null}
-          <Link to="/mis-operaciones" className={buttonClassName({ variant: "outline" })}>
-            Mis operaciones
-          </Link>
+              Ver certificado en Mis donaciones
+            </Link>
+          ) : (
+            <Link to={accountLink.to} className={buttonClassName({ variant: "outline" })}>
+              Mis compras
+            </Link>
+          )}
           <Link to="/" className={buttonClassName({ variant: "ghost" })}>
             Ir al inicio
           </Link>
         </footer>
-        {isDonation && !donor ? (
-          <p className={styles.hint}>
-            El certificado se genera con el nombre y el documento que escribiste al donar, guardados en el
-            navegador donde se hizo la donación.
-          </p>
-        ) : null}
       </article>
-
-      {showCertificate && donor ? (
-        <CertificateDocument
-          donor={donor}
-          amount={amount}
-          paidAt={paidAt}
-          onClose={() => setShowCertificate(false)}
-        />
-      ) : null}
     </>
   );
 }
@@ -222,6 +217,7 @@ export function PaymentResultPage({ onRestoreCart, onStatusChange }) {
   const { status, payment, message, timedOut } = usePaymentStatus(reference);
   const session = reference ? loadPaymentSession(reference) : null;
   const kind = paymentKindOf(payment?.reference ?? reference) ?? session?.kind ?? null;
+  const accountLink = kind ? accountLinkFor(kind, session) : null;
   const outcome = status === "ready" ? outcomeOf(payment) : null;
   const wompiCallback = navigationState?.wompiCallback;
   const statusChangeRef = useRef(onStatusChange);
@@ -246,7 +242,7 @@ export function PaymentResultPage({ onRestoreCart, onStatusChange }) {
     );
   } else if (status === "notfound") {
     content = (
-      <PaymentStatusMessage tone="error" title="No encontramos el pago">
+      <PaymentStatusMessage tone="error" title="No encontramos el pago" accountLink={accountLink}>
         {reference
           ? "No existe un pago con esa referencia."
           : "No hay un pago reciente en este navegador. Abre esta página desde el mismo navegador donde pagaste."}
@@ -255,6 +251,7 @@ export function PaymentResultPage({ onRestoreCart, onStatusChange }) {
   } else if (status === "error") {
     content = (
       <PaymentStatusMessage
+        accountLink={accountLink}
         tone="error"
         title="No pudimos consultar tu pago"
         reference={reference}
@@ -268,6 +265,7 @@ export function PaymentResultPage({ onRestoreCart, onStatusChange }) {
   } else if (outcome === "rejected") {
     content = (
       <PaymentStatusMessage
+        accountLink={accountLink}
         tone="error"
         title="El pago no fue aprobado"
         reference={payment.reference}
@@ -289,13 +287,14 @@ export function PaymentResultPage({ onRestoreCart, onStatusChange }) {
   } else {
     content = (
       <PaymentStatusMessage
+        accountLink={accountLink}
         tone="info"
         title={timedOut ? "Tu pago sigue pendiente" : "Estamos confirmando tu pago con Wompi"}
         reference={payment.reference}
         onRefresh={timedOut ? () => window.location.reload() : undefined}
       >
         {timedOut
-          ? "Aún no recibimos la confirmación de Wompi. Puedes volver más tarde o revisar el estado en «Mis operaciones»."
+          ? "Aún no recibimos la confirmación de Wompi. Puedes volver más tarde o revisar el estado en «Mis compras» o «Mis donaciones»."
           : "Esta página se actualiza sola en unos segundos."}
       </PaymentStatusMessage>
     );

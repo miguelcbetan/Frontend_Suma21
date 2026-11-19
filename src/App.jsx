@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { BrowserRouter, Link, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { Container } from "@/components/layout/Container";
@@ -11,19 +11,32 @@ import { Logo } from "@/components/ui/Logo";
 import { ToastProvider } from "@/components/ui/Toast";
 import { TextSizeToggle } from "@/features/accessibility";
 import { AdminPage } from "@/features/admin";
-import { AuthPage, AuthProvider, ProfilePage, RequireRole, UserMenu, isAdmin, useAuth } from "@/features/auth";
-import { DonationLauncher, InKindDonationPage } from "@/features/donation";
+import {
+  AuthPage,
+  AuthProvider,
+  DocumentCompletionDialog,
+  ProfilePage,
+  RequireRole,
+  UserMenu,
+  isAdmin,
+  needsDocumentCompletion,
+  useAuth,
+} from "@/features/auth";
+import { DonationLauncher, InKindDonationPage, SponsorLauncher } from "@/features/donation";
 import { HomePage } from "@/features/home";
-import { MyOperationsPage, PaymentResultPage } from "@/features/payment";
+import { MyDonationsPage, MyPurchasesPage, PaymentResultPage } from "@/features/payment";
 import { CartLink, CartProvider, StorePage, useCart } from "@/features/store";
 
 const PUBLIC_NAV = [
   { label: "Inicio", href: "/" },
   { label: "Tienda", href: "/apoyanos-tienda" },
-  { label: "Donar en especie", href: "/donaciones-en-especie" },
+  { label: "¿Qué puedo donar?", href: "/donaciones-en-especie" },
 ];
 
-const CUSTOMER_NAV = [{ label: "Mis operaciones", href: "/mis-operaciones" }];
+const CUSTOMER_NAV = [
+  { label: "Mis compras", href: "/mis-compras" },
+  { label: "Mis donaciones", href: "/mis-donaciones" },
+];
 const ADMIN_NAV = [{ label: "Panel admin", href: "/admin" }];
 
 /** Menú según el rol: cliente (DONANTE/CUSTOMER) o administrador. */
@@ -45,7 +58,8 @@ const PAGE_TITLES = {
   "/apoyanos-tienda": "Tienda",
   "/donaciones-en-especie": "Donar en especie",
   "/payment-result": "Resultado del pago",
-  "/mis-operaciones": "Mis operaciones",
+  "/mis-compras": "Mis compras",
+  "/mis-donaciones": "Mis donaciones",
   "/login": "Iniciar sesión",
   "/admin": "Panel de administración",
   "/perfil": "Mi perfil",
@@ -82,9 +96,13 @@ function NotFound() {
   );
 }
 
+/**
+ * El carrito se sincroniza con el servidor solo cuando la cuenta ya completó
+ * la verificación de documento; antes, el backend rechaza `/sales/*`.
+ */
 function CartScope({ children }) {
   const { user } = useAuth();
-  const ownerId = user ? (user.id ?? user.email) : null;
+  const ownerId = user && !needsDocumentCompletion(user) ? (user.id ?? user.email) : null;
   return (
     <CartProvider key={ownerId ?? "guest"} ownerId={ownerId}>
       {children}
@@ -142,9 +160,12 @@ function Layout() {
     ? [{ label: "Iniciar sesión o crear cuenta", href: "/login" }]
     : [
         { label: "Mi perfil", href: "/perfil" },
-        isAdmin(user)
-          ? { label: "Panel de administración", href: "/admin" }
-          : { label: "Mis operaciones", href: "/mis-operaciones" },
+        ...(isAdmin(user)
+          ? [{ label: "Panel de administración", href: "/admin" }]
+          : [
+              { label: "Mis compras", href: "/mis-compras" },
+              { label: "Mis donaciones", href: "/mis-donaciones" },
+            ]),
       ];
 
   const footer = (
@@ -212,6 +233,7 @@ function Layout() {
             <HomePage
               authenticated={session.authenticated}
               renderDonateButton={(options) => <DonationLauncher session={session} {...options} />}
+              renderSponsorButton={(options) => <SponsorLauncher session={session} {...options} />}
             />
           }
         />
@@ -226,10 +248,21 @@ function Layout() {
           }
         />
         <Route
-          path="/mis-operaciones"
+          path="/mis-compras"
           element={
             <RequireRole>
-              <MyOperationsPage onOperationsChange={syncPendingStatus} />
+              <MyPurchasesPage onOperationsChange={syncPendingStatus} />
+            </RequireRole>
+          }
+        />
+        {/* Rutas anteriores: se conservan para enlaces y marcadores viejos. */}
+        <Route path="/mis-operaciones" element={<Navigate to="/mis-compras" replace />} />
+        <Route path="/mis-planes" element={<Navigate to="/mis-donaciones?tipo=plan-padrino" replace />} />
+        <Route
+          path="/mis-donaciones"
+          element={
+            <RequireRole>
+              <MyDonationsPage renderSponsorButton={() => <SponsorLauncher session={session} withIcon />} />
             </RequireRole>
           }
         />
@@ -263,6 +296,8 @@ export default function App() {
         <AuthProvider>
           <CartScope>
             <Layout />
+            {/* Verificación de documento obligatoria tras el login (requiresDocumentCompletion). */}
+            <DocumentCompletionDialog />
           </CartScope>
         </AuthProvider>
       </ToastProvider>

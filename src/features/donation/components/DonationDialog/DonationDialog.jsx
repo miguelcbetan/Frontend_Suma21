@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -7,9 +7,13 @@ import { Checkbox } from "@/components/ui/Checkbox";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
-import { describeError, donationsService } from "@/core/api";
+import { ApiError, describeError, donationsService } from "@/core/api";
 import { savePaymentSession } from "@/core/utils/paymentSession";
-import { PAYMENT_RESULT_PATH, openWompiCheckout } from "@/core/utils/wompiWidget";
+import {
+  checkoutUrlWithReturn,
+  isWompiCheckoutUrl,
+  reserveCheckoutTab,
+} from "@/core/utils/wompiWidget";
 
 import { AmountSelector } from "../AmountSelector";
 import { SecurityNotice } from "../SecurityNotice";
@@ -38,9 +42,11 @@ const hasValidDecimals = (value) => Math.round(value * 100) === value * 100;
 /**
  * Interfaz de donación monetaria. Con sesión iniciada crea la donación
  * pendiente con `POST /api/v1/donations/monetary` (el backend toma al donante
- * del token) y abre el widget de Wompi con el checkout que devuelve.
- * El nombre y el documento que se piden solo sirven para el certificado de este
- * navegador: no se envían al backend.
+ * del token) y abre en una pestaña nueva el enlace de pago de Wompi que
+ * devuelve (`checkout.paymentUrl`), igual que la tienda; esta pestaña sigue en
+ * SUMA21. Solo se
+ * pide el monto: el nombre y el documento del certificado los tiene el backend
+ * desde la verificación obligatoria tras el login.
  * @param {{
  *   open: boolean,
  *   onClose: () => void,
@@ -49,16 +55,12 @@ const hasValidDecimals = (value) => Math.round(value * 100) === value * 100;
  */
 export function DonationDialog({ open, onClose, session = { authenticated: false, userId: null } }) {
   const titleId = useId();
-  const navigate = useNavigate();
   const [amount, setAmount] = useState(DEFAULT_AMOUNT);
   const [otherAmount, setOtherAmount] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
-  const [typedName, setTypedName] = useState(null);
-  const [documentNumber, setDocumentNumber] = useState("");
   const [state, setState] = useState({ status: "idle", message: "", fields: {} });
 
   const canDonate = session.authenticated;
-  const donorName = typedName ?? session.name ?? "";
   const value = otherAmount ? Number(customAmount) : amount;
   const validAmount = Number.isFinite(value) && value > 0 && hasValidDecimals(value);
   const pending = state.status === "pending";
@@ -70,39 +72,28 @@ export function DonationDialog({ open, onClose, session = { authenticated: false
       setState({ status: "error", message: "Escribe un monto mayor que cero, con máximo dos decimales.", fields: {} });
       return;
     }
-    const fields = {};
-    if (!donorName.trim()) fields.name = "Este campo es obligatorio.";
-    if (!documentNumber.trim()) fields.document = "Este campo es obligatorio.";
-    if (Object.keys(fields).length > 0) {
-      setState({ status: "error", message: "Completa los datos de tu certificado.", fields });
-      return;
-    }
 
+    // La pestaña se abre en el mismo clic para que el navegador no la bloquee.
+    const tab = reserveCheckoutTab();
     setState({ status: "pending", message: "", fields: {} });
     try {
-      const { checkout } = await donationsService.createMonetary({ amount: value });
+      const { donationId, checkout } = await donationsService.createMonetary({ amount: value });
       const { reference } = checkout;
       savePaymentSession({
         reference,
         kind: "donation",
+        donationId: String(donationId),
         ...(session.userId ? { personId: session.userId } : {}),
-        donorName: donorName.trim(),
-        donorDocument: documentNumber.trim(),
       });
-      // El diálogo modal ocupa la capa superior del navegador: se cierra antes de
-      // abrir el widget de Wompi para que este quede visible y usable.
-      onClose();
-      const mode = await openWompiCheckout(checkout, {
-        onFinished: () => navigate(`${PAYMENT_RESULT_PATH}?reference=${encodeURIComponent(reference)}`),
-      });
-      if (mode === "widget") {
-        setState({
-          status: "waiting",
-          message: `Completa el pago en la ventana de Wompi (referencia ${reference}). Si la cerraste sin pagar, puedes consultar el estado en «Mis operaciones».`,
-          fields: {},
-        });
+      if (!isWompiCheckoutUrl(checkout.paymentUrl)) {
+        throw new ApiError(
+          "Tu donación quedó registrada, pero no recibimos el enlace de pago. Continúa el pago desde Mis donaciones.",
+        );
       }
+      const url = checkoutUrlWithReturn(checkout.paymentUrl, reference);
+      setState({ status: tab.go(url) ? "waiting" : "blocked", reference, url, message: "", fields: {} });
     } catch (error) {
+      tab.close();
       setState({ status: "error", ...describeError(error) });
     }
   }
@@ -158,29 +149,6 @@ export function DonationDialog({ open, onClose, session = { authenticated: false
             />
           ) : null}
 
-          {canDonate ? (
-            <fieldset className={styles.certificate}>
-              <legend className={styles.legend}>Datos para tu certificado</legend>
-              <Field
-                label="Nombre completo"
-                autoComplete="name"
-                required
-                value={donorName}
-                onChange={(event) => setTypedName(event.target.value)}
-                error={state.fields.name}
-              />
-              <Field
-                label="Número de documento"
-                inputMode="numeric"
-                required
-                value={documentNumber}
-                onChange={(event) => setDocumentNumber(event.target.value)}
-                hint="Solo se usa para generar tu certificado en este navegador."
-                error={state.fields.document}
-              />
-            </fieldset>
-          ) : null}
-
           {!session.authenticated ? (
             <Alert tone="info">
               Para registrar tu donación{" "}
@@ -191,7 +159,24 @@ export function DonationDialog({ open, onClose, session = { authenticated: false
             </Alert>
           ) : null}
           {state.status === "error" ? <Alert tone="error">{state.message}</Alert> : null}
-          {state.status === "waiting" ? <Alert tone="info">{state.message}</Alert> : null}
+          {state.status === "waiting" ? (
+            <Alert tone="info">
+              Abrimos Wompi en una pestaña nueva para que completes el pago. Cuando termines, revisa el estado de tu
+              donación y descarga tu certificado en{" "}
+              <Link to="/mis-donaciones" onClick={onClose}>
+                Mis donaciones
+              </Link>
+              .
+            </Alert>
+          ) : null}
+          {state.status === "blocked" ? (
+            <Alert tone="info">
+              Tu navegador bloqueó la pestaña de pago.{" "}
+              <a href={state.url} target="_blank" rel="noopener noreferrer">
+                Abrir el pago en Wompi
+              </a>
+            </Alert>
+          ) : null}
 
           <Button type="submit" size="lg" block disabled={!canDonate || pending}>
             {pending ? "Preparando el pago…" : `Donar ${validAmount ? formatAmount(value) : ""} ahora`}

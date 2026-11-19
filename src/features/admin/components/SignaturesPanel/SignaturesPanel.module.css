@@ -1,0 +1,65 @@
+.form {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.slots {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.slot {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Fondo blanco con borde punteado: así se verá la firma sobre el certificado. */
+.preview {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.preview img,
+.placeholder {
+  width: 100%;
+  height: 8rem;
+  background: #fff;
+  border: 2px dashed var(--color-gray-200);
+  border-radius: var(--radius-md);
+}
+
+.preview img {
+  object-fit: contain;
+  padding: var(--space-2);
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.preview figcaption {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  text-align: center;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+@media (min-width: 48rem) {
+  .slots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

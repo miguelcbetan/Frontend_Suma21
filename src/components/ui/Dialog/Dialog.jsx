@@ -14,7 +14,11 @@ import styles from "./Dialog.module.css";
  *   labelledBy: string,
  *   variant?: "fullscreen" | "centered",
  *   closeLabel?: string,
+ *   closable?: boolean,
  * }} props
+ *
+ * Con `closable={false}` no hay botón de cerrar y Escape no cierra el diálogo:
+ * solo se cierra cuando `open` pasa a `false`.
  */
 export function Dialog({
   open,
@@ -22,6 +26,7 @@ export function Dialog({
   labelledBy,
   variant = "centered",
   closeLabel = "Cerrar",
+  closable = true,
   className,
   children,
   ...rest
@@ -40,20 +45,28 @@ export function Dialog({
       ref={dialogRef}
       aria-labelledby={labelledBy}
       className={cx(styles.dialog, styles[variant], className)}
-      onClose={onClose}
+      onClose={() => {
+        // Chrome puede cerrar con un segundo Escape aunque se cancele el evento:
+        // un diálogo no cerrable que siga `open` vuelve a mostrarse.
+        if (!closable && open) dialogRef.current?.showModal();
+        else onClose?.();
+      }}
+      onCancel={closable ? undefined : (event) => event.preventDefault()}
       {...rest}
     >
-      <button type="button" className={styles.close} aria-label={closeLabel} onClick={onClose}>
-        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
-          <path
-            d="M6 6l12 12M18 6L6 18"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </svg>
-      </button>
+      {closable ? (
+        <button type="button" className={styles.close} aria-label={closeLabel} onClick={onClose}>
+          <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
+            <path
+              d="M6 6l12 12M18 6L6 18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+      ) : null}
       {children}
     </dialog>
   );

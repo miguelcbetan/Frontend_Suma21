@@ -12,18 +12,27 @@ import { WaysToHelpSection } from "../WaysToHelpSection";
  */
 
 /**
- * Portada. El botón de donar llega desde la capa app (`renderDonateButton`)
- * porque abre el diálogo de la feature de donaciones.
+ * Portada. Los botones de donar y del Plan Padrino llegan desde la capa app
+ * (`renderDonateButton`, `renderSponsorButton`) porque abren diálogos de la
+ * feature de donaciones.
+ * @typedef {{ size?: "md" | "lg", variant?: "primary" | "secondary" | "outline", withIcon?: boolean }} LauncherOptions
  * @param {{
- *   renderDonateButton?: (options: { size?: "md" | "lg", variant?: "primary" | "outline", withIcon?: boolean }) => import("react").ReactNode,
+ *   renderDonateButton?: (options: LauncherOptions) => import("react").ReactNode,
+ *   renderSponsorButton?: (options: LauncherOptions) => import("react").ReactNode,
  *   authenticated?: boolean,
  * }} props
  */
-export function HomePage({ renderDonateButton = () => null, authenticated = false }) {
+export function HomePage({ renderDonateButton = () => null, renderSponsorButton = () => null, authenticated = false }) {
   return (
     <>
-      <Hero donateButton={renderDonateButton({ size: "lg", withIcon: true })} />
-      <WaysToHelpSection donateButton={renderDonateButton({ size: "md" })} />
+      <Hero
+        donateButton={renderDonateButton({ size: "lg", withIcon: true })}
+        sponsorButton={renderSponsorButton({ size: "lg", withIcon: true, variant: "primary" })}
+      />
+      <WaysToHelpSection
+        donateButton={renderDonateButton({ size: "md" })}
+        sponsorButton={renderSponsorButton({ size: "md", label: "Ser padrino" })}
+      />
       <HowItWorksSection />
       <AboutSection />
       <ClosingCta donateButton={renderDonateButton({ size: "lg", withIcon: true })} authenticated={authenticated} />

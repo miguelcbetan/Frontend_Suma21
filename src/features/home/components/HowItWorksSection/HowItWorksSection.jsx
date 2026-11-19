@@ -17,7 +17,7 @@ const STEPS = [
   {
     icon: "receipt",
     title: "Paga y consulta tu comprobante",
-    description: "Completa el pago con Wompi y revisa el estado y el comprobante de cada operación en «Mis operaciones».",
+    description: "Completa el pago con Wompi y revisa el estado de tus compras en «Mis compras» y el de tus donaciones y sus certificados en «Mis donaciones».",
   },
 ];
 

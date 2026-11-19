@@ -50,7 +50,7 @@ function guestState() {
  * También expone el bloqueo por pago pendiente (`GET /sales/pending-status`):
  * mientras el backend indique `hasPendingSale: true`, no se envían cambios al
  * carrito. Se consulta al montar (inicio de sesión o recarga con sesión) y
- * cuando la app llama a `refreshPendingStatus` (tienda, pagos, Mis operaciones).
+ * cuando la app llama a `refreshPendingStatus` (tienda, pagos, Mis compras).
  * @param {{ ownerId: string | null, children: import("react").ReactNode }} props
  */
 export function CartProvider({ ownerId, children }) {

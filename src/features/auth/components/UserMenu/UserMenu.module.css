@@ -87,6 +87,7 @@
   }
 }
 
+/* Entre 75 y 85rem solo el avatar, para que el menú quepa en una fila. */
 @media (min-width: 75rem) and (max-width: 84.99rem) {
   .profile {
     padding-right: var(--space-1);
