@@ -17,6 +17,7 @@ import { groupSaleItems } from "@/core/utils/groupSaleItems";
 import { checkoutUrlWithReturn, isWompiCheckoutUrl, reserveCheckoutTab } from "@/core/utils/wompiWidget";
 
 import { formatCop, formatDateTime } from "../PaymentResultPage/format.js";
+import { ProductChips } from "../shared/ProductChips.jsx";
 import styles from "../shared/rows.module.css";
 
 /** Estado del backend → etiqueta y tono de la insignia. */
@@ -62,17 +63,12 @@ function ListSkeleton() {
   );
 }
 
-const VISIBLE_ITEMS_LIMIT = 3;
-
 /** Tarjeta de una compra. Las pendientes muestran «Continuar con el pago» y «Cancelar compra». */
 function PurchaseCard({ transaction, busy, activeAction, onPay, onCancel }) {
   const { id, reference, amountInCents, status, createdAt, details } = transaction;
-  const [expanded, setExpanded] = useState(false);
   const badge = STATUS[status] ?? { label: status, tone: "neutral" };
   const pending = status === "PENDING";
   const items = groupSaleItems(Array.isArray(details?.items) ? details.items : []);
-  const hiddenCount = Math.max(0, items.length - VISIBLE_ITEMS_LIMIT);
-  const visibleItems = expanded || hiddenCount === 0 ? items : items.slice(0, VISIBLE_ITEMS_LIMIT);
   const paying = activeAction === "pay";
   const cancelling = activeAction === "cancel";
 
@@ -92,28 +88,7 @@ function PurchaseCard({ transaction, busy, activeAction, onPay, onCancel }) {
             </span>
           ) : null}
         </div>
-        {items.length > 0 ? (
-          <div className={styles.itemsWrap}>
-            <ul className={cx(styles.items, expanded && styles.itemsExpanded)} aria-label="Productos">
-              {visibleItems.map((item, idx) => (
-                <li key={`${item.productId ?? item.name}-${idx}`} className={styles.itemChip}>
-                  <span className={styles.qty}>{item.quantity} ×</span>
-                  <span className={styles.itemName}>{item.name}</span>
-                </li>
-              ))}
-            </ul>
-            {hiddenCount > 0 ? (
-              <button
-                type="button"
-                className={styles.itemsToggle}
-                aria-expanded={expanded}
-                onClick={() => setExpanded((prev) => !prev)}
-              >
-                {expanded ? "Ver menos" : `+${hiddenCount} ${hiddenCount === 1 ? "producto más" : "productos más"}`}
-              </button>
-            ) : null}
-          </div>
-        ) : null}
+        <ProductChips items={items} />
         <dl className={styles.details}>
           <div>
             <dt>Fecha</dt>
@@ -152,6 +127,7 @@ function PurchaseCard({ transaction, busy, activeAction, onPay, onCancel }) {
           ) : reference ? (
             <Link
               to={`/payment-result?reference=${encodeURIComponent(reference)}`}
+              state={{ items }}
               className={buttonClassName({ variant: "outline", size: "sm" })}
             >
               Ver detalle

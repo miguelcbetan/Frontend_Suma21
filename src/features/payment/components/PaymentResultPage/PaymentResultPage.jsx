@@ -9,7 +9,10 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { describeError } from "@/core/api";
+import { groupSaleItems } from "@/core/utils/groupSaleItems";
 import { lastPaymentReference, loadPaymentSession, paymentKindOf } from "@/core/utils/paymentSession";
+
+import { ProductChips } from "../shared/ProductChips.jsx";
 
 import { STATUS_LABELS, formatCop, formatDateTime, outcomeOf } from "./format.js";
 import styles from "./PaymentResultPage.module.css";
@@ -109,10 +112,30 @@ function RestoreCartButton({ items, onRestore }) {
   );
 }
 
+/** Convierte el resumen guardado («6 × galletas, 2 × milo») en líneas agrupadas para el recibo. */
+function parseReceiptProducts(summary) {
+  if (!summary || typeof summary !== "string") return [];
+  const raw = summary
+    .split(/,\s*(?=\d+\s*×)/)
+    .map((part) => {
+      const match = part.trim().match(/^(\d+)\s*×\s*(.+)$/);
+      if (!match) return null;
+      return { name: match[2].trim(), quantity: Number(match[1]) };
+    })
+    .filter(Boolean);
+  return groupSaleItems(raw);
+}
+
 /** Los certificados se descargan en «Mis donaciones», en la pestaña que corresponde. */
-function ApprovedReceipt({ payment, kind, session }) {
+function ApprovedReceipt({ payment, kind, session, items }) {
   const isDonation = kind === "donation";
   const accountLink = accountLinkFor(kind, session);
+  const receiptItems = !isDonation
+    ? Array.isArray(items) && items.length > 0
+      ? groupSaleItems(items)
+      : parseReceiptProducts(session?.summary)
+    : [];
+  const receiptUnits = receiptItems.reduce((sum, item) => sum + item.quantity, 0);
 
   const amount = payment.amount_in_cents / 100;
   const paidAt = payment.created_at;
@@ -157,7 +180,20 @@ function ApprovedReceipt({ payment, kind, session }) {
             <dt>Modalidad</dt>
             <dd>{modality}</dd>
           </div>
-          {!isDonation && session?.summary ? (
+          {!isDonation && receiptItems.length > 0 ? (
+            <div className={styles.productsRow}>
+              <dt className={styles.productsLabel}>
+                <span>Productos</span>
+                <span className={styles.productsMeta}>
+                  {receiptUnits} {receiptUnits === 1 ? "ud" : "uds"} · {receiptItems.length}{" "}
+                  {receiptItems.length === 1 ? "producto" : "productos"}
+                </span>
+              </dt>
+              <dd className={styles.productsValue}>
+                <ProductChips items={receiptItems} />
+              </dd>
+            </div>
+          ) : !isDonation && session?.summary ? (
             <div>
               <dt>Productos</dt>
               <dd>{session.summary}</dd>
@@ -261,7 +297,7 @@ export function PaymentResultPage({ onRestoreCart, onStatusChange }) {
       </PaymentStatusMessage>
     );
   } else if (outcome === "approved") {
-    content = <ApprovedReceipt payment={payment} kind={kind} session={session} />;
+    content = <ApprovedReceipt payment={payment} kind={kind} session={session} items={navigationState?.items} />;
   } else if (outcome === "rejected") {
     content = (
       <PaymentStatusMessage

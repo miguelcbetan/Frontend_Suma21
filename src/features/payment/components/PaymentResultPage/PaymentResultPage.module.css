@@ -114,13 +114,13 @@
   border-radius: var(--radius-md);
 }
 
-.details div {
+.details > div {
   display: grid;
   gap: var(--space-1);
   padding-block: var(--space-3);
 }
 
-.details div + div {
+.details > div + div {
   border-top: var(--border-width) solid var(--color-gray-200);
 }
 
@@ -140,6 +140,29 @@
   font-size: var(--font-size-sm);
 }
 
+.details .productsRow {
+  grid-template-columns: 1fr;
+  gap: var(--space-2);
+}
+
+.productsLabel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.productsMeta {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.details .productsValue {
+  text-align: left;
+  font-weight: var(--font-weight-regular);
+}
+
 .totalRow dd.amount {
   color: var(--color-accent-text);
   font-size: var(--font-size-xl);
@@ -155,9 +178,13 @@
 
 
 @media (min-width: 40rem) {
-  .details div {
+  .details > div {
     grid-template-columns: 1fr 1.3fr;
     align-items: baseline;
+  }
+
+  .details > .productsRow {
+    grid-template-columns: 1fr;
   }
 
   .details dd {
