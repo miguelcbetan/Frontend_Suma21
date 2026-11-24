@@ -89,21 +89,32 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
   }, [reloadKey]);
 
   // Al entrar a la tienda se confirma con el backend si hay un pago pendiente.
-  const { refreshPendingStatus } = cart;
+  const { refresh: refreshCart, refreshPendingStatus } = cart;
   useEffect(() => {
     refreshPendingStatus();
   }, [refreshPendingStatus]);
 
-  // Al volver a esta pestaña (p. ej. tras pagar en la de Wompi) se revisa si el carrito sigue bloqueado.
-  const { locked: cartLocked } = cart;
+  // Al volver a esta pestaña (p. ej. tras pagar en la pestaña de Wompi),
+  // sincronizamos tanto el bloqueo como el catálogo. El catálogo puede cambiar
+  // porque el checkout reservó stock y un pago aprobado debe dejarlo agotado.
   useEffect(() => {
-    if (!cartLocked) return undefined;
-    const check = () => {
-      if (document.visibilityState === "visible") refreshPendingStatus();
+    const syncAfterCheckout = () => {
+      if (document.visibilityState !== "visible") return;
+      refreshPendingStatus().then((blocked) => {
+        if (!blocked) refreshCart();
+      });
+      setReloadKey((key) => key + 1);
     };
-    document.addEventListener("visibilitychange", check);
-    return () => document.removeEventListener("visibilitychange", check);
-  }, [cartLocked, refreshPendingStatus]);
+
+    document.addEventListener("visibilitychange", syncAfterCheckout);
+    window.addEventListener("focus", syncAfterCheckout);
+    window.addEventListener("pageshow", syncAfterCheckout);
+    return () => {
+      document.removeEventListener("visibilitychange", syncAfterCheckout);
+      window.removeEventListener("focus", syncAfterCheckout);
+      window.removeEventListener("pageshow", syncAfterCheckout);
+    };
+  }, [refreshCart, refreshPendingStatus]);
 
   // El enlace «Carrito» de la cabecera apunta a `#carrito`.
   useEffect(() => {

@@ -8,7 +8,6 @@ export const SPONSOR_FREQUENCIES = {
   MONTHLY: { label: "Mensual", every: "cada mes", cycles: 12 },
   QUARTERLY: { label: "Trimestral", every: "cada 3 meses", cycles: 4 },
   SEMIANNUAL: { label: "Semestral", every: "cada 6 meses", cycles: 2 },
-  ANNUAL: { label: "Anual", every: "una vez al año", cycles: 1 },
 };
 
 /** @param {string} frequency */

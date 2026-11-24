@@ -47,7 +47,7 @@ export function WaysToHelpSection({ donateButton, sponsorButton }) {
       tone: "orange",
       title: "Plan Padrino",
       description:
-        "Comprométete con un aporte mensual, trimestral, semestral o anual durante un año. Das estabilidad a los programas y recibes un certificado por cada cuota pagada.",
+        "Comprométete con un aporte mensual, trimestral o semestral durante un año. Das estabilidad a los programas y recibes un certificado por cada cuota pagada.",
       action: sponsorButton,
     },
     {

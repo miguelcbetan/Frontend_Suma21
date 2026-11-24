@@ -283,7 +283,7 @@ export const donationsService = {
 };
 
 /**
- * @typedef {"MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "ANNUAL"} SponsorFrequency
+ * @typedef {"MONTHLY" | "QUARTERLY" | "SEMIANNUAL"} SponsorFrequency
  * @typedef {{
  *   cycleId: string, cycleNumber: number, dueDate: string, amount: number,
  *   status: string, emailNotified: boolean, donationId: string | null,
