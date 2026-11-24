@@ -56,6 +56,14 @@ export const productsService = {
     const current = await productsService.get(id);
     return productsService.update(id, { stock_qty: Number(current.stock_qty) + quantity });
   },
+  /** Ajusta el stock sumando o descontando unidades sin crear otro producto. */
+  adjustStock: async (id, { operation, quantity }) => {
+    const current = await productsService.get(id);
+    const stockQty = Number(current.stock_qty) || 0;
+    const nextStock = operation === "decrease" ? stockQty - quantity : stockQty + quantity;
+    if (nextStock < 0) throw new Error("No puedes descontar más unidades que las disponibles.");
+    return productsService.update(id, { stock_qty: nextStock });
+  },
 };
 
 const normalizeInventory = withId("inventory_item_id");

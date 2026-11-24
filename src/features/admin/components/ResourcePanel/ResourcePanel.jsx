@@ -167,7 +167,7 @@ export function ResourcePanel({ section }) {
           ),
         )
       : state.records;
-  const hasActions = Boolean(update || remove || stockFlow || rowActions.length > 0);
+  const hasActions = Boolean(update || remove || rowActions.length > 0);
   const stockLabel = stockFlow?.allowDecrease ? "Ajustar stock" : "Aumentar stock";
   const canAdjustStock = Boolean(stockFlow) && state.status === "ready" && state.records.length > 0;
 
@@ -338,17 +338,6 @@ export function ResourcePanel({ section }) {
                   hasActions
                     ? (record) => (
                         <>
-                          {stockFlow ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openDialog({ type: "stock", recordId: String(record.id) })}
-                              aria-label={`${stockLabel}: ${record.name ?? `#${record.id}`}`}
-                            >
-                              <Icon name="package" size={16} />
-                              Stock
-                            </Button>
-                          ) : null}
                           {update ? (
                             <Button
                               variant="outline"

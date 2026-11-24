@@ -64,14 +64,21 @@
 }
 
 .actionsHead {
-  text-align: right;
+  text-align: center;
+}
+
+.actionsCell {
+  text-align: center;
 }
 
 .actions {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
+  width: max-content;
+  max-width: 100%;
+  margin-inline: auto;
   gap: var(--space-1);
 }
 

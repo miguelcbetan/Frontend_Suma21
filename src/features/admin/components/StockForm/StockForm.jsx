@@ -10,8 +10,9 @@ import { RecordPicker } from "../RecordPicker";
 import styles from "./StockForm.module.css";
 
 /**
- * Opción «aumentar stock de un registro existente»: buscar y elegir el
- * registro, ver su stock actual e indicar la cantidad. No crea registros nuevos.
+ * Opción «ajustar stock de un registro existente»: buscar y elegir el
+ * registro, ver su stock actual e indicar si aumenta o disminuye unidades.
+ * No crea registros nuevos.
  * @param {{
  *   records: any[],
  *   singular: string,

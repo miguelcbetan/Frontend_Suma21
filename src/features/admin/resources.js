@@ -1,4 +1,4 @@
-import { inventoryService, productsService, salesService } from "@/core/api";
+import { inventoryService, productsService, salesService, toList } from "@/core/api";
 import { formatCurrency } from "@/core/utils/currency";
 import { formatDateTimeShort } from "@/core/utils/date";
 import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, validateImageFile } from "@/core/utils/imageFile";
@@ -12,6 +12,32 @@ const SALE_STATUS_LABELS = {
 const SALE_STATUS_TONES = { DRAFT: "neutral", PENDING: "orange", APPROVED: "green", DECLINED: "danger" };
 
 const money = (value) => (value == null || value === "" ? "—" : formatCurrency(Number(value)));
+
+/**
+ * Añade nombres legibles a las líneas de venta consultando el catálogo.
+ * El listado de ventas conserva todos sus datos originales.
+ */
+async function listSalesWithProductNames() {
+  const [salesPayload, productsPayload] = await Promise.all([salesService.list(), productsService.list()]);
+  const productsById = new Map(
+    toList(productsPayload).map((product) => [String(product.id), product.name]),
+  );
+
+  return toList(salesPayload).map((sale) => ({
+    ...sale,
+    items: (sale.items ?? []).map((item) => {
+      const productId = String(item.productId ?? item.product_id ?? "");
+      const name =
+        item.name ??
+        item.productName ??
+        item.product_name ??
+        item.product?.name ??
+        productsById.get(productId) ??
+        null;
+      return { ...item, productId, name };
+    }),
+  }));
+}
 const imageField = {
   name: "image",
   label: "Imagen del producto",
@@ -32,7 +58,7 @@ const imageField = {
  * Sección de recurso: con `list` muestra una tabla con búsqueda; `create` +
  * `fields` el alta (`editFields` si la edición admite otros campos);
  * `update`/`remove` activan editar y eliminar (con confirmación);
- * `stockFlow` añade la opción «aumentar stock de un registro existente»;
+ * `stockFlow` añade la opción «ajustar stock de un registro existente»;
  * `rowActions` agrega acciones por fila. Una columna puede traer `format(record)`,
  * o `type: "toggle"` con `toggle: { label, run, notice }` para cambiarla con un interruptor.
  *
@@ -45,7 +71,7 @@ export const SECTIONS = [
     icon: "bag",
     singular: "producto",
     description:
-      "Productos de la tienda. Para reponer unidades de un producto que ya existe usa «Aumentar stock» en lugar de crear uno nuevo.",
+      "Productos de la tienda. Para aumentar o disminuir las unidades de un producto que ya existe usa «Ajustar stock» en lugar de crear uno nuevo.",
     list: productsService.list,
     create: productsService.create,
     update: productsService.update,
@@ -74,11 +100,17 @@ export const SECTIONS = [
       { name: "description", label: "Descripción", type: "textarea", full: true },
       { ...imageField, full: true },
     ],
+    editFields: [
+      { name: "name", label: "Nombre", type: "text", required: true },
+      { name: "unit_price", label: "Precio unitario (COP)", type: "number", required: true, min: 0, step: "any" },
+      { name: "description", label: "Descripción", type: "textarea", full: true },
+      { ...imageField, full: true },
+    ],
     stockFlow: {
       stockKey: "stock_qty",
-      allowDecrease: false,
+      allowDecrease: true,
       describe: (record) => `${record.name} · stock ${record.stock_qty}`,
-      apply: (record, _operation, quantity) => productsService.increaseStock(record.id, quantity),
+      apply: (record, operation, quantity) => productsService.adjustStock(record.id, { operation, quantity }),
     },
   },
   {
@@ -155,7 +187,7 @@ export const SECTIONS = [
     icon: "receipt",
     singular: "venta",
     description: "Todas las ventas de la tienda: carritos sin pagar (DRAFT), pendientes de pago, aprobadas y rechazadas.",
-    list: salesService.list,
+    list: listSalesWithProductNames,
     searchKeys: ["id", "customerId", "status"],
     columns: [
       { key: "id", label: "Venta" },
@@ -164,7 +196,10 @@ export const SECTIONS = [
       {
         key: "items",
         label: "Productos",
-        format: (record) => (record.items ?? []).map((item) => `${item.quantity} × #${item.productId}`).join(", "),
+        format: (record) =>
+          (record.items ?? [])
+            .map((item) => `${item.quantity} × ${item.name ?? `Producto #${item.productId}`}`)
+            .join(", "),
       },
       { key: "totalPrice", label: "Total", format: (record) => money(record.totalPrice) },
       {
