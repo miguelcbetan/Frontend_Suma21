@@ -59,7 +59,7 @@ const SITE_NAME = "SUMA21 by ASISCO";
 const PAGE_TITLES = {
   "/": SITE_NAME,
   "/apoyanos-tienda": "Tienda",
-  "/donaciones-en-especie": "Donar en especie",
+  "/donaciones-en-especie": "¿Qué puedo donar?",
   "/payment-result": "Resultado del pago",
   "/mis-compras": "Mis compras",
   "/mis-donaciones": "Mis donaciones",

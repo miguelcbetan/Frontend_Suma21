@@ -43,7 +43,7 @@ export function Hero({ donateButton, sponsorButton }) {
               Visitar la tienda
             </Link>
             <Link to="/donaciones-en-especie" className={buttonClassName({ variant: "outline", size: "lg" })}>
-              Donar en especie
+              ¿Qué puedo donar?
             </Link>
             {sponsorButton}
           </div>

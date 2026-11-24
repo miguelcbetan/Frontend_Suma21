@@ -164,7 +164,9 @@ function SponsorDialogForm({ onClose, session }) {
         <fieldset className={styles.frequency}>
           <legend className={styles.legend}>¿Cada cuánto quieres aportar?</legend>
           <div className={styles.frequencyGrid}>
-            {Object.entries(SPONSOR_FREQUENCIES).map(([key, info]) => (
+            {Object.entries(SPONSOR_FREQUENCIES)
+              .filter(([key]) => key !== "ANNUAL")
+              .map(([key, info]) => (
               <label key={key} className={styles.frequencyTile}>
                 <input
                   type="radio"
