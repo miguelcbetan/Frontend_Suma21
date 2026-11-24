@@ -30,8 +30,8 @@ Todo se centraliza en `src/core/api/config.js`. El frontend no usa claves de Wom
 | Panel admin (estado) | `GET /health` | Sin prefijo `/api/v1`. |
 | Tienda | `GET /products`, `GET /products/:id` | Público (`GET /products` devuelve solo productos con `stock_qty > 0`). |
 | Admin · Listar productos | `GET /products/all` | Público (sin rol `ADMIN`), devuelve todos los productos activos incluyendo `stock_qty = 0`. |
-| Admin · Productos | `POST /products`, `PATCH /products/:id`, `DELETE /products/:id` | ADMIN. JSON o `multipart/form-data` con `image`. `stock_qty` ≥ 1. |
-| Admin · Aumentar stock de producto | `GET /products/:id` y luego `PATCH /products/:id {stock_qty: actual + n}` | No hay ajuste atómico para productos (ver pendientes). |
+| Admin · Productos | `POST /products`, `PATCH /products/:id`, `DELETE /products/:id` | ADMIN. JSON o `multipart/form-data` con `image`. `stock_qty` ≥ 1 al crear y ≥ 0 al actualizar. |
+| Admin · Ajustar stock de producto | `GET /products/:id` y luego `PATCH /products/:id {stock_qty: siguiente}` | Permite aumentar o disminuir hasta `0` (`stock_qty` ≥ 0); ver pendientes sobre ajuste atómico. |
 | Donar en especie (catálogo público) | `GET /inventory/needed` | Público. Campo real: `is_needed`; la página permite coordinar la entrega, no registra donaciones. |
 | Admin · Inventario | `GET/POST /inventory`, `PATCH/DELETE /inventory/:id` | ADMIN. Alta `{name, description?, stock ≥ 1, is_needed}`. Edición `{name?, description?, is_needed?}`. DELETE responde 409 si hay stock. |
 | Admin · Ajustar stock de inventario | `PATCH /inventory/:id/stock {operation: increase\|decrease, quantity}` | Atómico. |
