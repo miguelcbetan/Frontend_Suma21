@@ -7,11 +7,17 @@
   border: var(--border-width) solid var(--color-gray-200);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  transition: box-shadow var(--duration-base) var(--ease-standard);
+  transition:
+    box-shadow var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard);
 }
 
 .card:hover {
   box-shadow: var(--shadow-md);
+}
+
+.inCartCard {
+  border-color: var(--color-green-200);
 }
 
 .media {
@@ -84,17 +90,97 @@
 
 .action {
   display: grid;
-  gap: var(--space-2);
+  gap: 0.375rem;
   margin-top: auto;
   padding-top: var(--space-3);
 }
 
-.inCart {
+.cartRow {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.stepper {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 2.75rem;
+  overflow: hidden;
+  background: var(--color-green-50);
+  border: var(--border-width) solid var(--color-green-600);
+  border-radius: var(--radius-md);
+}
+
+.stepBtn {
   display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
-  gap: var(--space-1);
+  width: 2.5rem;
+  background: var(--color-secondary);
+  border: 0;
+  color: var(--color-secondary-contrast);
+  font: inherit;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+.stepBtn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.stepBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.stepCount {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding-inline: var(--space-2);
   color: var(--color-green-700);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+.removeBtn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  min-height: 2.75rem;
+  background: var(--color-bg);
+  border: var(--border-width) solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  color: var(--color-danger);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+
+.removeBtn:hover:not(:disabled) {
+  background: var(--color-red-50);
+  border-color: var(--color-danger);
+}
+
+.removeBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.limitNote {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-align: center;
 }

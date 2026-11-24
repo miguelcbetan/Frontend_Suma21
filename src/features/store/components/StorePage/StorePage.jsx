@@ -33,6 +33,12 @@ const SORT_OPTIONS = [
   { value: "stock-desc", label: "Mayor disponibilidad" },
 ];
 
+const CART_PLACEMENT_OPTIONS = [
+  { value: "default", label: "Carrito: Orden normal" },
+  { value: "first", label: "En carrito: Al principio" },
+  { value: "last", label: "En carrito: Al final" },
+];
+
 const SORT_COMPARATORS = {
   name: (a, b) => a.name.localeCompare(b.name, "es"),
   "price-asc": (a, b) => a.price - b.price || a.name.localeCompare(b.name, "es"),
@@ -82,6 +88,7 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [sortBy, setSortBy] = useState("name");
+  const [cartPlacement, setCartPlacement] = useState("default");
   const [priceOpen, setPriceOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -158,7 +165,8 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
   const minPriceValue = minPrice === "" ? null : Number(minPrice);
   const maxPriceValue = maxPrice === "" ? null : Number(maxPrice);
   const hasPriceFilter = minPrice !== "" || maxPrice !== "";
-  const hasActiveFilters = Boolean(term) || hasPriceFilter || sortBy !== "name";
+  const hasActiveFilters = Boolean(term) || hasPriceFilter || sortBy !== "name" || cartPlacement !== "default";
+  const baseComparator = SORT_COMPARATORS[sortBy] ?? SORT_COMPARATORS.name;
 
   const visible = products
     .filter((product) => {
@@ -168,13 +176,23 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
       return true;
     })
     .slice()
-    .sort(SORT_COMPARATORS[sortBy] ?? SORT_COMPARATORS.name);
+    .sort((a, b) => {
+      if (cartPlacement !== "default") {
+        const aInCart = (cart.items[a.id] ?? 0) > 0 ? 1 : 0;
+        const bInCart = (cart.items[b.id] ?? 0) > 0 ? 1 : 0;
+        if (aInCart !== bInCart) {
+          return cartPlacement === "first" ? bInCart - aInCart : aInCart - bInCart;
+        }
+      }
+      return baseComparator(a, b);
+    });
 
   function clearFilters() {
     setQuery("");
     setMinPrice("");
     setMaxPrice("");
     setSortBy("name");
+    setCartPlacement("default");
     setPriceOpen(false);
   }
 
@@ -279,6 +297,13 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
                 </div>
 
                 <SortMenu
+                  label="Productos en carrito"
+                  options={CART_PLACEMENT_OPTIONS}
+                  value={cartPlacement}
+                  onChange={setCartPlacement}
+                />
+
+                <SortMenu
                   label="Ordenar productos"
                   options={SORT_OPTIONS}
                   value={sortBy}
@@ -356,6 +381,8 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
                 product={product}
                 quantity={cart.items[product.id] ?? 0}
                 onAdd={(id) => cart.add(id, product.stock)}
+                onDecrement={(id) => cart.decrement(id)}
+                onRemove={(id) => cart.remove(id)}
                 disabled={cart.status !== "ready" || locked}
                 disabledLabel={locked ? "Pago pendiente" : undefined}
               />
