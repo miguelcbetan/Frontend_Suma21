@@ -64,8 +64,9 @@ export function OverviewPanel({ onNavigate }) {
     return stock > 0 && stock <= LOW_STOCK;
   });
   const needed = inventory.data.filter((record) => record.is_needed);
-  const pendingSales = sales.data.filter((record) => record.status === "PENDING");
-  const approvedSales = sales.data.filter((record) => record.status === "APPROVED");
+  const orders = sales.data.filter((record) => record.status !== "DRAFT");
+  const pendingSales = orders.filter((record) => record.status === "PENDING");
+  const approvedSales = orders.filter((record) => record.status === "APPROVED");
 
   const cards = [
     {
@@ -94,7 +95,7 @@ export function OverviewPanel({ onNavigate }) {
       label: "Ventas pendientes de pago",
       source: sales,
       value: pendingSales.length,
-      detail: `${approvedSales.length} aprobadas de ${sales.data.length} registradas`,
+      detail: `${approvedSales.length} aprobadas de ${orders.length} ventas`,
     },
   ];
 

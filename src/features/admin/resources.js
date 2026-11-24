@@ -5,12 +5,11 @@ import { groupSaleItems } from "@/core/utils/groupSaleItems";
 import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, validateImageFile } from "@/core/utils/imageFile";
 
 const SALE_STATUS_LABELS = {
-  DRAFT: "Carrito (sin pagar)",
   PENDING: "Pendiente de pago",
   APPROVED: "Aprobada",
   DECLINED: "Rechazada",
 };
-const SALE_STATUS_TONES = { DRAFT: "neutral", PENDING: "orange", APPROVED: "green", DECLINED: "danger" };
+const SALE_STATUS_TONES = { PENDING: "orange", APPROVED: "green", DECLINED: "danger" };
 
 const money = (value) => (value == null || value === "" ? "—" : formatCurrency(Number(value)));
 
@@ -37,20 +36,22 @@ async function listSalesWithProductNames() {
     toList(productsPayload).map((product) => [String(product.id), product.name]),
   );
 
-  return toList(salesPayload).map((sale) => ({
-    ...sale,
-    items: (sale.items ?? []).map((item) => {
-      const productId = String(item.productId ?? item.product_id ?? "");
-      const name =
-        item.name ??
-        item.productName ??
-        item.product_name ??
-        item.product?.name ??
-        productsById.get(productId) ??
-        null;
-      return { ...item, productId, name };
-    }),
-  }));
+  return toList(salesPayload)
+    .filter((sale) => sale.status !== "DRAFT")
+    .map((sale) => ({
+      ...sale,
+      items: (sale.items ?? []).map((item) => {
+        const productId = String(item.productId ?? item.product_id ?? "");
+        const name =
+          item.name ??
+          item.productName ??
+          item.product_name ??
+          item.product?.name ??
+          productsById.get(productId) ??
+          null;
+        return { ...item, productId, name };
+      }),
+    }));
 }
 const imageField = {
   name: "image",
@@ -256,10 +257,10 @@ export const SECTIONS = [
   },
   {
     id: "sales",
-    label: "Ventas registradas",
+    label: "Historial de ventas",
     icon: "receipt",
     singular: "venta",
-    description: "Todas las ventas de la tienda: carritos sin pagar (DRAFT), pendientes de pago, aprobadas y rechazadas.",
+    description: "Compras realizadas en la tienda: aprobadas, pendientes de pago y rechazadas.",
     list: listSalesWithProductNames,
     searchKeys: ["id", "customerId", "status"],
     searchPlaceholder: "Buscar por venta, usuario o producto…",
@@ -273,7 +274,6 @@ export const SECTIONS = [
         { value: "all", label: "Todas" },
         { value: "APPROVED", label: "Aprobadas", match: (record) => record.status === "APPROVED" },
         { value: "PENDING", label: "Pendientes", match: (record) => record.status === "PENDING" },
-        { value: "DRAFT", label: "Carrito", match: (record) => record.status === "DRAFT" },
         { value: "DECLINED", label: "Rechazadas", match: (record) => record.status === "DECLINED" },
       ],
     },
