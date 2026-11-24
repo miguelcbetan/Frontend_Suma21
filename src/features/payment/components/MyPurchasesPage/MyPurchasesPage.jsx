@@ -9,6 +9,7 @@ import { Button, buttonClassName } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
+import { ProductChips } from "@/components/ui/ProductChips";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
 import { ApiError, describeError, salesService } from "@/core/api";
@@ -17,7 +18,6 @@ import { groupSaleItems } from "@/core/utils/groupSaleItems";
 import { checkoutUrlWithReturn, isWompiCheckoutUrl, reserveCheckoutTab } from "@/core/utils/wompiWidget";
 
 import { formatCop, formatDateTime } from "../PaymentResultPage/format.js";
-import { ProductChips } from "../shared/ProductChips.jsx";
 import styles from "../shared/rows.module.css";
 
 /** Estado del backend → etiqueta y tono de la insignia. */

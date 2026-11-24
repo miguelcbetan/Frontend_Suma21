@@ -7,12 +7,11 @@ import { Badge } from "@/components/ui/Badge";
 import { Button, buttonClassName } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
+import { ProductChips } from "@/components/ui/ProductChips";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { describeError } from "@/core/api";
 import { groupSaleItems } from "@/core/utils/groupSaleItems";
 import { lastPaymentReference, loadPaymentSession, paymentKindOf } from "@/core/utils/paymentSession";
-
-import { ProductChips } from "../shared/ProductChips.jsx";
 
 import { STATUS_LABELS, formatCop, formatDateTime, outcomeOf } from "./format.js";
 import styles from "./PaymentResultPage.module.css";

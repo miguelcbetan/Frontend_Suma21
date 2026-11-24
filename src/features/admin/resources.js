@@ -1,3 +1,6 @@
+import { createElement } from "react";
+
+import { ProductChips } from "@/components/ui/ProductChips";
 import { inventoryService, productsService, salesService, toList } from "@/core/api";
 import { formatCurrency } from "@/core/utils/currency";
 import { formatDateTimeShort } from "@/core/utils/date";
@@ -262,10 +265,10 @@ export const SECTIONS = [
     singular: "venta",
     description: "Compras realizadas en la tienda: aprobadas, pendientes de pago y rechazadas.",
     list: listSalesWithProductNames,
-    searchKeys: ["id", "customerId", "status"],
-    searchPlaceholder: "Buscar por venta, usuario o producto…",
+    searchKeys: ["id", "customerId", "customerName", "status"],
+    searchPlaceholder: "Buscar por venta, cliente o producto…",
     getSearchText: (record) =>
-      `${SALE_STATUS_LABELS[record.status] ?? ""} ${(record.items ?? [])
+      `${record.customerName ?? ""} ${SALE_STATUS_LABELS[record.status] ?? ""} ${(record.items ?? [])
         .map((item) => item.name ?? item.productId)
         .join(" ")}`,
     primaryFilter: {
@@ -311,18 +314,20 @@ export const SECTIONS = [
     columns: [
       { key: "id", label: "Venta" },
       { key: "createdAt", label: "Fecha", format: (record) => formatDateTimeShort(record.createdAt) },
-      { key: "customerId", label: "Usuario" },
+      {
+        key: "customerName",
+        label: "Usuario",
+        format: (record) => record.customerName || (record.customerId ? `Usuario #${record.customerId}` : null),
+      },
       {
         key: "items",
         label: "Productos",
-        format: (record) => {
-          const grouped = groupSaleItems(record.items);
-          const head = grouped
-            .slice(0, 3)
-            .map((item) => `${item.quantity} × ${item.name ?? `Producto #${item.productId}`}`)
-            .join(", ");
-          const rest = grouped.length - 3;
-          return rest > 0 ? `${head} (+${rest} más)` : head;
+        render: (record) => {
+          const grouped = groupSaleItems(record.items).map((item) => ({
+            ...item,
+            name: item.name ?? `Producto #${item.productId}`,
+          }));
+          return grouped.length > 0 ? createElement(ProductChips, { items: grouped }) : null;
         },
       },
       { key: "totalPrice", label: "Total", format: (record) => money(record.totalPrice) },

@@ -20,6 +20,10 @@ function renderCell(column, record, renderToggle) {
     const text = column.format ? column.format(record) : raw;
     return <Badge tone={column.tones?.[raw] ?? "neutral"}>{text}</Badge>;
   }
+  if (typeof column.render === "function") {
+    const node = column.render(record);
+    return node == null || node === "" ? <span className={styles.muted}>—</span> : node;
+  }
   const value = column.format ? column.format(record) : record[column.key];
   return value == null || value === "" ? <span className={styles.muted}>—</span> : String(value);
 }
