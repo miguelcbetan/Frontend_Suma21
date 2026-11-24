@@ -78,7 +78,7 @@ export function CartDrawer({ session = { authenticated: false, userId: null } })
       if (!isWompiCheckoutUrl(url)) {
         throw new ApiError("El enlace de pago recibido no es válido.");
       }
-      if (tab.open(url)) {
+      if (tab.go(url)) {
         setCheckout({ status: "idle", message: "" });
         closeDrawer();
       } else {
