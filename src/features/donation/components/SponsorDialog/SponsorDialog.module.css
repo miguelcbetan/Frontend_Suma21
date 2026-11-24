@@ -186,6 +186,26 @@
   font-size: var(--font-size-sm);
 }
 
+.activePlanAlert {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+}
+
+.fieldsLock {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.fieldsLock:disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 @media (min-width: 64rem) {
   .content {
     grid-template-columns: 1.1fr minmax(0, 28rem);

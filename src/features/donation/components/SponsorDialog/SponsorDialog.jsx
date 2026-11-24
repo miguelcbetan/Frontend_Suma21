@@ -1,15 +1,21 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Alert } from "@/components/ui/Alert";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClassName } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { ApiError, describeError, donationsService } from "@/core/api";
 import { savePaymentSession } from "@/core/utils/paymentSession";
-import { PAYABLE_CYCLE_STATUSES, SPONSOR_FREQUENCIES, formatPesos } from "@/core/utils/sponsorPlan";
+import {
+  PAYABLE_CYCLE_STATUSES,
+  SPONSOR_FREQUENCIES,
+  formatPesos,
+  formatPlanDate,
+  frequencyInfo,
+} from "@/core/utils/sponsorPlan";
 import { checkoutUrlWithReturn, isWompiCheckoutUrl, reserveCheckoutTab } from "@/core/utils/wompiWidget";
 
 import { AmountSelector } from "../AmountSelector";
@@ -31,35 +37,57 @@ const hasValidDecimals = (value) => Math.round(value * 100) === value * 100;
 
 const IDLE = { status: "idle", message: "" };
 
-/**
- * Suscripción al Plan Padrino: el donante elige monto por cuota y
- * periodicidad, se crea el plan (`POST /donations/sponsor-plans`) y se paga su
- * primera cuota (`POST /donations/sponsor-plans/cycles/:id/checkout`) en una
- * pestaña nueva de Wompi, igual que las donaciones. Las cuotas siguientes se
- * pagan desde «Mis donaciones», pestaña Plan Padrino.
- * @param {{
- *   open: boolean,
- *   onClose: () => void,
- *   session?: { authenticated: boolean, userId: string | null },
- * }} props
- */
-export function SponsorDialog({ open, onClose, session = { authenticated: false, userId: null } }) {
-  const titleId = useId();
+function describeActivePlan(plan) {
+  if (!plan) return "";
+  const amountText = Number.isFinite(Number(plan.amount)) ? formatPesos(Number(plan.amount)) : "";
+  const freqText = plan.frequency ? frequencyInfo(plan.frequency).label.toLowerCase() : "";
+  const endText = plan.endDate ? `vigente hasta ${formatPlanDate(plan.endDate)}` : "";
+  return [amountText && freqText ? `${amountText} (${freqText})` : amountText || freqText, endText]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function SponsorDialogForm({ onClose, session }) {
   const frequencyName = useId();
   const [amount, setAmount] = useState(DEFAULT_AMOUNT);
   const [otherAmount, setOtherAmount] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
   const [frequency, setFrequency] = useState("MONTHLY");
   const [state, setState] = useState(IDLE);
+  const [planCheck, setPlanCheck] = useState(() => ({
+    status: session.authenticated ? "checking" : "none",
+    plan: null,
+  }));
+
+  useEffect(() => {
+    if (!session.authenticated) return undefined;
+    let cancelled = false;
+    donationsService
+      .listSponsorPlans()
+      .then((payload) => {
+        if (cancelled) return;
+        const active = Array.isArray(payload) ? payload.find((item) => item?.status === "ACTIVE") ?? null : null;
+        setPlanCheck({ status: active ? "active" : "none", plan: active });
+      })
+      .catch(() => {
+        if (!cancelled) setPlanCheck({ status: "none", plan: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session.authenticated]);
 
   const value = otherAmount ? Number(customAmount) : amount;
   const validAmount = Number.isFinite(value) && value > 0 && hasValidDecimals(value);
   const pending = state.status === "pending";
+  const checkingPlan = session.authenticated && planCheck.status === "checking";
+  const hasActivePlan = planCheck.status === "active" || state.status === "hasPlan";
+  const activePlanSummary = describeActivePlan(planCheck.plan);
   const plan = SPONSOR_FREQUENCIES[frequency];
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (!session.authenticated || pending) return;
+    if (!session.authenticated || pending || checkingPlan || hasActivePlan) return;
     if (!validAmount) {
       setState({ status: "error", message: "Escribe un monto mayor que cero, con máximo dos decimales." });
       return;
@@ -105,6 +133,160 @@ export function SponsorDialog({ open, onClose, session = { authenticated: false,
     }
   }
 
+  let submitLabel = `Ser padrino con ${validAmount ? formatPesos(value) : ""} ${plan.every}`;
+  if (checkingPlan) submitLabel = "Verificando tu plan…";
+  else if (hasActivePlan) submitLabel = "Ya tienes un Plan Padrino activo";
+  else if (pending) submitLabel = "Preparando tu plan…";
+
+  return (
+    <form className={styles.form} onSubmit={handleSubmit} noValidate>
+      <div className={styles.formHeader}>
+        <h3 className={styles.formTitle}>Arma tu plan</h3>
+        <p className={styles.formHint}>Monto por cuota en pesos colombianos (COP).</p>
+      </div>
+
+      {hasActivePlan ? (
+        <Alert tone="warning">
+          <div className={styles.activePlanAlert}>
+            <p>
+              <strong>Ya tienes un Plan Padrino activo</strong>
+              {activePlanSummary ? ` (${activePlanSummary})` : ""}. Solo puedes tener un plan activo a la vez; para
+              pagar tus cuotas o cancelarlo, entra a Mis donaciones.
+            </p>
+            <Link to={MY_PLANS_PATH} className={buttonClassName({ variant: "outline", size: "sm" })} onClick={onClose}>
+              Ir a mi Plan Padrino
+            </Link>
+          </div>
+        </Alert>
+      ) : null}
+
+      <fieldset className={styles.fieldsLock} disabled={hasActivePlan || pending}>
+        <fieldset className={styles.frequency}>
+          <legend className={styles.legend}>¿Cada cuánto quieres aportar?</legend>
+          <div className={styles.frequencyGrid}>
+            {Object.entries(SPONSOR_FREQUENCIES).map(([key, info]) => (
+              <label key={key} className={styles.frequencyTile}>
+                <input
+                  type="radio"
+                  name={frequencyName}
+                  value={key}
+                  checked={frequency === key}
+                  onChange={() => setFrequency(key)}
+                  className={styles.frequencyInput}
+                />
+                <span className={styles.frequencyText}>
+                  {info.label}
+                  <small>
+                    {info.cycles} {info.cycles === 1 ? "cuota" : "cuotas"}
+                  </small>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <AmountSelector
+          amounts={AMOUNTS}
+          value={otherAmount ? null : amount}
+          onChange={(next) => {
+            setAmount(next);
+            setOtherAmount(false);
+          }}
+        />
+        <Checkbox
+          label="Quiero ingresar otro monto"
+          checked={otherAmount}
+          disabled={hasActivePlan || pending}
+          onChange={(event) => setOtherAmount(event.target.checked)}
+        />
+        {otherAmount ? (
+          <Field
+            label="Monto por cuota en pesos"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            step="0.01"
+            placeholder="Ej.: 40000"
+            value={customAmount}
+            onChange={(event) => setCustomAmount(event.target.value)}
+          />
+        ) : null}
+      </fieldset>
+
+      {!hasActivePlan && validAmount ? (
+        <p className={styles.summary}>
+          Aportarás <strong>{formatPesos(value)}</strong> {plan.every} durante un año
+          {plan.cycles > 1 ? (
+            <>
+              {" "}
+              ({plan.cycles} cuotas, <strong>{formatPesos(value * plan.cycles)}</strong> en total)
+            </>
+          ) : null}
+          . Hoy pagas la primera cuota.
+        </p>
+      ) : null}
+
+      {!session.authenticated ? (
+        <Alert tone="info">
+          Para hacerte padrino{" "}
+          <Link to="/login" onClick={onClose}>
+            inicia sesión o crea tu cuenta
+          </Link>
+          .
+        </Alert>
+      ) : null}
+      {state.status === "error" ? <Alert tone="error">{state.message}</Alert> : null}
+      {state.status === "createdUnpaid" ? (
+        <Alert tone="error">
+          Tu plan quedó creado, pero no pudimos abrir el pago de la primera cuota ({state.message}). Págala desde{" "}
+          <Link to={MY_PLANS_PATH} onClick={onClose}>
+            Mis donaciones
+          </Link>
+          .
+        </Alert>
+      ) : null}
+      {state.status === "waiting" ? (
+        <Alert tone="success">
+          ¡Gracias por sumarte! Abrimos Wompi en una pestaña nueva para pagar tu primera cuota. Cuando termines,
+          revisa tu plan, tus cuotas y tus certificados en{" "}
+          <Link to={MY_PLANS_PATH} onClick={onClose}>
+            Mis donaciones
+          </Link>
+          .
+        </Alert>
+      ) : null}
+      {state.status === "blocked" ? (
+        <Alert tone="info">
+          Tu plan quedó creado, pero el navegador bloqueó la pestaña de pago.{" "}
+          <a href={state.url} target="_blank" rel="noopener noreferrer">
+            Pagar la primera cuota en Wompi
+          </a>
+        </Alert>
+      ) : null}
+
+      <Button type="submit" size="lg" block disabled={!session.authenticated || pending || checkingPlan || hasActivePlan}>
+        {submitLabel}
+        <Icon name="heart" size={20} />
+      </Button>
+    </form>
+  );
+}
+
+/**
+ * Suscripción al Plan Padrino: el donante elige monto por cuota y
+ * periodicidad, se crea el plan (`POST /donations/sponsor-plans`) y se paga su
+ * primera cuota (`POST /donations/sponsor-plans/cycles/:id/checkout`) en una
+ * pestaña nueva de Wompi, igual que las donaciones. Las cuotas siguientes se
+ * pagan desde «Mis donaciones», pestaña Plan Padrino.
+ * @param {{
+ *   open: boolean,
+ *   onClose: () => void,
+ *   session?: { authenticated: boolean, userId: string | null },
+ * }} props
+ */
+export function SponsorDialog({ open, onClose, session = { authenticated: false, userId: null } }) {
+  const titleId = useId();
+
   return (
     <Dialog
       open={open}
@@ -141,129 +323,7 @@ export function SponsorDialog({ open, onClose, session = { authenticated: false,
           <SecurityNotice />
         </div>
 
-        <form className={styles.form} onSubmit={handleSubmit} noValidate>
-          <div className={styles.formHeader}>
-            <h3 className={styles.formTitle}>Arma tu plan</h3>
-            <p className={styles.formHint}>Monto por cuota en pesos colombianos (COP).</p>
-          </div>
-
-          <fieldset className={styles.frequency}>
-            <legend className={styles.legend}>¿Cada cuánto quieres aportar?</legend>
-            <div className={styles.frequencyGrid}>
-              {Object.entries(SPONSOR_FREQUENCIES).map(([key, info]) => (
-                <label key={key} className={styles.frequencyTile}>
-                  <input
-                    type="radio"
-                    name={frequencyName}
-                    value={key}
-                    checked={frequency === key}
-                    onChange={() => setFrequency(key)}
-                    className={styles.frequencyInput}
-                  />
-                  <span className={styles.frequencyText}>
-                    {info.label}
-                    <small>
-                      {info.cycles} {info.cycles === 1 ? "cuota" : "cuotas"}
-                    </small>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <AmountSelector
-            amounts={AMOUNTS}
-            value={otherAmount ? null : amount}
-            onChange={(next) => {
-              setAmount(next);
-              setOtherAmount(false);
-            }}
-          />
-          <Checkbox
-            label="Quiero ingresar otro monto"
-            checked={otherAmount}
-            onChange={(event) => setOtherAmount(event.target.checked)}
-          />
-          {otherAmount ? (
-            <Field
-              label="Monto por cuota en pesos"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              step="0.01"
-              placeholder="Ej.: 40000"
-              value={customAmount}
-              onChange={(event) => setCustomAmount(event.target.value)}
-            />
-          ) : null}
-
-          {validAmount ? (
-            <p className={styles.summary}>
-              Aportarás <strong>{formatPesos(value)}</strong> {plan.every} durante un año
-              {plan.cycles > 1 ? (
-                <>
-                  {" "}
-                  ({plan.cycles} cuotas, <strong>{formatPesos(value * plan.cycles)}</strong> en total)
-                </>
-              ) : null}
-              . Hoy pagas la primera cuota.
-            </p>
-          ) : null}
-
-          {!session.authenticated ? (
-            <Alert tone="info">
-              Para hacerte padrino{" "}
-              <Link to="/login" onClick={onClose}>
-                inicia sesión o crea tu cuenta
-              </Link>
-              .
-            </Alert>
-          ) : null}
-          {state.status === "error" ? <Alert tone="error">{state.message}</Alert> : null}
-          {state.status === "hasPlan" ? (
-            <Alert tone="info">
-              Ya tienes un Plan Padrino activo. Puedes ver sus cuotas y pagarlas en{" "}
-              <Link to={MY_PLANS_PATH} onClick={onClose}>
-                Mis donaciones
-              </Link>
-              .
-            </Alert>
-          ) : null}
-          {state.status === "createdUnpaid" ? (
-            <Alert tone="error">
-              Tu plan quedó creado, pero no pudimos abrir el pago de la primera cuota ({state.message}). Págala desde{" "}
-              <Link to={MY_PLANS_PATH} onClick={onClose}>
-                Mis donaciones
-              </Link>
-              .
-            </Alert>
-          ) : null}
-          {state.status === "waiting" ? (
-            <Alert tone="success">
-              ¡Gracias por sumarte! Abrimos Wompi en una pestaña nueva para pagar tu primera cuota. Cuando termines,
-              revisa tu plan, tus cuotas y tus certificados en{" "}
-              <Link to={MY_PLANS_PATH} onClick={onClose}>
-                Mis donaciones
-              </Link>
-              .
-            </Alert>
-          ) : null}
-          {state.status === "blocked" ? (
-            <Alert tone="info">
-              Tu plan quedó creado, pero el navegador bloqueó la pestaña de pago.{" "}
-              <a href={state.url} target="_blank" rel="noopener noreferrer">
-                Pagar la primera cuota en Wompi
-              </a>
-            </Alert>
-          ) : null}
-
-          <Button type="submit" size="lg" block disabled={!session.authenticated || pending}>
-            {pending
-              ? "Preparando tu plan…"
-              : `Ser padrino con ${validAmount ? formatPesos(value) : ""} ${plan.every}`}
-            <Icon name="heart" size={20} />
-          </Button>
-        </form>
+        {open ? <SponsorDialogForm key={session.userId ?? "guest"} onClose={onClose} session={session} /> : null}
       </div>
     </Dialog>
   );
