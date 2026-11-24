@@ -38,8 +38,8 @@ const CUSTOMER_NAV = [
   { label: "Mis donaciones", href: "/mis-donaciones" },
 ];
 const ADMIN_NAV = [
-  { label: "Panel admin", href: "/admin" },
   { label: "Donación en especie", href: "/admin/donacion-en-especie" },
+  { label: "Panel admin", href: "/admin" },
 ];
 
 /** Menú según el rol: cliente (DONANTE/CUSTOMER) o administrador. */
@@ -166,8 +166,8 @@ function Layout() {
         { label: "Mi perfil", href: "/perfil" },
         ...(isAdmin(user)
           ? [
-              { label: "Panel de administración", href: "/admin" },
               { label: "Donación en especie", href: "/admin/donacion-en-especie" },
+              { label: "Panel de administración", href: "/admin" },
             ]
           : [
               { label: "Mis compras", href: "/mis-compras" },
