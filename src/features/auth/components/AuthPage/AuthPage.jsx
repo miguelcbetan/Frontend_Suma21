@@ -7,7 +7,6 @@ import { Icon } from "@/components/ui/Icon";
 import { cx } from "@/core/utils/cx";
 
 import { useAuth } from "../../context/useAuth.js";
-import { isAdmin } from "../../session.js";
 import { LoginForm } from "../LoginForm";
 import { RegisterForm } from "../RegisterForm";
 
@@ -35,25 +34,20 @@ const BENEFITS = [
   { icon: "receipt", text: "Consultar el estado de tus pagos" },
 ];
 
-/** Destino tras iniciar sesión: la ruta que pidió el usuario o la de su rol. */
-function destinationFor(user, from) {
-  if (from) return from;
-  return isAdmin(user) ? "/admin" : "/apoyanos-tienda";
-}
+const HOME_PATH = "/";
 
 /** Página `/login`: inicio de sesión y registro de clientes (DONANTE). */
 export function AuthPage() {
-  const { status, user } = useAuth();
+  const { status } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = location.state?.from;
   const [tab, setTab] = useState(location.state?.tab === "register" ? "register" : "login");
   const active = TABS.find(({ id }) => id === tab);
 
-  if (status === "authenticated") return <Navigate to={destinationFor(user, from)} replace />;
+  if (status === "authenticated") return <Navigate to={HOME_PATH} replace />;
 
-  function handleSuccess(loggedIn) {
-    navigate(destinationFor(loggedIn, from), { replace: true });
+  function handleSuccess() {
+    navigate(HOME_PATH, { replace: true });
   }
 
   /** Navegación por teclado entre pestañas (flechas, Inicio y Fin). */
