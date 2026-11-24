@@ -30,6 +30,13 @@ const LOCKED_MESSAGE =
 const STORE_TITLE = "Tienda SUMA21";
 const STORE_DESCRIPTION = "Cada compra apoya los programas de formación y autonomía de la asociación.";
 
+const SORT_COMPARATORS = {
+  name: (a, b) => a.name.localeCompare(b.name, "es"),
+  "price-asc": (a, b) => a.price - b.price || a.name.localeCompare(b.name, "es"),
+  "price-desc": (a, b) => b.price - a.price || a.name.localeCompare(b.name, "es"),
+  "stock-desc": (a, b) => b.stock - a.stock || a.name.localeCompare(b.name, "es"),
+};
+
 /** Producto del backend (`GET /api/v1/products`) con los nombres que usa la tienda. */
 function toStoreProduct(record) {
   return {
@@ -68,6 +75,10 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
   const cart = useCart();
   const [catalog, setCatalog] = useState({ status: "loading", products: [], error: "" });
   const [query, setQuery] = useState("");
+  const [availability, setAvailability] = useState("all");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [sortBy, setSortBy] = useState("name");
   const [checkout, setCheckout] = useState({ status: "idle", message: "" });
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -141,9 +152,31 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
   const total = lines.reduce((sum, { product, quantity }) => sum + product.price * quantity, 0);
   const hasUnavailable = lines.some((line) => line.unavailable);
   const term = query.trim().toLowerCase();
-  const visible = term
-    ? products.filter(({ name, description }) => `${name} ${description}`.toLowerCase().includes(term))
-    : products;
+  const minPriceValue = minPrice === "" ? null : Number(minPrice);
+  const maxPriceValue = maxPrice === "" ? null : Number(maxPrice);
+  const hasActiveFilters =
+    Boolean(term) || availability !== "all" || minPrice !== "" || maxPrice !== "" || sortBy !== "name";
+
+  const visible = products
+    .filter((product) => {
+      if (term && !`${product.name} ${product.description}`.toLowerCase().includes(term)) return false;
+      if (availability === "low" && product.stock > 5) return false;
+      if (availability === "plenty" && product.stock <= 5) return false;
+      if (minPriceValue !== null && Number.isFinite(minPriceValue) && product.price < minPriceValue) return false;
+      if (maxPriceValue !== null && Number.isFinite(maxPriceValue) && product.price > maxPriceValue) return false;
+      return true;
+    })
+    .slice()
+    .sort(SORT_COMPARATORS[sortBy] ?? SORT_COMPARATORS.name);
+
+  function clearFilters() {
+    setQuery("");
+    setAvailability("all");
+    setMinPrice("");
+    setMaxPrice("");
+    setSortBy("name");
+  }
+
   const busy = checkout.status === "creating";
   const locked = session.authenticated && cart.locked;
 
@@ -234,20 +267,71 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
       <div className={styles.layout}>
         <div className={styles.catalog}>
           {products.length > 0 ? (
-            <div className={styles.toolbar}>
-              <Field
-                label="Buscar productos"
-                type="search"
-                placeholder="Nombre o descripción"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                className={styles.search}
-              />
-              <p className={styles.resultCount} aria-live="polite">
-                {term
-                  ? `${visible.length} de ${products.length} productos`
-                  : `${products.length} ${products.length === 1 ? "producto" : "productos"}`}
-              </p>
+            <div className={styles.filtersCard}>
+              <div className={styles.toolbar}>
+                <Field
+                  label="Buscar productos"
+                  type="search"
+                  placeholder="Nombre o descripción"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  className={styles.search}
+                />
+                <div className={styles.toolbarMeta}>
+                  <p className={styles.resultCount} aria-live="polite">
+                    {hasActiveFilters
+                      ? `${visible.length} de ${products.length} productos`
+                      : `${products.length} ${products.length === 1 ? "producto" : "productos"}`}
+                  </p>
+                  {hasActiveFilters ? (
+                    <Button variant="ghost" size="sm" onClick={clearFilters}>
+                      Limpiar filtros
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className={styles.filterGrid}>
+                <Field
+                  as="select"
+                  label="Disponibilidad"
+                  value={availability}
+                  onChange={(event) => setAvailability(event.target.value)}
+                >
+                  <option value="all">Todos</option>
+                  <option value="low">Últimas unidades (≤ 5)</option>
+                  <option value="plenty">Stock amplio (&gt; 5)</option>
+                </Field>
+                <Field
+                  label="Precio mínimo (COP)"
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="0"
+                  value={minPrice}
+                  onChange={(event) => setMinPrice(event.target.value)}
+                />
+                <Field
+                  label="Precio máximo (COP)"
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="Sin límite"
+                  value={maxPrice}
+                  onChange={(event) => setMaxPrice(event.target.value)}
+                />
+                <Field
+                  as="select"
+                  label="Ordenar por"
+                  value={sortBy}
+                  onChange={(event) => setSortBy(event.target.value)}
+                >
+                  <option value="name">Nombre (A–Z)</option>
+                  <option value="price-asc">Menor precio</option>
+                  <option value="price-desc">Mayor precio</option>
+                  <option value="stock-desc">Mayor disponibilidad</option>
+                </Field>
+              </div>
             </div>
           ) : null}
 
@@ -287,10 +371,11 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
             <EmptyState
               compact
               icon="search"
-              title={`Ningún producto coincide con «${query}»`}
+              title={term ? `Ningún producto coincide con «${query}»` : "Ningún producto coincide con los filtros"}
+              description="Ajusta el rango de precio o la disponibilidad para ver más resultados."
               actions={
-                <Button variant="outline" size="sm" onClick={() => setQuery("")}>
-                  Limpiar búsqueda
+                <Button variant="outline" size="sm" onClick={clearFilters}>
+                  Limpiar filtros
                 </Button>
               }
             />

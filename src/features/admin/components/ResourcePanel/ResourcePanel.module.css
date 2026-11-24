@@ -47,16 +47,35 @@
   cursor: pointer;
 }
 
-/* Barra de búsqueda dentro de la tarjeta del listado */
+/* Barra de búsqueda y filtros dentro de la tarjeta del listado */
 .filters {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: var(--border-width) solid var(--color-gray-200);
+  background: var(--color-gray-50);
+}
+
+.filtersTop {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-4) var(--space-5);
-  border-bottom: var(--border-width) solid var(--color-gray-200);
-  background: var(--color-gray-50);
+}
+
+.filterHeaderActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.filterControls {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  align-items: end;
 }
 
 .search {

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardBody } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Switch } from "@/components/ui/Switch";
@@ -44,6 +45,10 @@ export function ResourcePanel({ section }) {
     stockFlow,
     rowActions = [],
     searchKeys = [],
+    searchPlaceholder,
+    getSearchText,
+    filters = [],
+    sortOptions = [],
   } = section;
   const searchId = useId();
   const [state, setState] = useState({ status: list ? "loading" : "idle", records: [], error: "" });
@@ -51,6 +56,8 @@ export function ResourcePanel({ section }) {
   const [dialog, setDialog] = useState(null);
   const [notice, setNotice] = useState(NO_NOTICE);
   const [query, setQuery] = useState("");
+  const [filterValues, setFilterValues] = useState({});
+  const [sortId, setSortId] = useState(sortOptions[0]?.value ?? "");
   const [deleting, setDeleting] = useState(NO_DELETE);
   const [busyRow, setBusyRow] = useState(null);
   const [toggling, setToggling] = useState(null);
@@ -159,14 +166,65 @@ export function ResourcePanel({ section }) {
   );
 
   const term = query.trim().toLowerCase();
-  const visible =
-    term && searchKeys.length > 0
-      ? state.records.filter((record) =>
-          [record.id, ...searchKeys.map((key) => record[key])].some((value) =>
-            String(value ?? "").toLowerCase().includes(term),
-          ),
-        )
-      : state.records;
+  const hasFilterControls = filters.length > 0 || sortOptions.length > 0;
+  const hasActiveFilters =
+    Boolean(term) ||
+    Object.values(filterValues).some((value) => value !== "" && value !== undefined && value !== "all") ||
+    (sortOptions.length > 0 && sortId !== (sortOptions[0]?.value ?? ""));
+
+  function resetFilters() {
+    setQuery("");
+    setFilterValues({});
+    setSortId(sortOptions[0]?.value ?? "");
+  }
+
+  let visible = state.records.filter((record) => {
+    if (term && (searchKeys.length > 0 || getSearchText)) {
+      const searchableValues = [
+        record.id,
+        ...searchKeys.map((key) => record[key]),
+        ...(getSearchText ? [getSearchText(record)] : []),
+      ];
+      const matchesSearch = searchableValues.some((value) => String(value ?? "").toLowerCase().includes(term));
+      if (!matchesSearch) return false;
+    }
+
+    for (const filter of filters) {
+      if (filter.type === "select") {
+        const selected = filterValues[filter.id] ?? "all";
+        if (selected === "all") continue;
+        const option = filter.options.find((item) => item.value === selected);
+        if (option?.match && !option.match(record)) return false;
+      } else if (filter.type === "dateRange") {
+        const from = filterValues[`${filter.id}:from`] ?? "";
+        const to = filterValues[`${filter.id}:to`] ?? "";
+        if (!from && !to) continue;
+        const dateKey = filter.getDate(record);
+        if (!dateKey) return false;
+        if (from && dateKey < from) return false;
+        if (to && dateKey > to) return false;
+      } else if (filter.type === "numberRange") {
+        const minRaw = filterValues[`${filter.id}:min`] ?? "";
+        const maxRaw = filterValues[`${filter.id}:max`] ?? "";
+        if (minRaw === "" && maxRaw === "") continue;
+        const value = Number(filter.getValue(record));
+        const min = minRaw === "" ? null : Number(minRaw);
+        const max = maxRaw === "" ? null : Number(maxRaw);
+        if (min !== null && Number.isFinite(min) && value < min) return false;
+        if (max !== null && Number.isFinite(max) && value > max) return false;
+      }
+    }
+
+    return true;
+  });
+
+  if (sortOptions.length > 0) {
+    const activeSort = sortOptions.find((option) => option.value === sortId) ?? sortOptions[0];
+    if (activeSort?.compare) {
+      visible = visible.slice().sort(activeSort.compare);
+    }
+  }
+
   const hasActions = Boolean(update || remove || rowActions.length > 0);
   const stockLabel = stockFlow?.allowDecrease ? "Ajustar stock" : "Aumentar stock";
   const canAdjustStock = Boolean(stockFlow) && state.status === "ready" && state.records.length > 0;
@@ -216,7 +274,8 @@ export function ResourcePanel({ section }) {
           Listado{" "}
           {list && state.status === "ready" ? (
             <span className={styles.count}>
-              ({state.records.length} {state.records.length === 1 ? "registro" : "registros"})
+              ({hasActiveFilters ? `${visible.length} de ${state.records.length}` : state.records.length}{" "}
+              {state.records.length === 1 ? "registro" : "registros"})
             </span>
           ) : null}
         </h3>
@@ -248,29 +307,148 @@ export function ResourcePanel({ section }) {
       {list ? (
         <Card>
           <div className={styles.filters}>
-            {searchKeys.length > 0 ? (
-              <div className={styles.search}>
-                <label htmlFor={searchId} className="sr-only">
-                  Buscar {label.toLowerCase()}
-                </label>
-                <Icon name="search" size={18} className={styles.searchIcon} />
-                <input
-                  id={searchId}
-                  type="search"
-                  className={styles.searchInput}
-                  placeholder="Buscar por nombre, descripción o ID…"
-                  value={query}
-                  disabled={state.records.length === 0}
-                  onChange={(event) => setQuery(event.target.value)}
-                />
+            <div className={styles.filtersTop}>
+              {searchKeys.length > 0 || getSearchText ? (
+                <div className={styles.search}>
+                  <label htmlFor={searchId} className="sr-only">
+                    Buscar {label.toLowerCase()}
+                  </label>
+                  <Icon name="search" size={18} className={styles.searchIcon} />
+                  <input
+                    id={searchId}
+                    type="search"
+                    className={styles.searchInput}
+                    placeholder={searchPlaceholder ?? "Buscar por nombre, descripción o ID…"}
+                    value={query}
+                    disabled={state.records.length === 0}
+                    onChange={(event) => setQuery(event.target.value)}
+                  />
+                </div>
+              ) : (
+                <span />
+              )}
+              <div className={styles.filterHeaderActions}>
+                {hasActiveFilters ? (
+                  <Button variant="ghost" size="sm" onClick={resetFilters}>
+                    Limpiar filtros
+                  </Button>
+                ) : null}
+                <Button variant="ghost" size="sm" onClick={reload} disabled={state.status === "loading"}>
+                  <Icon name="refresh" size={16} />
+                  Actualizar
+                </Button>
               </div>
-            ) : (
-              <span />
-            )}
-            <Button variant="ghost" size="sm" onClick={reload} disabled={state.status === "loading"}>
-              <Icon name="refresh" size={16} />
-              Actualizar
-            </Button>
+            </div>
+
+            {hasFilterControls ? (
+              <div className={styles.filterControls}>
+                {filters.map((filter) => {
+                  if (filter.type === "select") {
+                    return (
+                      <Field
+                        key={filter.id}
+                        as="select"
+                        label={filter.label}
+                        value={filterValues[filter.id] ?? "all"}
+                        disabled={state.records.length === 0}
+                        onChange={(event) =>
+                          setFilterValues((current) => ({ ...current, [filter.id]: event.target.value }))
+                        }
+                      >
+                        {filter.options.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </Field>
+                    );
+                  }
+                  if (filter.type === "dateRange") {
+                    return [
+                      <Field
+                        key={`${filter.id}:from`}
+                        label={filter.fromLabel ?? "Desde"}
+                        type="date"
+                        value={filterValues[`${filter.id}:from`] ?? ""}
+                        disabled={state.records.length === 0}
+                        onChange={(event) =>
+                          setFilterValues((current) => ({
+                            ...current,
+                            [`${filter.id}:from`]: event.target.value,
+                          }))
+                        }
+                      />,
+                      <Field
+                        key={`${filter.id}:to`}
+                        label={filter.toLabel ?? "Hasta"}
+                        type="date"
+                        value={filterValues[`${filter.id}:to`] ?? ""}
+                        disabled={state.records.length === 0}
+                        onChange={(event) =>
+                          setFilterValues((current) => ({
+                            ...current,
+                            [`${filter.id}:to`]: event.target.value,
+                          }))
+                        }
+                      />,
+                    ];
+                  }
+                  if (filter.type === "numberRange") {
+                    return [
+                      <Field
+                        key={`${filter.id}:min`}
+                        label={filter.minLabel ?? "Mínimo"}
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder={filter.minPlaceholder ?? "0"}
+                        value={filterValues[`${filter.id}:min`] ?? ""}
+                        disabled={state.records.length === 0}
+                        onChange={(event) =>
+                          setFilterValues((current) => ({
+                            ...current,
+                            [`${filter.id}:min`]: event.target.value,
+                          }))
+                        }
+                      />,
+                      <Field
+                        key={`${filter.id}:max`}
+                        label={filter.maxLabel ?? "Máximo"}
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder={filter.maxPlaceholder ?? "Sin límite"}
+                        value={filterValues[`${filter.id}:max`] ?? ""}
+                        disabled={state.records.length === 0}
+                        onChange={(event) =>
+                          setFilterValues((current) => ({
+                            ...current,
+                            [`${filter.id}:max`]: event.target.value,
+                          }))
+                        }
+                      />,
+                    ];
+                  }
+                  return null;
+                })}
+
+                {sortOptions.length > 0 ? (
+                  <Field
+                    as="select"
+                    label="Ordenar por"
+                    value={sortId}
+                    disabled={state.records.length === 0}
+                    onChange={(event) => setSortId(event.target.value)}
+                  >
+                    {sortOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Field>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <CardBody className={styles.listBody}>
@@ -320,10 +498,10 @@ export function ResourcePanel({ section }) {
               <EmptyState
                 compact
                 icon="search"
-                title={`Ningún registro coincide con «${query}»`}
+                title={term ? `Ningún registro coincide con «${query}»` : "Ningún registro coincide con los filtros"}
                 actions={
-                  <Button variant="outline" size="sm" onClick={() => setQuery("")}>
-                    Limpiar búsqueda
+                  <Button variant="outline" size="sm" onClick={resetFilters}>
+                    Limpiar filtros
                   </Button>
                 }
               />

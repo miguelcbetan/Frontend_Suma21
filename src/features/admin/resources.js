@@ -13,6 +13,19 @@ const SALE_STATUS_TONES = { DRAFT: "neutral", PENDING: "orange", APPROVED: "gree
 
 const money = (value) => (value == null || value === "" ? "—" : formatCurrency(Number(value)));
 
+function toLocalDateKey(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function compareText(a, b) {
+  return String(a ?? "").localeCompare(String(b ?? ""), "es");
+}
+
 /**
  * Añade nombres legibles a las líneas de venta consultando el catálogo.
  * El listado de ventas conserva todos sus datos originales.
@@ -77,6 +90,37 @@ export const SECTIONS = [
     update: productsService.update,
     remove: productsService.remove,
     searchKeys: ["name", "description"],
+    filters: [
+      {
+        id: "stock",
+        label: "Estado de stock",
+        type: "select",
+        options: [
+          { value: "all", label: "Todos" },
+          { value: "available", label: "Disponible (> 5)", match: (record) => Number(record.stock_qty) > 5 },
+          {
+            value: "low",
+            label: "Stock bajo (1–5)",
+            match: (record) => Number(record.stock_qty) >= 1 && Number(record.stock_qty) <= 5,
+          },
+          { value: "out", label: "Agotados (0)", match: (record) => Number(record.stock_qty) === 0 },
+        ],
+      },
+      {
+        id: "price",
+        type: "numberRange",
+        minLabel: "Precio mín. (COP)",
+        maxLabel: "Precio máx. (COP)",
+        getValue: (record) => Number(record.unit_price),
+      },
+    ],
+    sortOptions: [
+      { value: "name", label: "Nombre (A–Z)", compare: (a, b) => compareText(a.name, b.name) },
+      { value: "stock-asc", label: "Menor stock", compare: (a, b) => Number(a.stock_qty) - Number(b.stock_qty) },
+      { value: "stock-desc", label: "Mayor stock", compare: (a, b) => Number(b.stock_qty) - Number(a.stock_qty) },
+      { value: "price-asc", label: "Menor precio", compare: (a, b) => Number(a.unit_price) - Number(b.unit_price) },
+      { value: "price-desc", label: "Mayor precio", compare: (a, b) => Number(b.unit_price) - Number(a.unit_price) },
+    ],
     columns: [
       { key: "id", label: "ID" },
       { key: "name", label: "Nombre" },
@@ -126,6 +170,38 @@ export const SECTIONS = [
     remove: inventoryService.remove,
     removeHint: "Solo se pueden desactivar artículos con stock 0.",
     searchKeys: ["name", "description"],
+    filters: [
+      {
+        id: "needed",
+        label: "Visibilidad",
+        type: "select",
+        options: [
+          { value: "all", label: "Todos" },
+          { value: "yes", label: "Solicitados", match: (record) => Boolean(record.is_needed) },
+          { value: "no", label: "No solicitados", match: (record) => !record.is_needed },
+        ],
+      },
+      {
+        id: "stock",
+        label: "Nivel de stock",
+        type: "select",
+        options: [
+          { value: "all", label: "Todos" },
+          { value: "with-stock", label: "Con stock (> 0)", match: (record) => Number(record.stock) > 0 },
+          {
+            value: "low",
+            label: "Stock bajo (1–5)",
+            match: (record) => Number(record.stock) >= 1 && Number(record.stock) <= 5,
+          },
+          { value: "empty", label: "Sin stock (0)", match: (record) => Number(record.stock) === 0 },
+        ],
+      },
+    ],
+    sortOptions: [
+      { value: "name", label: "Nombre (A–Z)", compare: (a, b) => compareText(a.name, b.name) },
+      { value: "stock-asc", label: "Menor stock", compare: (a, b) => Number(a.stock) - Number(b.stock) },
+      { value: "stock-desc", label: "Mayor stock", compare: (a, b) => Number(b.stock) - Number(a.stock) },
+    ],
     columns: [
       { key: "id", label: "ID" },
       { key: "name", label: "Nombre" },
@@ -189,6 +265,54 @@ export const SECTIONS = [
     description: "Todas las ventas de la tienda: carritos sin pagar (DRAFT), pendientes de pago, aprobadas y rechazadas.",
     list: listSalesWithProductNames,
     searchKeys: ["id", "customerId", "status"],
+    searchPlaceholder: "Buscar por venta, usuario o producto…",
+    getSearchText: (record) =>
+      `${SALE_STATUS_LABELS[record.status] ?? ""} ${(record.items ?? [])
+        .map((item) => item.name ?? item.productId)
+        .join(" ")}`,
+    filters: [
+      {
+        id: "status",
+        label: "Estado",
+        type: "select",
+        options: [
+          { value: "all", label: "Todos" },
+          { value: "APPROVED", label: "Aprobada", match: (record) => record.status === "APPROVED" },
+          { value: "PENDING", label: "Pendiente de pago", match: (record) => record.status === "PENDING" },
+          { value: "DRAFT", label: "Carrito (sin pagar)", match: (record) => record.status === "DRAFT" },
+          { value: "DECLINED", label: "Rechazada", match: (record) => record.status === "DECLINED" },
+        ],
+      },
+      {
+        id: "date",
+        type: "dateRange",
+        fromLabel: "Desde",
+        toLabel: "Hasta",
+        getDate: (record) => toLocalDateKey(record.createdAt),
+      },
+    ],
+    sortOptions: [
+      {
+        value: "newest",
+        label: "Más recientes",
+        compare: (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      },
+      {
+        value: "oldest",
+        label: "Más antiguas",
+        compare: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      },
+      {
+        value: "total-desc",
+        label: "Mayor total",
+        compare: (a, b) => Number(b.totalPrice) - Number(a.totalPrice),
+      },
+      {
+        value: "total-asc",
+        label: "Menor total",
+        compare: (a, b) => Number(a.totalPrice) - Number(b.totalPrice),
+      },
+    ],
     columns: [
       { key: "id", label: "Venta" },
       { key: "createdAt", label: "Fecha", format: (record) => formatDateTimeShort(record.createdAt) },
