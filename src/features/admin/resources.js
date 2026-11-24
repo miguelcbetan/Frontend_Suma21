@@ -18,7 +18,7 @@ const money = (value) => (value == null || value === "" ? "—" : formatCurrency
  * El listado de ventas conserva todos sus datos originales.
  */
 async function listSalesWithProductNames() {
-  const [salesPayload, productsPayload] = await Promise.all([salesService.list(), productsService.list()]);
+  const [salesPayload, productsPayload] = await Promise.all([salesService.list(), productsService.listAll()]);
   const productsById = new Map(
     toList(productsPayload).map((product) => [String(product.id), product.name]),
   );
@@ -72,7 +72,7 @@ export const SECTIONS = [
     singular: "producto",
     description:
       "Productos de la tienda. Para aumentar o disminuir las unidades de un producto que ya existe usa «Ajustar stock» en lugar de crear uno nuevo.",
-    list: productsService.list,
+    list: productsService.listAll,
     create: productsService.create,
     update: productsService.update,
     remove: productsService.remove,

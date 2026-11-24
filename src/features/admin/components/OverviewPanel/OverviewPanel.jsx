@@ -20,7 +20,7 @@ async function settle(promise) {
 
 /**
  * Indicadores calculados con los listados que ya usa el panel
- * (`GET /products`, `GET /inventory`, `GET /sales`). Solo lee datos.
+ * (`GET /products/all`, `GET /inventory`, `GET /sales`). Solo lee datos.
  * @param {{ onNavigate: (sectionId: string) => void }} props
  */
 export function OverviewPanel({ onNavigate }) {
@@ -29,7 +29,7 @@ export function OverviewPanel({ onNavigate }) {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([settle(productsService.list()), settle(inventoryService.list()), settle(salesService.list())]).then(
+    Promise.all([settle(productsService.listAll()), settle(inventoryService.list()), settle(salesService.list())]).then(
       ([products, inventory, sales]) => !cancelled && setData({ products, inventory, sales }),
     );
     return () => {

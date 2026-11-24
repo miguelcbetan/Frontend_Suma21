@@ -28,7 +28,8 @@ Todo se centraliza en `src/core/api/config.js`. El frontend no usa claves de Wom
 | Iniciar sesión | `POST /auth/login {email, clave}` → `{token, expiraEn, usuario, requiresDocumentCompletion}` | Puente del backend de datos. |
 | Verificación de documento | `POST /auth/complete-document {full_name, document_type, document_number}` | Una sola vez. 409 `DONOR_DOCUMENT_CONFLICT` si el documento ya está registrado. |
 | Panel admin (estado) | `GET /health` | Sin prefijo `/api/v1`. |
-| Tienda / admin | `GET /products`, `GET /products/:id` | La tienda los consulta sin token; el backend debe permitir acceso público para mostrar el catálogo a visitantes. |
+| Tienda | `GET /products`, `GET /products/:id` | Público (`GET /products` devuelve solo productos con `stock_qty > 0`). |
+| Admin · Listar productos | `GET /products/all` | Público (sin rol `ADMIN`), devuelve todos los productos activos incluyendo `stock_qty = 0`. |
 | Admin · Productos | `POST /products`, `PATCH /products/:id`, `DELETE /products/:id` | ADMIN. JSON o `multipart/form-data` con `image`. `stock_qty` ≥ 1. |
 | Admin · Aumentar stock de producto | `GET /products/:id` y luego `PATCH /products/:id {stock_qty: actual + n}` | No hay ajuste atómico para productos (ver pendientes). |
 | Donar en especie (catálogo público) | `GET /inventory/needed` | Público. Campo real: `is_needed`; la página permite coordinar la entrega, no registra donaciones. |
