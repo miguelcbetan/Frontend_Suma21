@@ -1,3 +1,8 @@
+.wrap {
+  position: relative;
+  display: inline-flex;
+}
+
 .link {
   position: relative;
   display: inline-flex;
@@ -5,11 +10,13 @@
   gap: var(--space-2);
   min-height: 2.5rem;
   padding: var(--space-1) var(--space-3);
+  background: transparent;
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-md);
   color: var(--color-text);
+  font: inherit;
   font-weight: var(--font-weight-semibold);
-  text-decoration: none;
+  cursor: pointer;
   transition:
     border-color var(--duration-fast) var(--ease-standard),
     color var(--duration-fast) var(--ease-standard);
@@ -38,6 +45,10 @@
   font-weight: var(--font-weight-black);
 }
 
+.preview {
+  display: none;
+}
+
 @media (min-width: 75rem) {
   .link {
     padding-inline: var(--space-2);
@@ -56,5 +67,98 @@
     position: absolute;
     top: -0.4rem;
     right: -0.4rem;
+  }
+}
+
+@media (hover: hover) and (min-width: 75rem) {
+  .preview {
+    position: absolute;
+    top: calc(100% + var(--space-2));
+    right: 0;
+    z-index: 30;
+    display: grid;
+    gap: var(--space-3);
+    width: 19rem;
+    padding: var(--space-4);
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-gray-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .previewHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: var(--font-size-sm);
+  }
+
+  .previewBadge {
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--color-orange-100);
+    color: var(--color-orange-700);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .previewEmpty {
+    display: grid;
+    gap: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .previewLink {
+    color: var(--color-link);
+    font-weight: var(--font-weight-bold);
+    text-decoration: none;
+  }
+
+  .previewLink:hover {
+    text-decoration: underline;
+  }
+
+  .previewList {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .previewRow {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+    font-size: var(--font-size-sm);
+  }
+
+  .previewName {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .previewPrice {
+    flex-shrink: 0;
+    color: var(--color-text-muted);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .previewMore {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+  }
+
+  .previewTotal {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-top: var(--space-2);
+    border-top: var(--border-width) solid var(--color-gray-100);
+    font-size: var(--font-size-sm);
   }
 }

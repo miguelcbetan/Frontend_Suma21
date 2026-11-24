@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -8,9 +8,11 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { SortMenu } from "@/components/ui/SortMenu";
 import { Switch } from "@/components/ui/Switch";
 import { useToast } from "@/components/ui/Toast";
 import { describeError, toList } from "@/core/api";
+import { cx } from "@/core/utils/cx";
 
 import { changedFields, valuesFromRecord } from "../../formValues.js";
 import { DataTable } from "../DataTable";
@@ -47,16 +49,20 @@ export function ResourcePanel({ section }) {
     searchKeys = [],
     searchPlaceholder,
     getSearchText,
+    primaryFilter,
     filters = [],
     sortOptions = [],
   } = section;
   const searchId = useId();
+  const popoverWrapRef = useRef(null);
   const [state, setState] = useState({ status: list ? "loading" : "idle", records: [], error: "" });
   /** `null | { type: "create" } | { type: "edit", record } | { type: "stock", recordId? }` */
   const [dialog, setDialog] = useState(null);
   const [notice, setNotice] = useState(NO_NOTICE);
   const [query, setQuery] = useState("");
+  const [primaryValue, setPrimaryValue] = useState("all");
   const [filterValues, setFilterValues] = useState({});
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const [sortId, setSortId] = useState(sortOptions[0]?.value ?? "");
   const [deleting, setDeleting] = useState(NO_DELETE);
   const [busyRow, setBusyRow] = useState(null);
@@ -74,6 +80,24 @@ export function ResourcePanel({ section }) {
   useEffect(() => {
     if (list) load();
   }, [list, load]);
+
+  useEffect(() => {
+    if (!popoverOpen) return undefined;
+    function onPointerDown(event) {
+      if (popoverWrapRef.current && !popoverWrapRef.current.contains(event.target)) {
+        setPopoverOpen(false);
+      }
+    }
+    function onKeyDown(event) {
+      if (event.key === "Escape") setPopoverOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [popoverOpen]);
 
   function reload() {
     setState((current) => ({ ...current, status: "loading" }));
@@ -166,16 +190,21 @@ export function ResourcePanel({ section }) {
   );
 
   const term = query.trim().toLowerCase();
-  const hasFilterControls = filters.length > 0 || sortOptions.length > 0;
+  const hasSecondaryFilters = Object.values(filterValues).some(
+    (value) => value !== "" && value !== undefined && value !== "all",
+  );
   const hasActiveFilters =
     Boolean(term) ||
-    Object.values(filterValues).some((value) => value !== "" && value !== undefined && value !== "all") ||
+    primaryValue !== "all" ||
+    hasSecondaryFilters ||
     (sortOptions.length > 0 && sortId !== (sortOptions[0]?.value ?? ""));
 
   function resetFilters() {
     setQuery("");
+    setPrimaryValue("all");
     setFilterValues({});
     setSortId(sortOptions[0]?.value ?? "");
+    setPopoverOpen(false);
   }
 
   let visible = state.records.filter((record) => {
@@ -187,6 +216,11 @@ export function ResourcePanel({ section }) {
       ];
       const matchesSearch = searchableValues.some((value) => String(value ?? "").toLowerCase().includes(term));
       if (!matchesSearch) return false;
+    }
+
+    if (primaryFilter && primaryValue !== "all") {
+      const activePrimary = primaryFilter.options.find((option) => option.value === primaryValue);
+      if (activePrimary?.match && !activePrimary.match(record)) return false;
     }
 
     for (const filter of filters) {
@@ -328,11 +362,143 @@ export function ResourcePanel({ section }) {
                 <span />
               )}
               <div className={styles.filterHeaderActions}>
-                {hasActiveFilters ? (
-                  <Button variant="ghost" size="sm" onClick={resetFilters}>
-                    Limpiar filtros
-                  </Button>
+                {sortOptions.length > 0 ? (
+                  <SortMenu
+                    compact
+                    mobileAlign="start"
+                    label={`Ordenar ${label.toLowerCase()}`}
+                    options={sortOptions}
+                    value={sortId}
+                    disabled={state.records.length === 0}
+                    onChange={setSortId}
+                  />
                 ) : null}
+
+                {filters.length > 0 ? (
+                  <div className={styles.popoverWrap} ref={popoverWrapRef}>
+                    <button
+                      type="button"
+                      aria-expanded={popoverOpen}
+                      disabled={state.records.length === 0}
+                      className={cx(styles.controlBtn, hasSecondaryFilters && styles.controlBtnActive)}
+                      onClick={() => setPopoverOpen((open) => !open)}
+                    >
+                      <Icon name="sliders" size={16} />
+                      <span>Filtros</span>
+                      {hasSecondaryFilters ? <span className={styles.activeDot} aria-hidden="true" /> : null}
+                    </button>
+
+                    {popoverOpen ? (
+                      <div className={styles.popover} role="dialog" aria-label={`Más filtros de ${label}`}>
+                        <div className={styles.popoverFields}>
+                          {filters.map((filter) => {
+                            if (filter.type === "select") {
+                              return (
+                                <Field
+                                  key={filter.id}
+                                  as="select"
+                                  label={filter.label}
+                                  value={filterValues[filter.id] ?? "all"}
+                                  onChange={(event) =>
+                                    setFilterValues((current) => ({ ...current, [filter.id]: event.target.value }))
+                                  }
+                                >
+                                  {filter.options.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </Field>
+                              );
+                            }
+                            if (filter.type === "dateRange") {
+                              return (
+                                <div key={filter.id} className={styles.popoverGrid}>
+                                  <Field
+                                    label={filter.fromLabel ?? "Desde"}
+                                    type="date"
+                                    value={filterValues[`${filter.id}:from`] ?? ""}
+                                    onChange={(event) =>
+                                      setFilterValues((current) => ({
+                                        ...current,
+                                        [`${filter.id}:from`]: event.target.value,
+                                      }))
+                                    }
+                                  />
+                                  <Field
+                                    label={filter.toLabel ?? "Hasta"}
+                                    type="date"
+                                    value={filterValues[`${filter.id}:to`] ?? ""}
+                                    onChange={(event) =>
+                                      setFilterValues((current) => ({
+                                        ...current,
+                                        [`${filter.id}:to`]: event.target.value,
+                                      }))
+                                    }
+                                  />
+                                </div>
+                              );
+                            }
+                            if (filter.type === "numberRange") {
+                              return (
+                                <div key={filter.id} className={styles.popoverGrid}>
+                                  <Field
+                                    label={filter.minLabel ?? "Mínimo"}
+                                    type="number"
+                                    min="0"
+                                    step="any"
+                                    placeholder={filter.minPlaceholder ?? "0"}
+                                    value={filterValues[`${filter.id}:min`] ?? ""}
+                                    onChange={(event) =>
+                                      setFilterValues((current) => ({
+                                        ...current,
+                                        [`${filter.id}:min`]: event.target.value,
+                                      }))
+                                    }
+                                  />
+                                  <Field
+                                    label={filter.maxLabel ?? "Máximo"}
+                                    type="number"
+                                    min="0"
+                                    step="any"
+                                    placeholder={filter.maxPlaceholder ?? "Sin límite"}
+                                    value={filterValues[`${filter.id}:max`] ?? ""}
+                                    onChange={(event) =>
+                                      setFilterValues((current) => ({
+                                        ...current,
+                                        [`${filter.id}:max`]: event.target.value,
+                                      }))
+                                    }
+                                  />
+                                </div>
+                              );
+                            }
+                            return null;
+                          })}
+                        </div>
+                        <div className={styles.popoverActions}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setFilterValues({})}
+                          >
+                            Limpiar
+                          </Button>
+                          <Button size="sm" onClick={() => setPopoverOpen(false)}>
+                            Listo
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {hasActiveFilters ? (
+                  <button type="button" className={styles.clearLink} onClick={resetFilters}>
+                    Limpiar
+                  </button>
+                ) : null}
+
                 <Button variant="ghost" size="sm" onClick={reload} disabled={state.status === "loading"}>
                   <Icon name="refresh" size={16} />
                   Actualizar
@@ -340,113 +506,20 @@ export function ResourcePanel({ section }) {
               </div>
             </div>
 
-            {hasFilterControls ? (
-              <div className={styles.filterControls}>
-                {filters.map((filter) => {
-                  if (filter.type === "select") {
-                    return (
-                      <Field
-                        key={filter.id}
-                        as="select"
-                        label={filter.label}
-                        value={filterValues[filter.id] ?? "all"}
-                        disabled={state.records.length === 0}
-                        onChange={(event) =>
-                          setFilterValues((current) => ({ ...current, [filter.id]: event.target.value }))
-                        }
-                      >
-                        {filter.options.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </Field>
-                    );
-                  }
-                  if (filter.type === "dateRange") {
-                    return [
-                      <Field
-                        key={`${filter.id}:from`}
-                        label={filter.fromLabel ?? "Desde"}
-                        type="date"
-                        value={filterValues[`${filter.id}:from`] ?? ""}
-                        disabled={state.records.length === 0}
-                        onChange={(event) =>
-                          setFilterValues((current) => ({
-                            ...current,
-                            [`${filter.id}:from`]: event.target.value,
-                          }))
-                        }
-                      />,
-                      <Field
-                        key={`${filter.id}:to`}
-                        label={filter.toLabel ?? "Hasta"}
-                        type="date"
-                        value={filterValues[`${filter.id}:to`] ?? ""}
-                        disabled={state.records.length === 0}
-                        onChange={(event) =>
-                          setFilterValues((current) => ({
-                            ...current,
-                            [`${filter.id}:to`]: event.target.value,
-                          }))
-                        }
-                      />,
-                    ];
-                  }
-                  if (filter.type === "numberRange") {
-                    return [
-                      <Field
-                        key={`${filter.id}:min`}
-                        label={filter.minLabel ?? "Mínimo"}
-                        type="number"
-                        min="0"
-                        step="any"
-                        placeholder={filter.minPlaceholder ?? "0"}
-                        value={filterValues[`${filter.id}:min`] ?? ""}
-                        disabled={state.records.length === 0}
-                        onChange={(event) =>
-                          setFilterValues((current) => ({
-                            ...current,
-                            [`${filter.id}:min`]: event.target.value,
-                          }))
-                        }
-                      />,
-                      <Field
-                        key={`${filter.id}:max`}
-                        label={filter.maxLabel ?? "Máximo"}
-                        type="number"
-                        min="0"
-                        step="any"
-                        placeholder={filter.maxPlaceholder ?? "Sin límite"}
-                        value={filterValues[`${filter.id}:max`] ?? ""}
-                        disabled={state.records.length === 0}
-                        onChange={(event) =>
-                          setFilterValues((current) => ({
-                            ...current,
-                            [`${filter.id}:max`]: event.target.value,
-                          }))
-                        }
-                      />,
-                    ];
-                  }
-                  return null;
-                })}
-
-                {sortOptions.length > 0 ? (
-                  <Field
-                    as="select"
-                    label="Ordenar por"
-                    value={sortId}
+            {primaryFilter ? (
+              <div className={styles.pills} role="group" aria-label={primaryFilter.label}>
+                {primaryFilter.options.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
                     disabled={state.records.length === 0}
-                    onChange={(event) => setSortId(event.target.value)}
+                    aria-pressed={primaryValue === option.value}
+                    className={cx(styles.pill, primaryValue === option.value && styles.pillActive)}
+                    onClick={() => setPrimaryValue(option.value)}
                   >
-                    {sortOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </Field>
-                ) : null}
+                    {option.label}
+                  </button>
+                ))}
               </div>
             ) : null}
           </div>

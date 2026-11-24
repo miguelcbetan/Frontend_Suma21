@@ -25,7 +25,7 @@ import {
 import { DonationLauncher, InKindDonationPage, SponsorLauncher } from "@/features/donation";
 import { HomePage } from "@/features/home";
 import { MyDonationsPage, MyPurchasesPage, PaymentResultPage } from "@/features/payment";
-import { CartLink, CartProvider, StorePage, useCart } from "@/features/store";
+import { CartDrawer, CartLink, CartProvider, StorePage, useCart } from "@/features/store";
 
 const PUBLIC_NAV = [
   { label: "Inicio", href: "/" },
@@ -225,8 +225,9 @@ function Layout() {
   );
 
   return (
-    <AppShell header={header} footer={footer}>
-      <Routes>
+    <>
+      <AppShell header={header} footer={footer}>
+        <Routes>
         <Route
           path="/"
           element={
@@ -286,6 +287,8 @@ function Layout() {
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppShell>
+    <CartDrawer session={session} />
+    </>
   );
 }
 

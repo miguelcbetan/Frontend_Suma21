@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { cx } from "@/core/utils/cx";
 import { formatCurrency } from "@/core/utils/currency";
 
 import styles from "./CartSummary.module.css";
@@ -17,6 +18,7 @@ import styles from "./CartSummary.module.css";
  *   checkoutLabel?: string,
  *   controlsDisabled?: boolean,
  *   note?: import("react").ReactNode,
+ *   embedded?: boolean,
  * }} props
  */
 export function CartSummary({
@@ -30,22 +32,25 @@ export function CartSummary({
   checkoutLabel = "Pagar con Wompi",
   controlsDisabled = false,
   note,
+  embedded = false,
 }) {
   const units = lines.reduce((sum, { quantity }) => sum + quantity, 0);
 
   return (
-    <section id="carrito" className={styles.cart} aria-labelledby="cart-title">
-      <header className={styles.header}>
-        <h2 id="cart-title" className={styles.heading}>
-          <Icon name="cart" size={20} />
-          Tu carrito
-        </h2>
-        {units > 0 ? (
-          <span className={styles.units}>
-            {units} {units === 1 ? "unidad" : "unidades"}
-          </span>
-        ) : null}
-      </header>
+    <section id="carrito" className={cx(styles.cart, embedded && styles.embedded)} aria-labelledby={embedded ? undefined : "cart-title"}>
+      {embedded ? null : (
+        <header className={styles.header}>
+          <h2 id="cart-title" className={styles.heading}>
+            <Icon name="cart" size={20} />
+            Tu carrito
+          </h2>
+          {units > 0 ? (
+            <span className={styles.units}>
+              {units} {units === 1 ? "unidad" : "unidades"}
+            </span>
+          ) : null}
+        </header>
+      )}
 
       <div className={styles.body}>
         {lines.length === 0 ? (

@@ -1,9 +1,3 @@
-.layout {
-  display: grid;
-  gap: var(--space-6);
-  grid-template-columns: minmax(0, 1fr);
-}
-
 /* Aviso de carrito bloqueado por un pago pendiente */
 .lockNotice {
   display: grid;
@@ -61,39 +55,135 @@
   align-content: start;
 }
 
-.filtersCard {
+/* Barra de filtros minimalista */
+.toolbarWrap {
   display: grid;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
-  background: var(--color-gray-50);
-  border: var(--border-width) solid var(--color-gray-200);
-  border-radius: var(--radius-lg);
+  gap: var(--space-2);
 }
 
 .toolbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
+  align-items: center;
   gap: var(--space-3);
 }
 
-.toolbarMeta {
+.searchWrap {
+  position: relative;
+  flex: 1 1 14rem;
+  max-width: 20rem;
+}
+
+.searchIcon {
+  position: absolute;
+  top: 50%;
+  left: var(--space-3);
+  color: var(--color-text-muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: var(--space-2) var(--space-3) var(--space-2) 2.35rem;
+  background: var(--color-bg);
+  border: var(--border-width) solid var(--color-gray-200);
+  border-radius: var(--radius-full);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.searchInput:focus-visible {
+  border-color: var(--color-green-600);
+  outline: none;
+  box-shadow: var(--ring-focus);
+}
+
+.rightControls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+  margin-left: auto;
 }
 
-.search {
-  flex: 1 1 18rem;
-  max-width: 26rem;
+.popoverWrap {
+  position: relative;
 }
 
-.filterGrid {
+.controlBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.5rem;
+  padding: 0 var(--space-3);
+  background: var(--color-bg);
+  border: var(--border-width) solid var(--color-gray-200);
+  border-radius: var(--radius-full);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
+}
+
+.controlBtn:hover {
+  border-color: var(--color-border);
+  background: var(--color-gray-50);
+}
+
+.controlBtnActive {
+  border-color: var(--color-green-600);
+  background: var(--color-green-50);
+  color: var(--color-green-700);
+}
+
+.activeDot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--color-orange-500);
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 20;
   display: grid;
   gap: var(--space-3);
-  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  width: min(90vw, 19rem);
+  padding: var(--space-4);
+  background: var(--color-bg);
+  border: var(--border-width) solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.popoverGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.popoverActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 
 .resultCount {
@@ -102,10 +192,22 @@
   font-weight: var(--font-weight-semibold);
 }
 
+.clearLink {
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--color-link);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .grid {
   display: grid;
   gap: var(--space-5);
-  grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(15.5rem, 100%), 1fr));
 }
 
 .skeletonCard {
@@ -114,20 +216,36 @@
   padding-bottom: var(--space-4);
 }
 
-.aside {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-@media (min-width: 64rem) {
-  .layout {
-    align-items: start;
-    grid-template-columns: minmax(0, 1fr) 22rem;
+@media (max-width: 47.99rem) {
+  .toolbar {
+    position: relative;
+    gap: var(--space-2);
   }
 
-  .aside {
-    position: sticky;
-    top: calc(var(--header-height) + var(--space-4));
+  .searchWrap {
+    max-width: none;
+    flex-basis: 100%;
+  }
+
+  .rightControls {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .popoverWrap {
+    position: static;
+  }
+
+  .popover {
+    right: 0;
+    left: 0;
+    width: auto;
+    max-width: 24rem;
+  }
+}
+
+@media (max-width: 26rem) {
+  .popoverGrid {
+    grid-template-columns: 1fr;
   }
 }

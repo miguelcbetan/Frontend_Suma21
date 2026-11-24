@@ -90,22 +90,20 @@ export const SECTIONS = [
     update: productsService.update,
     remove: productsService.remove,
     searchKeys: ["name", "description"],
+    primaryFilter: {
+      label: "Estado de stock",
+      options: [
+        { value: "all", label: "Todos" },
+        { value: "available", label: "Con stock (> 5)", match: (record) => Number(record.stock_qty) > 5 },
+        {
+          value: "low",
+          label: "Stock bajo",
+          match: (record) => Number(record.stock_qty) >= 1 && Number(record.stock_qty) <= 5,
+        },
+        { value: "out", label: "Agotados", match: (record) => Number(record.stock_qty) === 0 },
+      ],
+    },
     filters: [
-      {
-        id: "stock",
-        label: "Estado de stock",
-        type: "select",
-        options: [
-          { value: "all", label: "Todos" },
-          { value: "available", label: "Disponible (> 5)", match: (record) => Number(record.stock_qty) > 5 },
-          {
-            value: "low",
-            label: "Stock bajo (1–5)",
-            match: (record) => Number(record.stock_qty) >= 1 && Number(record.stock_qty) <= 5,
-          },
-          { value: "out", label: "Agotados (0)", match: (record) => Number(record.stock_qty) === 0 },
-        ],
-      },
       {
         id: "price",
         type: "numberRange",
@@ -115,11 +113,11 @@ export const SECTIONS = [
       },
     ],
     sortOptions: [
-      { value: "name", label: "Nombre (A–Z)", compare: (a, b) => compareText(a.name, b.name) },
-      { value: "stock-asc", label: "Menor stock", compare: (a, b) => Number(a.stock_qty) - Number(b.stock_qty) },
-      { value: "stock-desc", label: "Mayor stock", compare: (a, b) => Number(b.stock_qty) - Number(a.stock_qty) },
-      { value: "price-asc", label: "Menor precio", compare: (a, b) => Number(a.unit_price) - Number(b.unit_price) },
-      { value: "price-desc", label: "Mayor precio", compare: (a, b) => Number(b.unit_price) - Number(a.unit_price) },
+      { value: "name", label: "Ordenar: Nombre", compare: (a, b) => compareText(a.name, b.name) },
+      { value: "stock-asc", label: "Stock: menor a mayor", compare: (a, b) => Number(a.stock_qty) - Number(b.stock_qty) },
+      { value: "stock-desc", label: "Stock: mayor a menor", compare: (a, b) => Number(b.stock_qty) - Number(a.stock_qty) },
+      { value: "price-asc", label: "Precio: menor a mayor", compare: (a, b) => Number(a.unit_price) - Number(b.unit_price) },
+      { value: "price-desc", label: "Precio: mayor a menor", compare: (a, b) => Number(b.unit_price) - Number(a.unit_price) },
     ],
     columns: [
       { key: "id", label: "ID" },
@@ -170,17 +168,15 @@ export const SECTIONS = [
     remove: inventoryService.remove,
     removeHint: "Solo se pueden desactivar artículos con stock 0.",
     searchKeys: ["name", "description"],
+    primaryFilter: {
+      label: "Visibilidad",
+      options: [
+        { value: "all", label: "Todos" },
+        { value: "yes", label: "Solicitados", match: (record) => Boolean(record.is_needed) },
+        { value: "no", label: "No solicitados", match: (record) => !record.is_needed },
+      ],
+    },
     filters: [
-      {
-        id: "needed",
-        label: "Visibilidad",
-        type: "select",
-        options: [
-          { value: "all", label: "Todos" },
-          { value: "yes", label: "Solicitados", match: (record) => Boolean(record.is_needed) },
-          { value: "no", label: "No solicitados", match: (record) => !record.is_needed },
-        ],
-      },
       {
         id: "stock",
         label: "Nivel de stock",
@@ -198,9 +194,9 @@ export const SECTIONS = [
       },
     ],
     sortOptions: [
-      { value: "name", label: "Nombre (A–Z)", compare: (a, b) => compareText(a.name, b.name) },
-      { value: "stock-asc", label: "Menor stock", compare: (a, b) => Number(a.stock) - Number(b.stock) },
-      { value: "stock-desc", label: "Mayor stock", compare: (a, b) => Number(b.stock) - Number(a.stock) },
+      { value: "name", label: "Ordenar: Nombre", compare: (a, b) => compareText(a.name, b.name) },
+      { value: "stock-asc", label: "Stock: menor a mayor", compare: (a, b) => Number(a.stock) - Number(b.stock) },
+      { value: "stock-desc", label: "Stock: mayor a menor", compare: (a, b) => Number(b.stock) - Number(a.stock) },
     ],
     columns: [
       { key: "id", label: "ID" },
@@ -270,19 +266,17 @@ export const SECTIONS = [
       `${SALE_STATUS_LABELS[record.status] ?? ""} ${(record.items ?? [])
         .map((item) => item.name ?? item.productId)
         .join(" ")}`,
+    primaryFilter: {
+      label: "Estado de venta",
+      options: [
+        { value: "all", label: "Todas" },
+        { value: "APPROVED", label: "Aprobadas", match: (record) => record.status === "APPROVED" },
+        { value: "PENDING", label: "Pendientes", match: (record) => record.status === "PENDING" },
+        { value: "DRAFT", label: "Carrito", match: (record) => record.status === "DRAFT" },
+        { value: "DECLINED", label: "Rechazadas", match: (record) => record.status === "DECLINED" },
+      ],
+    },
     filters: [
-      {
-        id: "status",
-        label: "Estado",
-        type: "select",
-        options: [
-          { value: "all", label: "Todos" },
-          { value: "APPROVED", label: "Aprobada", match: (record) => record.status === "APPROVED" },
-          { value: "PENDING", label: "Pendiente de pago", match: (record) => record.status === "PENDING" },
-          { value: "DRAFT", label: "Carrito (sin pagar)", match: (record) => record.status === "DRAFT" },
-          { value: "DECLINED", label: "Rechazada", match: (record) => record.status === "DECLINED" },
-        ],
-      },
       {
         id: "date",
         type: "dateRange",
@@ -294,7 +288,7 @@ export const SECTIONS = [
     sortOptions: [
       {
         value: "newest",
-        label: "Más recientes",
+        label: "Ordenar: Más recientes",
         compare: (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       },
       {
@@ -304,12 +298,12 @@ export const SECTIONS = [
       },
       {
         value: "total-desc",
-        label: "Mayor total",
+        label: "Total: mayor a menor",
         compare: (a, b) => Number(b.totalPrice) - Number(a.totalPrice),
       },
       {
         value: "total-asc",
-        label: "Menor total",
+        label: "Total: menor a mayor",
         compare: (a, b) => Number(a.totalPrice) - Number(b.totalPrice),
       },
     ],

@@ -1,8 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { ApiError, describeError, salesService } from "@/core/api";
+import { ApiError, describeError, productsService, salesService, toList } from "@/core/api";
 
 import { CartContext } from "./cartContext.js";
+
+function toCatalogProduct(record) {
+  return {
+    id: String(record.id),
+    name: record.name,
+    description: record.description ?? "",
+    price: Number(record.unit_price),
+    stock: Number(record.stock_qty ?? 0),
+    imageUrl: record.image_url ?? null,
+  };
+}
 
 const STORAGE_KEY = "suma21.cart.v1";
 /** Código con el que el backend rechaza cambios al carrito mientras hay un pago pendiente. */
@@ -60,6 +71,8 @@ export function CartProvider({ ownerId, children }) {
       : guestState(),
   );
   const [reloadKey, setReloadKey] = useState(0);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [catalogState, setCatalogState] = useState({ loaded: false, products: [] });
   const [lock, setLock] = useState(() => ({ status: ownerId ? "checking" : "ready", blocked: false, error: "" }));
   const blockedRef = useRef(false);
   const lockRequestRef = useRef(null);
@@ -281,12 +294,62 @@ export function CartProvider({ ownerId, children }) {
     setReloadKey((key) => key + 1);
   }, [ownerId]);
 
+  const openDrawer = useCallback(() => setDrawerOpen(true), []);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+  const setCatalogProducts = useCallback((products) => {
+    setCatalogState({ loaded: true, products });
+  }, []);
+
+  useEffect(() => {
+    const hasItems = Object.keys(state.items).length > 0;
+    if ((!hasItems && !drawerOpen) || catalogState.loaded) return undefined;
+    let cancelled = false;
+    productsService
+      .list()
+      .then((payload) => {
+        if (!cancelled) {
+          setCatalogState({ loaded: true, products: toList(payload).map(toCatalogProduct) });
+        }
+      })
+      .catch(() => {
+        // La tienda vuelve a intentar cargar el catálogo con su aviso de error propio.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.items, drawerOpen, catalogState.loaded]);
+
   const value = useMemo(() => {
     const count = Object.values(state.items).reduce((sum, quantity) => sum + quantity, 0);
+    const byId = new Map(catalogState.products.map((product) => [product.id, product]));
+    const lines = catalogState.loaded
+      ? Object.entries(state.items).map(([id, quantity]) => ({
+          product: byId.get(id) ?? {
+            id,
+            name: `Producto #${id} · no disponible`,
+            price: 0,
+            stock: 0,
+          },
+          quantity,
+          unavailable: !byId.has(id),
+        }))
+      : [];
+    const total = lines.reduce((sum, { product, quantity }) => sum + product.price * quantity, 0);
+    const hasUnavailable = lines.some((line) => line.unavailable);
+
     return {
       status: state.status,
       error: state.error,
       items: state.items,
+      lines,
+      total,
+      hasUnavailable,
+      catalogLoaded: catalogState.loaded,
+      productsById: byId,
+      drawerOpen,
+      openDrawer,
+      closeDrawer,
+      setCatalogProducts,
       syncing: state.pending > 0,
       enabled: Boolean(ownerId),
       locked: lock.blocked,
@@ -302,7 +365,24 @@ export function CartProvider({ ownerId, children }) {
       refresh,
       retry,
     };
-  }, [state, lock, ownerId, add, decrement, setQuantity, remove, flush, refresh, retry, refreshPendingStatus]);
+  }, [
+    state,
+    catalogState,
+    drawerOpen,
+    openDrawer,
+    closeDrawer,
+    setCatalogProducts,
+    lock,
+    ownerId,
+    add,
+    decrement,
+    setQuantity,
+    remove,
+    flush,
+    refresh,
+    retry,
+    refreshPendingStatus,
+  ]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
