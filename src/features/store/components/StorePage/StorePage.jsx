@@ -186,7 +186,7 @@ export function StorePage({ session = { authenticated: false, userId: null } }) 
   const locked = session.authenticated && cart.locked;
 
   return (
-    <Section eyebrow="Tienda solidaria" title={STORE_TITLE} description={STORE_DESCRIPTION} headingLevel={1}>
+    <Section title={STORE_TITLE} description={STORE_DESCRIPTION} headingLevel={1}>
       {locked ? (
         <div className={styles.lockNotice} role="status">
           <span className={styles.lockIcon} aria-hidden="true">

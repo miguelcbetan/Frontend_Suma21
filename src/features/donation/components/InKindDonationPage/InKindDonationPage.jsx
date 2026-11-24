@@ -81,7 +81,6 @@ export function InKindDonationPage() {
 
   return (
     <Section
-      eyebrow="Donaciones en especie"
       title="Lo que la fundación necesita"
       description="Estos son los artículos que la fundación está solicitando. Si puedes aportar alguno, contáctanos para coordinar la entrega."
       headingLevel={1}

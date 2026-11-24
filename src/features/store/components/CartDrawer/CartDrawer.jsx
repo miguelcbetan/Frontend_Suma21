@@ -173,15 +173,6 @@ export function CartDrawer({ session = { authenticated: false, userId: null } })
                     ? "Pagar con Wompi"
                     : "Inicia sesión para comprar"
             }
-            note={
-              locked
-                ? LOCKED_MESSAGE
-                : cart.syncing
-                  ? "Guardando cambios en tu cuenta…"
-                  : cart.enabled
-                    ? "Tu carrito se guarda en tu cuenta. El stock se reserva al pagar."
-                    : "Tu carrito se guarda en este navegador. Inicia sesión cuando quieras completar la compra."
-            }
           />
         </div>
       </aside>
