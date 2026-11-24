@@ -1,0 +1,62 @@
+.donorCell,
+.detailCell {
+  display: grid;
+  gap: 2px;
+}
+
+.amountStrong {
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+.subText {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.certCode {
+  color: var(--color-text-muted);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+
+.tabCount {
+  margin-left: 4px;
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-semibold);
+}
+
+.cyclesList {
+  display: grid;
+  gap: var(--space-3);
+  max-height: 22rem;
+  margin: 0;
+  padding: 0 var(--space-1) 0 0;
+  overflow-y: auto;
+  list-style: none;
+  scrollbar-width: thin;
+}
+
+.cycleItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  background: var(--color-gray-50);
+}
+
+.cycleInfo {
+  display: grid;
+  gap: 2px;
+}
+
+.cycleActions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}

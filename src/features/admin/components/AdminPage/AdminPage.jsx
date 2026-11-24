@@ -7,6 +7,7 @@ import { healthService } from "@/core/api";
 import { cx } from "@/core/utils/cx";
 
 import { SECTIONS } from "../../resources.js";
+import { DonationsHistoryPanel } from "../DonationsHistoryPanel";
 import { InKindDonationPanel } from "../InKindDonationPanel";
 import { OverviewPanel } from "../OverviewPanel";
 import { ReportPanel } from "../ReportPanel";
@@ -28,6 +29,14 @@ const OVERVIEW = {
   description: "Estado general de la tienda, el inventario y las ventas. Selecciona un indicador para ver el detalle.",
 };
 
+const DONATIONS_HISTORY = {
+  id: "donations-history",
+  label: "Historial de donaciones",
+  icon: "heart",
+  description:
+    "Todas las donaciones de la fundación en un solo lugar: aportes monetarios únicos, planes del Plan Padrino y donaciones en especie.",
+};
+
 const IN_KIND_DONATION = {
   id: "inkind-donation",
   label: "Donación en especie",
@@ -46,7 +55,7 @@ const SIGNATURES = {
     "Sube o reemplaza las firmas del representante legal y del revisor fiscal que aparecen en los certificados de donación.",
 };
 
-const NAV = [OVERVIEW, ...SECTIONS, IN_KIND_DONATION, SIGNATURES];
+const NAV = [OVERVIEW, ...SECTIONS, DONATIONS_HISTORY, IN_KIND_DONATION, SIGNATURES];
 
 /** Indicador de `GET /health`: confirma que el backend alcanza la base de datos. */
 function ServerStatus() {
@@ -84,6 +93,7 @@ export function AdminPage() {
 
   let panel;
   if (section.id === OVERVIEW.id) panel = <OverviewPanel onNavigate={navigate} />;
+  else if (section.id === DONATIONS_HISTORY.id) panel = <DonationsHistoryPanel />;
   else if (section.id === IN_KIND_DONATION.id) panel = <InKindDonationPanel onNavigate={navigate} />;
   else if (section.id === SIGNATURES.id) panel = <SignaturesPanel />;
   else if (section.report) panel = <ReportPanel key={section.id} section={section} />;

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { inventoryService, productsService, salesService, toList } from "@/core/api";
+import { donationsService, inventoryService, productsService, salesService, toList } from "@/core/api";
 
 import styles from "./OverviewPanel.module.css";
 
@@ -18,6 +18,14 @@ async function settle(promise) {
   }
 }
 
+async function settleHistory(promise) {
+  try {
+    return { status: "ready", data: (await promise) ?? { monetary: [], sponsorPlans: [], inkind: [] } };
+  } catch {
+    return { status: "error", data: { monetary: [], sponsorPlans: [], inkind: [] } };
+  }
+}
+
 /**
  * Indicadores calculados con los listados que ya usa el panel
  * (`GET /products/all`, `GET /inventory`, `GET /sales`). Solo lee datos.
@@ -29,9 +37,12 @@ export function OverviewPanel({ onNavigate }) {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([settle(productsService.listAll()), settle(inventoryService.list()), settle(salesService.list())]).then(
-      ([products, inventory, sales]) => !cancelled && setData({ products, inventory, sales }),
-    );
+    Promise.all([
+      settle(productsService.listAll()),
+      settle(inventoryService.list()),
+      settle(salesService.list()),
+      settleHistory(donationsService.listAllAdmin()),
+    ]).then(([products, inventory, sales, donations]) => !cancelled && setData({ products, inventory, sales, donations }));
     return () => {
       cancelled = true;
     };
@@ -57,7 +68,7 @@ export function OverviewPanel({ onNavigate }) {
     );
   }
 
-  const { products, inventory, sales } = data;
+  const { products, inventory, sales, donations } = data;
   const soldOut = products.data.filter((record) => Number(record.stock_qty ?? 0) <= 0);
   const lowStock = products.data.filter((record) => {
     const stock = Number(record.stock_qty ?? 0);
@@ -67,6 +78,10 @@ export function OverviewPanel({ onNavigate }) {
   const orders = sales.data.filter((record) => record.status !== "DRAFT");
   const pendingSales = orders.filter((record) => record.status === "PENDING");
   const approvedSales = orders.filter((record) => record.status === "APPROVED");
+  const totalDonations =
+    donations.data.monetary.length + donations.data.sponsorPlans.length + donations.data.inkind.length;
+  const approvedMonetary = donations.data.monetary.filter((d) => d.status === "APPROVED").length;
+  const activePlans = donations.data.sponsorPlans.filter((p) => p.status === "ACTIVE").length;
 
   const cards = [
     {
@@ -96,6 +111,15 @@ export function OverviewPanel({ onNavigate }) {
       source: sales,
       value: pendingSales.length,
       detail: `${approvedSales.length} aprobadas de ${orders.length} ventas`,
+    },
+    {
+      id: "donations-history",
+      icon: "heart",
+      tone: "green",
+      label: "Historial de donaciones",
+      source: donations,
+      value: totalDonations,
+      detail: `${approvedMonetary} monetarias aprobadas · ${activePlans} planes activos · ${donations.data.inkind.length} en especie`,
     },
   ];
 

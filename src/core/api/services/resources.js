@@ -172,6 +172,13 @@ export const salesService = {
 
 export const donationsService = {
   /**
+   * Historial administrativo completo de donaciones (`GET /api/v1/donations`, rol `ADMIN`):
+   * incluye monetarias únicas, Plan Padrino con cuotas y en especie.
+   * @returns {Promise<{ monetary: any[], sponsorPlans: any[], inkind: any[] }>}
+   */
+  listAllAdmin: () => request("/donations"),
+
+  /**
    * Donación monetaria del usuario del token; devuelve el checkout de Wompi.
    * @param {{ amount: number }} donation Pesos COP, máximo dos decimales.
    * @returns {Promise<{ donationId: string, checkout: WompiCheckout }>}
