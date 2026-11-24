@@ -1,6 +1,7 @@
 import { inventoryService, productsService, salesService, toList } from "@/core/api";
 import { formatCurrency } from "@/core/utils/currency";
 import { formatDateTimeShort } from "@/core/utils/date";
+import { groupSaleItems } from "@/core/utils/groupSaleItems";
 import { IMAGE_ACCEPT, IMAGE_FORMATS_LABEL, validateImageFile } from "@/core/utils/imageFile";
 
 const SALE_STATUS_LABELS = {
@@ -314,10 +315,15 @@ export const SECTIONS = [
       {
         key: "items",
         label: "Productos",
-        format: (record) =>
-          (record.items ?? [])
+        format: (record) => {
+          const grouped = groupSaleItems(record.items);
+          const head = grouped
+            .slice(0, 3)
             .map((item) => `${item.quantity} × ${item.name ?? `Producto #${item.productId}`}`)
-            .join(", "),
+            .join(", ");
+          const rest = grouped.length - 3;
+          return rest > 0 ? `${head} (+${rest} más)` : head;
+        },
       },
       { key: "totalPrice", label: "Total", format: (record) => money(record.totalPrice) },
       {
