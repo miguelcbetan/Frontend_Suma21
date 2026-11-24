@@ -265,8 +265,8 @@ export const SECTIONS = [
     singular: "venta",
     description: "Compras realizadas en la tienda: aprobadas, pendientes de pago y rechazadas.",
     list: listSalesWithProductNames,
-    searchKeys: ["id", "customerId", "customerName", "status"],
-    searchPlaceholder: "Buscar por venta, cliente o producto…",
+    searchKeys: ["customerId", "customerName", "status"],
+    searchPlaceholder: "Buscar por cliente o producto…",
     getSearchText: (record) =>
       `${record.customerName ?? ""} ${SALE_STATUS_LABELS[record.status] ?? ""} ${(record.items ?? [])
         .map((item) => item.name ?? item.productId)
@@ -312,7 +312,6 @@ export const SECTIONS = [
       },
     ],
     columns: [
-      { key: "id", label: "Venta" },
       { key: "createdAt", label: "Fecha", format: (record) => formatDateTimeShort(record.createdAt) },
       {
         key: "customerName",
