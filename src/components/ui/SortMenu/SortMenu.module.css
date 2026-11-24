@@ -32,6 +32,12 @@
   background: var(--color-gray-50);
 }
 
+.trigger:focus-visible {
+  border-color: var(--color-green-600);
+  outline: none;
+  box-shadow: var(--ring-focus);
+}
+
 .trigger:disabled {
   cursor: not-allowed;
   opacity: 0.6;
@@ -99,6 +105,11 @@
 
 .item:hover {
   background: var(--color-gray-50);
+}
+
+.item:focus-visible {
+  outline: none;
+  background: var(--color-gray-100);
 }
 
 .itemSelected {
