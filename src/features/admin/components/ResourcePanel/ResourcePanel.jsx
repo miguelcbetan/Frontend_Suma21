@@ -263,16 +263,31 @@ export function ResourcePanel({ section }) {
   const stockLabel = stockFlow?.allowDecrease ? "Ajustar stock" : "Aumentar stock";
   const canAdjustStock = Boolean(stockFlow) && state.status === "ready" && state.records.length > 0;
 
+  const iconName = section.id === "products" ? "bag" : "package";
+  const dialogTone = section.id === "products" ? "warm" : "brand";
+
   let dialogContent = null;
   if (dialog?.type === "create") {
     dialogContent = (
-      <FormDialog title={`Nuevo ${singular}`} description="Completa los datos y registra." onClose={closeDialog}>
+      <FormDialog
+        title={`Nuevo ${singular}`}
+        description="Completa los datos para registrarlo en el catálogo."
+        icon={iconName}
+        tone={dialogTone}
+        onClose={closeDialog}
+      >
         <RecordForm fields={fields} submitLabel={`Registrar ${singular}`} onSubmit={handleCreate} onCancel={closeDialog} />
       </FormDialog>
     );
   } else if (dialog?.type === "edit") {
     dialogContent = (
-      <FormDialog title={`Editar ${singular} #${dialog.record.id}`} description={dialog.record.name} onClose={closeDialog}>
+      <FormDialog
+        title={`Editar ${singular} #${dialog.record.id}`}
+        description={dialog.record.name}
+        icon="pencil"
+        tone={dialogTone}
+        onClose={closeDialog}
+      >
         <RecordForm
           fields={editFields}
           record={dialog.record}
@@ -288,6 +303,8 @@ export function ResourcePanel({ section }) {
       <FormDialog
         title={stockLabel}
         description={`Suma${stockFlow.allowDecrease ? " o descuenta" : ""} unidades de un ${singular} existente sin crear uno nuevo.`}
+        icon="sliders"
+        tone="brand"
         onClose={closeDialog}
       >
         <StockForm

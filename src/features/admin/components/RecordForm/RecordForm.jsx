@@ -10,6 +10,13 @@ import { buildBody, initialValues } from "../../formValues.js";
 import { ControlField } from "./ControlField.jsx";
 import styles from "./RecordForm.module.css";
 
+const SPAN_CLASS = {
+  4: styles.span4,
+  6: styles.span6,
+  8: styles.span8,
+  12: styles.span12,
+};
+
 /**
  * Formulario generado desde la definición de campos de `resources.js`.
  * `onSubmit` recibe el cuerpo ya convertido y debe devolver una promesa; si
@@ -66,20 +73,28 @@ export function RecordForm({ fields, initial, record, submitLabel, onSubmit, onC
     <form onSubmit={handleSubmit} noValidate className={styles.form}>
       {formError ? <Alert tone="error">{formError}</Alert> : null}
       <div className={styles.grid}>
-        {fields.map((field) => (
-          <div key={field.name} className={cx(field.full && styles.full)}>
-            <ControlField
-              field={field}
-              value={values[field.name]}
-              error={errors[field.name]}
-              currentUrl={field.type === "file" ? (record?.image_url ?? null) : undefined}
-              onChange={(value) => setValue(field.name, value)}
-            />
-          </div>
-        ))}
+        {fields.map((field) => {
+          const span = field.span ?? (field.full ? 12 : 6);
+          return (
+            <div key={field.name} className={cx(styles.item, SPAN_CLASS[span] ?? styles.span6)}>
+              <ControlField
+                field={field}
+                value={values[field.name]}
+                error={errors[field.name]}
+                currentUrl={field.type === "file" ? (record?.image_url ?? null) : undefined}
+                onChange={(value) => setValue(field.name, value)}
+              />
+            </div>
+          );
+        })}
       </div>
       <div className={styles.footer}>
-        <p className={styles.legend}>Los campos con * son obligatorios.</p>
+        <p className={styles.legend}>
+          <span className={styles.asterisk} aria-hidden="true">
+            *
+          </span>{" "}
+          Campos obligatorios
+        </p>
         <div className={styles.actions}>
           {onCancel ? (
             <Button variant="outline" onClick={onCancel} disabled={pending}>

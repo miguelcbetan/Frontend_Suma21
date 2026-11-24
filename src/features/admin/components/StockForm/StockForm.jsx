@@ -4,6 +4,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { describeError } from "@/core/api";
+import { cx } from "@/core/utils/cx";
 
 import { RecordPicker } from "../RecordPicker";
 
@@ -13,18 +14,6 @@ import styles from "./StockForm.module.css";
  * Opción «ajustar stock de un registro existente»: buscar y elegir el
  * registro, ver su stock actual e indicar si aumenta o disminuye unidades.
  * No crea registros nuevos.
- * @param {{
- *   records: any[],
- *   singular: string,
- *   flow: {
- *     stockKey: string,
- *     allowDecrease: boolean,
- *     describe: (record: any) => string,
- *     apply: (record: any, operation: "increase" | "decrease", quantity: number) => Promise<any>,
- *   },
- *   onDone: (message: string) => Promise<void> | void,
- *   initialId?: string,
- * }} props
  */
 export function StockForm({ records, singular, flow, onDone, initialId = "" }) {
   const [selectedId, setSelectedId] = useState(initialId);
@@ -37,6 +26,7 @@ export function StockForm({ records, singular, flow, onDone, initialId = "" }) {
   const amount = Number(quantity);
   const validAmount = Number.isInteger(amount) && amount >= 1;
   const next = operation === "increase" ? current + amount : current - amount;
+  const previewNext = selected && validAmount ? Math.max(0, next) : null;
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -81,15 +71,19 @@ export function StockForm({ records, singular, flow, onDone, initialId = "" }) {
             </p>
             <p className={styles.name}>{selected.name}</p>
             {selected.description ? <p className={styles.description}>{selected.description}</p> : null}
-            <p>
-              Stock actual: <strong>{current}</strong>
-              {validAmount ? (
+            <div className={styles.meter}>
+              <span className={styles.meterPill}>Actual: {current} uds</span>
+              {previewNext !== null ? (
                 <>
-                  {" "}
-                  → después del ajuste: <strong>{next}</strong>
+                  <span className={styles.arrow} aria-hidden="true">
+                    →
+                  </span>
+                  <span className={cx(styles.meterPill, previewNext === 0 ? styles.meterZero : styles.meterNext)}>
+                    Nuevo stock: {previewNext} uds{previewNext === 0 ? " (agotado)" : ""}
+                  </span>
                 </>
               ) : null}
-            </p>
+            </div>
           </div>
           <Button variant="outline" size="sm" onClick={() => setSelectedId("")}>
             Cambiar
@@ -101,21 +95,50 @@ export function StockForm({ records, singular, flow, onDone, initialId = "" }) {
 
       <div className={styles.grid}>
         {flow.allowDecrease ? (
-          <Field as="select" label="Operación" value={operation} onChange={(event) => setOperation(event.target.value)}>
-            <option value="increase">Aumentar stock</option>
-            <option value="decrease">Disminuir stock</option>
-          </Field>
+          <div className={styles.opGroup}>
+            <span className={styles.opLabel}>Operación</span>
+            <div className={styles.segmented} role="group" aria-label="Tipo de ajuste de stock">
+              <button
+                type="button"
+                className={cx(styles.segButton, operation === "increase" && styles.segActiveIncrease)}
+                aria-pressed={operation === "increase"}
+                onClick={() => {
+                  setOperation("increase");
+                  setState((currentState) => ({ ...currentState, fieldError: "" }));
+                }}
+              >
+                + Aumentar
+              </button>
+              <button
+                type="button"
+                className={cx(styles.segButton, operation === "decrease" && styles.segActiveDecrease)}
+                aria-pressed={operation === "decrease"}
+                disabled={selected && current === 0}
+                onClick={() => {
+                  setOperation("decrease");
+                  setState((currentState) => ({ ...currentState, fieldError: "" }));
+                }}
+              >
+                − Disminuir
+              </button>
+            </div>
+          </div>
         ) : null}
         <Field
           label={operation === "increase" ? "Unidades a agregar" : "Unidades a descontar"}
           type="number"
           inputMode="numeric"
           min={1}
+          max={operation === "decrease" && selected ? Math.max(1, current) : undefined}
           step={1}
+          suffix="uds"
           required
           value={quantity}
           error={state.fieldError}
-          onChange={(event) => setQuantity(event.target.value)}
+          onChange={(event) => {
+            setQuantity(event.target.value);
+            setState((currentState) => ({ ...currentState, fieldError: "" }));
+          }}
         />
       </div>
 

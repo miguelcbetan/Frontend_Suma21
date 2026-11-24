@@ -1,6 +1,8 @@
 import { useId } from "react";
 
 import { Dialog } from "@/components/ui/Dialog";
+import { Icon } from "@/components/ui/Icon";
+import { cx } from "@/core/utils/cx";
 
 import styles from "./FormDialog.module.css";
 
@@ -11,21 +13,30 @@ import styles from "./FormDialog.module.css";
  * @param {{
  *   title: string,
  *   description?: import("react").ReactNode,
+ *   icon?: string,
+ *   tone?: "brand" | "warm",
  *   onClose: () => void,
  *   children: import("react").ReactNode,
  * }} props
  */
-export function FormDialog({ title, description, onClose, children }) {
+export function FormDialog({ title, description, icon, tone = "brand", onClose, children }) {
   const titleId = useId();
 
   return (
     <Dialog open onClose={onClose} labelledBy={titleId} closeLabel="Cerrar" className={styles.dialog}>
       <div className={styles.content}>
         <header className={styles.header}>
-          <h2 id={titleId} className={styles.title}>
-            {title}
-          </h2>
-          {description ? <p className={styles.description}>{description}</p> : null}
+          {icon ? (
+            <span className={cx(styles.badge, styles[tone])} aria-hidden="true">
+              <Icon name={icon} size={22} />
+            </span>
+          ) : null}
+          <div className={styles.headerText}>
+            <h2 id={titleId} className={styles.title}>
+              {title}
+            </h2>
+            {description ? <p className={styles.description}>{description}</p> : null}
+          </div>
         </header>
         <div className={styles.body}>{children}</div>
       </div>

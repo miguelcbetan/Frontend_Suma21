@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { Container } from "@/components/layout/Container";
 import { Badge } from "@/components/ui/Badge";
@@ -8,7 +9,6 @@ import { cx } from "@/core/utils/cx";
 
 import { SECTIONS } from "../../resources.js";
 import { DonationsHistoryPanel } from "../DonationsHistoryPanel";
-import { InKindDonationPanel } from "../InKindDonationPanel";
 import { OverviewPanel } from "../OverviewPanel";
 import { ReportPanel } from "../ReportPanel";
 import { ResourcePanel } from "../ResourcePanel";
@@ -37,15 +37,6 @@ const DONATIONS_HISTORY = {
     "Todas las donaciones de la fundación en un solo lugar: aportes monetarios únicos, planes del Plan Padrino y donaciones en especie.",
 };
 
-const IN_KIND_DONATION = {
-  id: "inkind-donation",
-  label: "Donación en especie",
-  title: "Registrar donación en especie",
-  icon: "package",
-  description:
-    "Registra los artículos que la fundación recibió y los datos del donante. Se suman al stock del inventario, se emite el certificado de donación y se envía al correo del donante.",
-};
-
 const SIGNATURES = {
   id: "signatures",
   label: "Firmas de certificados",
@@ -55,7 +46,7 @@ const SIGNATURES = {
     "Sube o reemplaza las firmas del representante legal y del revisor fiscal que aparecen en los certificados de donación.",
 };
 
-const NAV = [OVERVIEW, ...SECTIONS, DONATIONS_HISTORY, IN_KIND_DONATION, SIGNATURES];
+const NAV = [OVERVIEW, ...SECTIONS, DONATIONS_HISTORY, SIGNATURES];
 
 /** Indicador de `GET /health`: confirma que el backend alcanza la base de datos. */
 function ServerStatus() {
@@ -83,18 +74,26 @@ function ServerStatus() {
 
 /** Panel de administración: un resumen y una sección por grupo de endpoints de `/api/v1` (ver docs/integracion-backend.md). */
 export function AdminPage() {
-  const [activeId, setActiveId] = useState(OVERVIEW.id);
-  const section = NAV.find(({ id }) => id === activeId);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedSection = searchParams.get("seccion");
+  const activeId = requestedSection && NAV.some((item) => item.id === requestedSection) ? requestedSection : OVERVIEW.id;
+  const section = NAV.find(({ id }) => id === activeId) ?? OVERVIEW;
+
+  function selectSection(id) {
+    const next = new URLSearchParams(searchParams);
+    if (id === OVERVIEW.id) next.delete("seccion");
+    else next.set("seccion", id);
+    setSearchParams(next);
+  }
 
   function navigate(id) {
-    setActiveId(id);
+    selectSection(id);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   let panel;
   if (section.id === OVERVIEW.id) panel = <OverviewPanel onNavigate={navigate} />;
   else if (section.id === DONATIONS_HISTORY.id) panel = <DonationsHistoryPanel />;
-  else if (section.id === IN_KIND_DONATION.id) panel = <InKindDonationPanel onNavigate={navigate} />;
   else if (section.id === SIGNATURES.id) panel = <SignaturesPanel />;
   else if (section.report) panel = <ReportPanel key={section.id} section={section} />;
   else panel = <ResourcePanel key={section.id} section={section} />;
@@ -118,10 +117,10 @@ export function AdminPage() {
                 type="button"
                 role="tab"
                 id={`admin-tab-${id}`}
-                aria-selected={id === activeId}
+                aria-selected={id === section.id}
                 aria-controls="admin-panel"
-                className={cx(styles.tab, id === activeId && styles.selected)}
-                onClick={() => setActiveId(id)}
+                className={cx(styles.tab, id === section.id && styles.selected)}
+                onClick={() => selectSection(id)}
               >
                 <Icon name={icon ?? "info"} size={18} />
                 {label}
@@ -130,7 +129,7 @@ export function AdminPage() {
           </div>
         </nav>
 
-        <div role="tabpanel" id="admin-panel" aria-labelledby={`admin-tab-${activeId}`} className={styles.content}>
+        <div role="tabpanel" id="admin-panel" aria-labelledby={`admin-tab-${section.id}`} className={styles.content}>
           <div className={styles.sectionHeader}>
             <h2 className={styles.sectionTitle}>{section.title ?? section.label}</h2>
             {section.description ? <p className={styles.sectionDescription}>{section.description}</p> : null}

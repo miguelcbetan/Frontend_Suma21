@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClassName } from "@/components/ui/Button";
 import { Card, CardBody } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
@@ -472,6 +473,12 @@ export function DonationsHistoryPanel() {
             </span>
           ) : null}
         </h3>
+        {activeTab === "IN_KIND" ? (
+          <Link to="/admin/donacion-en-especie" className={buttonClassName({ size: "sm" })}>
+            <Icon name="plus" size={16} />
+            Registrar donación
+          </Link>
+        ) : null}
       </div>
 
       <Card>

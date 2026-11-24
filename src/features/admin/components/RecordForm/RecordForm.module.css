@@ -1,16 +1,27 @@
 .form {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-5);
 }
 
 .grid {
   display: grid;
   gap: var(--space-4);
+  align-items: start;
+}
+
+.item {
+  min-width: 0;
 }
 
 .legend {
   color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.asterisk {
+  color: var(--color-accent-text);
+  font-weight: var(--font-weight-black);
 }
 
 .footer {
@@ -31,38 +42,214 @@
   margin-left: auto;
 }
 
-.file {
+/* Tarjeta interactiva para booleanos (p. ej. "Solicitado por la fundación") */
+.toggleCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-gray-50);
+  border: var(--border-width) solid var(--color-gray-200);
+  border-radius: 12px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+
+.toggleCard:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.toggleCard:hover {
+  border-color: var(--color-green-200);
+}
+
+.toggleCardActive {
+  background: var(--color-green-50);
+  border-color: var(--color-green-200);
+}
+
+.toggleCopy {
   display: grid;
-  gap: var(--space-3);
+  gap: 0.125rem;
+  min-width: 0;
 }
 
-.preview {
-  display: grid;
-  gap: var(--space-1);
-  justify-items: start;
-  margin: 0;
+.toggleTitle {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
 }
 
-.preview img {
-  width: 10rem;
-  max-width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-md);
+.toggleHint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-snug);
 }
 
-.preview figcaption {
+.switchVisual {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.switchTrack {
+  position: relative;
+  width: 2.5rem;
+  height: 1.5rem;
+  background: var(--color-gray-200);
+  border-radius: var(--radius-full);
+  transition: background-color var(--duration-base) var(--ease-standard);
+}
+
+.switchThumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(1.5rem - 6px);
+  height: calc(1.5rem - 6px);
+  background: var(--color-bg);
+  border-radius: 50%;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+
+.switchTrackOn {
+  background: var(--color-green-600);
+}
+
+.switchTrackOn .switchThumb {
+  transform: translateX(1rem);
+}
+
+.toggleCardActive .switchVisual {
+  color: var(--color-green-700);
+}
+
+/* Selector visual de imagen */
+.file {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.fileLabel {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.fileBox {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-gray-50);
+  border: 1.5px dashed var(--color-border);
+  border-radius: 12px;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
+}
+
+.fileBox:hover {
+  background: var(--color-green-50);
+  border-color: var(--color-green-500);
+}
+
+.fileBoxError {
+  background: var(--color-red-50);
+  border-color: var(--color-danger);
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.thumb {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 5.5rem;
+  height: 4.5rem;
+  overflow: hidden;
+  background: var(--color-bg);
+  border: var(--border-width) solid var(--color-gray-200);
+  border-radius: 10px;
+  color: var(--color-green-700);
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fileMeta {
+  display: grid;
+  flex: 1;
+  gap: 0.25rem;
+  min-width: 11rem;
+}
+
+.fileName {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  overflow-wrap: anywhere;
+}
+
+.fileHint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.fileActions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.fileError {
+  color: var(--color-danger);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
 }
 
 @media (min-width: 48rem) {
   .grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(12, minmax(0, 1fr));
   }
 
-  .full {
+  .span4 {
+    grid-column: span 4;
+  }
+
+  .span6 {
+    grid-column: span 6;
+  }
+
+  .span8 {
+    grid-column: span 8;
+  }
+
+  .span12 {
     grid-column: 1 / -1;
   }
 }

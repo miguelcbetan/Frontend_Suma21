@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Logo } from "@/components/ui/Logo";
 import { ToastProvider } from "@/components/ui/Toast";
 import { TextSizeToggle } from "@/features/accessibility";
-import { AdminPage } from "@/features/admin";
+import { AdminInKindDonationPage, AdminPage } from "@/features/admin";
 import {
   AuthPage,
   AuthProvider,
@@ -37,7 +37,10 @@ const CUSTOMER_NAV = [
   { label: "Mis compras", href: "/mis-compras" },
   { label: "Mis donaciones", href: "/mis-donaciones" },
 ];
-const ADMIN_NAV = [{ label: "Panel admin", href: "/admin" }];
+const ADMIN_NAV = [
+  { label: "Panel admin", href: "/admin" },
+  { label: "Donación en especie", href: "/admin/donacion-en-especie" },
+];
 
 /** Menú según el rol: cliente (DONANTE/CUSTOMER) o administrador. */
 function navItemsFor(status, user) {
@@ -62,6 +65,7 @@ const PAGE_TITLES = {
   "/mis-donaciones": "Mis donaciones",
   "/login": "Iniciar sesión",
   "/admin": "Panel de administración",
+  "/admin/donacion-en-especie": "Registrar donación en especie",
   "/perfil": "Mi perfil",
 };
 
@@ -161,7 +165,10 @@ function Layout() {
     : [
         { label: "Mi perfil", href: "/perfil" },
         ...(isAdmin(user)
-          ? [{ label: "Panel de administración", href: "/admin" }]
+          ? [
+              { label: "Panel de administración", href: "/admin" },
+              { label: "Donación en especie", href: "/admin/donacion-en-especie" },
+            ]
           : [
               { label: "Mis compras", href: "/mis-compras" },
               { label: "Mis donaciones", href: "/mis-donaciones" },
@@ -273,6 +280,14 @@ function Layout() {
           element={
             <RequireRole requiredRole="ADMIN">
               <AdminPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/admin/donacion-en-especie"
+          element={
+            <RequireRole requiredRole="ADMIN">
+              <AdminInKindDonationPage />
             </RequireRole>
           }
         />
