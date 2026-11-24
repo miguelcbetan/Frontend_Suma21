@@ -113,37 +113,45 @@ export function CartDrawer({ session = { authenticated: false, userId: null } })
         </header>
 
         <div className={styles.body}>
-          {locked ? (
-            <Alert tone="warning">
-              <span>{LOCKED_MESSAGE}</span>{" "}
-              <Link to={OPERATIONS_PATH} className={buttonClassName({ size: "sm", variant: "outline" })} onClick={closeDrawer}>
-                Ir a Mis compras
-              </Link>
-            </Alert>
-          ) : null}
+          {locked || cart.error || hasUnavailable || checkout.status === "error" || checkout.status === "blocked" ? (
+            <div className={styles.alerts}>
+              {locked ? (
+                <Alert tone="warning">
+                  <span>{LOCKED_MESSAGE}</span>{" "}
+                  <Link
+                    to={OPERATIONS_PATH}
+                    className={buttonClassName({ size: "sm", variant: "outline" })}
+                    onClick={closeDrawer}
+                  >
+                    Ir a Mis compras
+                  </Link>
+                </Alert>
+              ) : null}
 
-          {cart.error ? (
-            <Alert tone="error">
-              {cart.error}{" "}
-              <Button variant="outline" size="sm" onClick={cart.retry}>
-                Reintentar
-              </Button>
-            </Alert>
-          ) : null}
+              {cart.error ? (
+                <Alert tone="error">
+                  {cart.error}{" "}
+                  <Button variant="outline" size="sm" onClick={cart.retry}>
+                    Reintentar
+                  </Button>
+                </Alert>
+              ) : null}
 
-          {hasUnavailable ? (
-            <Alert tone="error">Quita del carrito los productos que ya no están disponibles para poder pagar.</Alert>
-          ) : null}
+              {hasUnavailable ? (
+                <Alert tone="error">Quita del carrito los productos que ya no están disponibles para poder pagar.</Alert>
+              ) : null}
 
-          {checkout.status === "error" ? <Alert tone="error">{checkout.message}</Alert> : null}
+              {checkout.status === "error" ? <Alert tone="error">{checkout.message}</Alert> : null}
 
-          {checkout.status === "blocked" ? (
-            <Alert tone="info">
-              Tu navegador bloqueó la pestaña de pago.{" "}
-              <a href={checkout.url} target="_blank" rel="noopener noreferrer">
-                Abrir el pago en Wompi
-              </a>
-            </Alert>
+              {checkout.status === "blocked" ? (
+                <Alert tone="info">
+                  Tu navegador bloqueó la pestaña de pago.{" "}
+                  <a href={checkout.url} target="_blank" rel="noopener noreferrer">
+                    Abrir el pago en Wompi
+                  </a>
+                </Alert>
+              ) : null}
+            </div>
           ) : null}
 
           <CartSummary

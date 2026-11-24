@@ -53,69 +53,73 @@ export function CartSummary({
       )}
 
       <div className={styles.body}>
-        {lines.length === 0 ? (
-          <div className={styles.empty}>
-            <Icon name="cart" size={28} />
-            <p>Tu carrito está vacío.</p>
-            <p className={styles.emptyHint}>Agrega productos del catálogo para armar tu pedido.</p>
-          </div>
-        ) : (
-          <ul className={styles.list}>
-            {lines.map(({ product, quantity }) => (
-              <li key={product.id} className={styles.line}>
-                <div className={styles.info}>
-                  <p className={styles.name}>{product.name}</p>
-                  <p className={styles.subtotal}>
-                    {quantity} × {formatCurrency(product.price)}
-                  </p>
-                  {onDelete ? (
-                    <button
-                      type="button"
-                      className={styles.delete}
-                      onClick={() => onDelete(product.id)}
-                      disabled={controlsDisabled}
-                    >
-                      Quitar del carrito
-                    </button>
-                  ) : null}
-                </div>
-                <div className={styles.side}>
-                  <strong className={styles.lineTotal}>{formatCurrency(product.price * quantity)}</strong>
-                  <div className={styles.stepper}>
-                    <button
-                      type="button"
-                      onClick={() => onRemove(product.id)}
-                      disabled={controlsDisabled}
-                      aria-label={`Quitar una unidad: ${product.name}`}
-                    >
-                      −
-                    </button>
-                    <span aria-label={`Cantidad: ${quantity}`}>{quantity}</span>
-                    <button
-                      type="button"
-                      onClick={() => onAdd(product.id)}
-                      disabled={controlsDisabled || quantity >= product.stock}
-                      aria-label={`Agregar una unidad: ${product.name}`}
-                    >
-                      +
-                    </button>
+        <div className={styles.itemsScroll}>
+          {lines.length === 0 ? (
+            <div className={styles.empty}>
+              <Icon name="cart" size={28} />
+              <p>Tu carrito está vacío.</p>
+              <p className={styles.emptyHint}>Agrega productos del catálogo para armar tu pedido.</p>
+            </div>
+          ) : (
+            <ul className={styles.list}>
+              {lines.map(({ product, quantity }) => (
+                <li key={product.id} className={styles.line}>
+                  <div className={styles.info}>
+                    <p className={styles.name}>{product.name}</p>
+                    <p className={styles.subtotal}>
+                      {quantity} × {formatCurrency(product.price)}
+                    </p>
+                    {onDelete ? (
+                      <button
+                        type="button"
+                        className={styles.delete}
+                        onClick={() => onDelete(product.id)}
+                        disabled={controlsDisabled}
+                      >
+                        Quitar del carrito
+                      </button>
+                    ) : null}
                   </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+                  <div className={styles.side}>
+                    <strong className={styles.lineTotal}>{formatCurrency(product.price * quantity)}</strong>
+                    <div className={styles.stepper}>
+                      <button
+                        type="button"
+                        onClick={() => onRemove(product.id)}
+                        disabled={controlsDisabled}
+                        aria-label={`Quitar una unidad: ${product.name}`}
+                      >
+                        −
+                      </button>
+                      <span aria-label={`Cantidad: ${quantity}`}>{quantity}</span>
+                      <button
+                        type="button"
+                        onClick={() => onAdd(product.id)}
+                        disabled={controlsDisabled || quantity >= product.stock}
+                        aria-label={`Agregar una unidad: ${product.name}`}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
-        <p className={styles.total} aria-live="polite">
-          <span>Total</span>
-          <strong>{formatCurrency(total)}</strong>
-        </p>
+        <div className={styles.footer}>
+          <p className={styles.total} aria-live="polite">
+            <span>Total</span>
+            <strong>{formatCurrency(total)}</strong>
+          </p>
 
-        <Button size="lg" block disabled={lines.length === 0 || checkoutDisabled} onClick={onCheckout}>
-          <Icon name="lock" size={18} />
-          {checkoutLabel}
-        </Button>
-        {note ? <p className={styles.note}>{note}</p> : null}
+          <Button size="lg" block disabled={lines.length === 0 || checkoutDisabled} onClick={onCheckout}>
+            <Icon name="lock" size={18} />
+            {checkoutLabel}
+          </Button>
+          {note ? <p className={styles.note}>{note}</p> : null}
+        </div>
       </div>
     </section>
   );

@@ -8,8 +8,6 @@ import { useCart } from "../../cart/useCart.js";
 
 import styles from "./CartLink.module.css";
 
-const PREVIEW_LIMIT = 4;
-
 /**
  * Botón del carrito en la cabecera:
  * - Al hacer hover muestra una vista rápida con los productos y el total.
@@ -40,9 +38,6 @@ export function CartLink() {
     setHovered(false);
     openDrawer();
   }
-
-  const previewLines = lines.slice(0, PREVIEW_LIMIT);
-  const remaining = Math.max(0, lines.length - PREVIEW_LIMIT);
 
   return (
     <div className={styles.wrap} onMouseEnter={showPreview} onMouseLeave={scheduleHidePreview}>
@@ -89,7 +84,7 @@ export function CartLink() {
           ) : (
             <>
               <ul className={styles.previewList}>
-                {previewLines.map(({ product, quantity }) => (
+                {lines.map(({ product, quantity }) => (
                   <li key={product.id} className={styles.previewRow}>
                     <span className={styles.previewName}>
                       {quantity} × {product.name}
@@ -98,9 +93,6 @@ export function CartLink() {
                   </li>
                 ))}
               </ul>
-              {remaining > 0 ? (
-                <p className={styles.previewMore}>+{remaining} producto(s) más en el carrito</p>
-              ) : null}
               <div className={styles.previewTotal}>
                 <span>Total</span>
                 <strong>{formatCurrency(total)}</strong>
